@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
+import { useProgressoSemana } from "@/src/lib/hooks/useProgressoSemana";
 import {
   BOOKS_PT,
   OLD_TESTAMENT_COUNT,
@@ -13,8 +14,13 @@ import {
 } from "@/src/lib/biblia/getBibleApi";
 import { MOODS, REFLECTIONS, VERSE_REFS, encontrarMood, escolherAleatorio } from "@/src/lib/devocional/versiculos";
 import { COMMEMORATIVE_LABELS, obterVersiculoDoDia } from "@/src/lib/devocional/datasComemorativas";
+import { calcularMissoes } from "@/src/lib/devocional/missoes";
 import Mascote from "@/src/components/Mascote";
 import ProgressoTab from "@/src/components/ProgressoTab";
+import TrilhaFases from "@/src/components/TrilhaFases";
+import MissoesCard from "@/src/components/MissoesCard";
+import CompartilharBotoes from "@/src/components/CompartilharBotoes";
+import GuiaLeituraBiblia from "@/src/components/GuiaLeituraBiblia";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -26,6 +32,13 @@ export default function DevocionalApp({ usuario }) {
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario.id);
   const estadoMascote = jaFezHoje ? "feliz" : (ofensiva?.ofensiva_atual ?? 0) === 0 && (ofensiva?.maior_ofensiva ?? 0) > 0 ? "triste" : "neutro";
+
+  // --- Missões (metas curtas, estilo quest de jogo) ----------------------
+  const { progresso: progressoSemana } = useProgressoSemana(usuario.id, gatilhoRecarga);
+  const missoes = useMemo(
+    () => calcularMissoes({ jaFezHoje, progresso: progressoSemana }),
+    [jaFezHoje, progressoSemana]
+  );
 
   // --- Versículo do dia -----------------------------------------------
   const versiculoDoDia = useMemo(() => obterVersiculoDoDia(hoje), [hoje]);
@@ -93,6 +106,19 @@ export default function DevocionalApp({ usuario }) {
   }
 
   const moodInfo = encontrarMood(moodSelecionado);
+
+  // Trilha de fases do devocional de hoje, estilo Duolingo: cada fase só
+  // "libera" quando a anterior é concluída.
+  const fasesDevocional = [
+    { id: "ler", label: "Ler", icone: "📖", status: passo > 0 || concluido ? "completo" : "atual" },
+    {
+      id: "refletir",
+      label: "Refletir",
+      icone: "✍️",
+      status: passo > 1 || concluido ? "completo" : passo === 1 ? "atual" : "bloqueado",
+    },
+    { id: "orar", label: "Orar", icone: "🙏", status: concluido ? "completo" : passo === 2 ? "atual" : "bloqueado" },
+  ];
 
   // --- Leitor da Bíblia completa -----------------------------------------
   const [numeroLivroSelecionado, setNumeroLivroSelecionado] = useState(null);
@@ -209,8 +235,11 @@ export default function DevocionalApp({ usuario }) {
         .book-btn:focus-visible, .chap-btn:focus-visible, .tab-btn:focus-visible {
           outline: 2px solid #B98B4E; outline-offset: 2px;
         }
-        .action-btn { transition: transform 0.15s ease, opacity 0.15s ease; }
+        .action-btn { transition: transform 0.1s ease, opacity 0.15s ease, box-shadow 0.1s ease; }
         .action-btn:hover { transform: translateY(-1px); opacity: 0.92; }
+        .action-btn.chunky:active, .mood-btn:active, .book-btn:active, .chap-btn:active {
+          transform: translateY(3px); filter: brightness(0.97);
+        }
         @media (prefers-reduced-motion: reduce) { .glow, .flame-icon { animation: none; } }
       `}</style>
 
@@ -285,6 +314,15 @@ export default function DevocionalApp({ usuario }) {
                 <p style={styles.loadingText}>Carregando...</p>
               )}
               <p style={styles.verseRef}>— {versiculoDoDia.label}</p>
+              {textoDoDia && (
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
+                  <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <MissoesCard missoes={missoes} />
             </div>
 
             {!devocional && (
@@ -312,6 +350,8 @@ export default function DevocionalApp({ usuario }) {
                   <span style={styles.devotionalHeaderText}>Devocional — {moodInfo.label.toLowerCase()}</span>
                 </div>
 
+                <TrilhaFases orientation="horizontal" fases={fasesDevocional} />
+
                 {passo === 0 && (
                   <div style={styles.stepBlock}>
                     <p style={styles.stepLabel}>1. Leia com calma</p>
@@ -323,7 +363,12 @@ export default function DevocionalApp({ usuario }) {
                       <p style={styles.verseTextSmall}>&ldquo;{devocional.texto}&rdquo;</p>
                     )}
                     <p style={styles.verseRef}>— {devocional.label}</p>
-                    <button className="action-btn" style={styles.primaryBtn} onClick={() => setPasso(1)} disabled={carregandoDevocional}>
+                    {devocional.texto && (
+                      <div style={{ marginTop: 4 }}>
+                        <CompartilharBotoes texto={`"${devocional.texto}" — ${devocional.label}`} />
+                      </div>
+                    )}
+                    <button className="action-btn chunky" style={styles.primaryBtn} onClick={() => setPasso(1)} disabled={carregandoDevocional}>
                       Continuar
                     </button>
                   </div>
@@ -343,10 +388,10 @@ export default function DevocionalApp({ usuario }) {
                       rows={4}
                     />
                     <div style={styles.btnRow}>
-                      <button className="action-btn" style={styles.secondaryBtn} onClick={() => setPasso(0)}>
+                      <button className="action-btn chunky" style={styles.secondaryBtn} onClick={() => setPasso(0)}>
                         Voltar
                       </button>
-                      <button className="action-btn" style={styles.primaryBtn} onClick={() => setPasso(2)}>
+                      <button className="action-btn chunky" style={styles.primaryBtn} onClick={() => setPasso(2)}>
                         Continuar
                       </button>
                     </div>
@@ -366,7 +411,7 @@ export default function DevocionalApp({ usuario }) {
                         nela, o que eu preciso agora. Amém.&rdquo;
                       </p>
                     </div>
-                    <button className="action-btn" style={styles.primaryBtn} onClick={concluirDevocional}>
+                    <button className="action-btn chunky" style={styles.primaryBtn} onClick={concluirDevocional}>
                       Concluir devocional
                     </button>
                   </div>
@@ -379,7 +424,7 @@ export default function DevocionalApp({ usuario }) {
                     </p>
                     <p style={styles.sectionTitle}>Ofensiva de {ofensiva?.ofensiva_atual ?? 1} {ofensiva?.ofensiva_atual === 1 ? "dia" : "dias"}!</p>
                     <p style={styles.sectionSubtitle}>Volte amanhã para manter sua sequência viva.</p>
-                    <button className="action-btn" style={styles.primaryBtn} onClick={reiniciarDevocional}>
+                    <button className="action-btn chunky" style={styles.primaryBtn} onClick={reiniciarDevocional}>
                       Voltar ao início
                     </button>
                   </div>
@@ -420,6 +465,8 @@ export default function DevocionalApp({ usuario }) {
 
             {!numeroLivroSelecionado && (
               <>
+                <GuiaLeituraBiblia onAbrirLivro={abrirLivro} />
+
                 <h2 style={styles.sectionTitle}>Escolha um livro</h2>
                 <p style={styles.sectionSubtitle}>
                   Texto completo em português (Almeida, 1911 — domínio público), buscado ao vivo.
@@ -743,6 +790,7 @@ const styles = {
     padding: "14px 6px",
     borderRadius: 14,
     border: "1px solid #E7E0D0",
+    borderBottom: "3px solid #D8CFB8",
     background: "#FBF9F3",
     cursor: "pointer",
   },
@@ -814,10 +862,11 @@ const styles = {
   },
   btnRow: { display: "flex", gap: 10, marginTop: 16 },
   primaryBtn: {
-    background: "#B98B4E",
+    background: "linear-gradient(180deg, #C89A5E 0%, #B98B4E 100%)",
     color: "#FFFFFF",
     border: "none",
-    borderRadius: 10,
+    borderBottom: "4px solid #8A6224",
+    borderRadius: 12,
     padding: "12px 20px",
     fontWeight: 700,
     fontSize: 14,
@@ -825,10 +874,11 @@ const styles = {
     marginTop: 16,
   },
   secondaryBtn: {
-    background: "transparent",
+    background: "#FBF9F3",
     color: "#7A8A7F",
     border: "1px solid #E7E0D0",
-    borderRadius: 10,
+    borderBottom: "4px solid #D8CFB8",
+    borderRadius: 12,
     padding: "12px 20px",
     fontWeight: 700,
     fontSize: 14,

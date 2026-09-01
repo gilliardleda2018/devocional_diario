@@ -2,16 +2,28 @@
 
 import { useEstatisticas } from "@/src/lib/hooks/useEstatisticas";
 import { useRanking } from "@/src/lib/hooks/useRanking";
-import { obterNivel } from "@/src/lib/devocional/niveis";
-import { calcularBadges } from "@/src/lib/devocional/badges";
+import { NIVEIS, obterNivel } from "@/src/lib/devocional/niveis";
+import { calcularConquistas } from "@/src/lib/devocional/badges";
+import TrilhaFases from "@/src/components/TrilhaFases";
+import CompartilharBotoes from "@/src/components/CompartilharBotoes";
 
 export default function ProgressoTab({ usuarioId, nomeExibicao, gatilhoRecarga }) {
   const { stats, carregando: carregandoStats } = useEstatisticas(usuarioId, gatilhoRecarga);
   const { ranking, minhaPosicao, carregando: carregandoRanking } = useRanking(usuarioId);
 
   const nivel = obterNivel(stats?.xp_total ?? 0);
-  const badges = calcularBadges(stats);
-  const badgesConquistadas = badges.filter((b) => b.conquistada);
+  const { tieradas: conquistasTieradas, unica: conquistaUnica } = calcularConquistas(stats);
+  const totalConquistado = conquistasTieradas.filter((c) => c.conquistada).length + (conquistaUnica.conquistada ? 1 : 0);
+  const totalConquistas = conquistasTieradas.length + 1;
+
+  // Jornada estilo Duolingo: cada nível é uma fase na trilha -- as que já
+  // ficaram para trás estão completas, a atual está em destaque, e as
+  // seguintes aparecem bloqueadas até o usuário chegar lá.
+  const fasesJornada = NIVEIS.map((n, i) => ({
+    id: n.titulo,
+    label: n.titulo,
+    status: i < nivel.indice ? "completo" : i === nivel.indice ? "atual" : "bloqueado",
+  }));
 
   return (
     <div style={styles.wrap}>
@@ -30,20 +42,90 @@ export default function ProgressoTab({ usuarioId, nomeExibicao, gatilhoRecarga }
         )}
       </div>
 
-      {/* Badges */}
+      {/* Jornada: trilha de níveis, estilo mapa de fases de jogo */}
+      <div style={{ marginTop: 28 }}>
+        <h2 style={styles.sectionTitle}>Sua jornada</h2>
+        <p style={styles.sectionSubtitle}>Cada devocional te leva um passo adiante na trilha.</p>
+        <div style={styles.jornadaCard}>
+          <TrilhaFases orientation="vertical" fases={fasesJornada} />
+        </div>
+      </div>
+
+      {/* Conquistas com níveis (Bronze/Prata/Ouro/Diamante), estilo jogo */}
       <div style={{ marginTop: 24 }}>
         <h2 style={styles.sectionTitle}>
-          Conquistas {!carregandoStats && `(${badgesConquistadas.length}/${badges.length})`}
+          Conquistas {!carregandoStats && `(${totalConquistado}/${totalConquistas})`}
         </h2>
-        <div style={styles.badgeGrid}>
-          {badges.map((b) => (
-            <div key={b.id} style={b.conquistada ? styles.badgeCardAtiva : styles.badgeCardInativa} title={b.descricao}>
-              <span style={{ fontSize: 26, filter: b.conquistada ? "none" : "grayscale(1)", opacity: b.conquistada ? 1 : 0.4 }}>
-                {b.icone}
-              </span>
-              <span style={styles.badgeNome}>{b.nome}</span>
+        <p style={styles.sectionSubtitle}>Suba de nível em cada categoria conforme você usa o app.</p>
+
+        <div style={styles.listaConquistas}>
+          {conquistasTieradas.map((c) => (
+            <div key={c.id} style={{ ...styles.conquistaCard, ...(c.conquistada ? {} : styles.conquistaCardInativa) }}>
+              <div style={styles.conquistaTopo}>
+                <span style={styles.conquistaIconeGrande}>{c.icone}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={styles.conquistaLinhaNome}>
+                    <span style={styles.conquistaNome}>{c.nome}</span>
+                    {c.nivelAtual && (
+                      <span style={{ ...styles.medalhaTag, color: c.nivelAtual.cor }}>
+                        {c.nivelAtual.medalha} {c.nivelAtual.nome}
+                      </span>
+                    )}
+                  </div>
+                  <p style={styles.conquistaDescricao}>
+                    {c.nivelMaximo ? "Nível máximo alcançado!" : c.descricao}
+                  </p>
+                </div>
+              </div>
+
+              {!c.nivelMaximo && (
+                <>
+                  <div style={{ ...styles.barraFundo, marginTop: 10 }}>
+                    <div style={{ ...styles.barraProgresso, width: `${Math.round(c.progresso * 100)}%` }} />
+                  </div>
+                  <p style={styles.conquistaFracao}>
+                    {c.valor}/{c.metaProxima} · próximo: {c.proximoNivel.medalha} {c.proximoNivel.nome}
+                  </p>
+                </>
+              )}
+
+              {c.conquistada && (
+                <div style={{ marginTop: 10 }}>
+                  <CompartilharBotoes
+                    compact
+                    texto={`${c.nivelAtual.medalha} Alcancei o nível ${c.nivelAtual.nome} em "${c.nome}" no Devocional Diário!`}
+                  />
+                </div>
+              )}
             </div>
           ))}
+
+          {/* Conquista única, sem níveis */}
+          <div style={{ ...styles.conquistaCard, ...(conquistaUnica.conquistada ? {} : styles.conquistaCardInativa) }}>
+            <div style={styles.conquistaTopo}>
+              <span
+                style={{
+                  ...styles.conquistaIconeGrande,
+                  filter: conquistaUnica.conquistada ? "none" : "grayscale(1)",
+                  opacity: conquistaUnica.conquistada ? 1 : 0.4,
+                }}
+              >
+                {conquistaUnica.icone}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={styles.conquistaNome}>{conquistaUnica.nome}</span>
+                <p style={styles.conquistaDescricao}>{conquistaUnica.descricao}</p>
+              </div>
+            </div>
+            {conquistaUnica.conquistada && (
+              <div style={{ marginTop: 10 }}>
+                <CompartilharBotoes
+                  compact
+                  texto={`🙏 Desbloqueei a conquista "${conquistaUnica.nome}" no Devocional Diário!`}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -131,39 +213,35 @@ const styles = {
     color: "#7A8A7F",
     margin: "0 0 14px",
   },
-  badgeGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 10,
-  },
-  badgeCardAtiva: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 6,
-    padding: "14px 6px",
-    borderRadius: 14,
-    border: "1px solid #F0DFAF",
-    background: "#FFFDF7",
-    boxShadow: "0 4px 14px rgba(217,169,76,0.18)",
-  },
-  badgeCardInativa: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 6,
-    padding: "14px 6px",
-    borderRadius: 14,
-    border: "1px solid #E7E0D0",
+  jornadaCard: {
     background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 18,
+    padding: "18px 10px 24px",
+    display: "flex",
+    justifyContent: "center",
+    overflow: "hidden",
   },
-  badgeNome: {
-    fontSize: 10.5,
-    fontWeight: 600,
-    color: "#3C4A3F",
-    textAlign: "center",
-    lineHeight: 1.2,
+  listaConquistas: { display: "flex", flexDirection: "column", gap: 12 },
+  conquistaCard: {
+    background: "#FFFDF7",
+    border: "1px solid #F0DFAF",
+    borderRadius: 16,
+    padding: "14px 16px",
+    boxShadow: "0 4px 14px rgba(217,169,76,0.12)",
   },
+  conquistaCardInativa: {
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    boxShadow: "none",
+  },
+  conquistaTopo: { display: "flex", alignItems: "flex-start", gap: 12 },
+  conquistaIconeGrande: { fontSize: 28, flexShrink: 0, lineHeight: 1 },
+  conquistaLinhaNome: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
+  conquistaNome: { fontSize: 14.5, fontWeight: 700, color: "#33422F" },
+  medalhaTag: { fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" },
+  conquistaDescricao: { fontSize: 12.5, color: "#7A8A7F", margin: "2px 0 0" },
+  conquistaFracao: { fontSize: 11, color: "#9AA79C", fontWeight: 600, margin: "6px 0 0" },
   loadingText: {
     fontSize: 13,
     color: "#9AA79C",

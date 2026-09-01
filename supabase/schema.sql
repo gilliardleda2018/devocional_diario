@@ -247,6 +247,34 @@ $$;
 grant execute on function public.obter_minha_posicao() to authenticated;
 
 -- ============================================================================
+-- Função: obter_progresso_semana
+-- Usada pelo card de "Missões" (metas curtas, estilo quest de jogo) na tela
+-- inicial: quantos devocionais nos últimos 7 dias, quantos temas distintos
+-- nesse período, e se a reflexão de hoje já foi escrita.
+-- ============================================================================
+create or replace function public.obter_progresso_semana()
+returns table(
+  devocionais_semana bigint,
+  temas_semana bigint,
+  refletiu_hoje boolean
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    (select count(*) from public.devotional_logs where user_id = auth.uid() and data >= current_date - interval '6 days'),
+    (select count(distinct tema_oracao) from public.devotional_logs where user_id = auth.uid() and tema_oracao is not null and data >= current_date - interval '6 days'),
+    exists(
+      select 1 from public.devotional_logs
+      where user_id = auth.uid() and data = current_date
+        and reflexao is not null and length(trim(reflexao)) > 0
+    );
+$$;
+
+grant execute on function public.obter_progresso_semana() to authenticated;
+
+-- ============================================================================
 -- Trigger: cria a linha em profiles e em streaks automaticamente quando
 -- alguém se cadastra (Google OAuth ou magic link) -- sem isso, a primeira
 -- consulta a "streaks" pra um usuário novo não acharia nada.
