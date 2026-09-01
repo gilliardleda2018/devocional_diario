@@ -1,13 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
+// useSearchParams() exige um limite de Suspense no App Router -- sem isso o
+// build falha/avisa. O fallback abaixo praticamente não aparece (é só o
+// tempo de ler o parâmetro "erro" da URL, instantâneo).
 export default function PaginaLogin() {
+  return (
+    <Suspense fallback={<div style={styles.page} />}>
+      <FormularioLogin />
+    </Suspense>
+  );
+}
+
+function FormularioLogin() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [linkEnviado, setLinkEnviado] = useState(false);
   const [erro, setErro] = useState(null);
+
+  // Erro vindo da rota /auth/callback (ex: link de e-mail expirado, usado
+  // em outro navegador, ou já utilizado antes).
+  useEffect(() => {
+    const erroDaUrl = searchParams.get("erro");
+    if (erroDaUrl) setErro(erroDaUrl);
+  }, [searchParams]);
 
   async function entrarComGoogle() {
     setErro(null);
