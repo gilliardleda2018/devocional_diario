@@ -25,6 +25,9 @@ import OfensivaCard from "@/src/components/OfensivaCard";
 import QuizVersiculo from "@/src/components/QuizVersiculo";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
 import GuiaLeituraBiblia from "@/src/components/GuiaLeituraBiblia";
+import AudioPlayer from "@/src/components/AudioPlayer";
+import LembreteModal from "@/src/components/LembreteModal";
+import CardDoacao from "@/src/components/CardDoacao";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -33,6 +36,7 @@ export default function DevocionalApp({ usuario }) {
 
   const [aba, setAba] = useState("inicio");
   const [gatilhoRecarga, setGatilhoRecarga] = useState(0);
+  const [modalLembreteAberto, setModalLembreteAberto] = useState(false);
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario.id);
   const estadoMascote = jaFezHoje ? "feliz" : (ofensiva?.ofensiva_atual ?? 0) === 0 && (ofensiva?.maior_ofensiva ?? 0) > 0 ? "triste" : "neutro";
@@ -290,6 +294,14 @@ export default function DevocionalApp({ usuario }) {
         <div style={styles.topBar}>
           <span style={styles.topBarUser}>Olá, {nomeExibicao}</span>
           <div style={styles.topBarRight}>
+            <button
+              className="action-btn"
+              style={{ ...styles.linkBtn, padding: "4px 8px", fontSize: 16 }}
+              onClick={() => setModalLembreteAberto(true)}
+              title="Configurar Lembrete Diário"
+            >
+              🔔
+            </button>
             <span style={styles.ofensivaChip} title={`Maior sequência: ${ofensiva?.maior_ofensiva ?? 0} dias`}>
               <span className="flame-icon">🔥</span> {ofensiva?.ofensiva_atual ?? 0}
             </span>
@@ -298,6 +310,8 @@ export default function DevocionalApp({ usuario }) {
             </button>
           </div>
         </div>
+
+        <LembreteModal aberto={modalLembreteAberto} aoFechar={() => setModalLembreteAberto(false)} />
 
         {/* HERO */}
         <div style={styles.hero}>
@@ -365,9 +379,12 @@ export default function DevocionalApp({ usuario }) {
               )}
               <p style={styles.verseRef}>— {versiculoDoDia.label}</p>
               {textoDoDia && (
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
-                  <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
-                </div>
+                <>
+                  <AudioPlayer texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} rotulo="Ouvir versículo" />
+                  <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
+                    <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
+                  </div>
+                </>
               )}
             </div>
 
@@ -424,9 +441,12 @@ export default function DevocionalApp({ usuario }) {
                     )}
                     <p style={styles.verseRef}>— {devocional.label}</p>
                     {devocional.texto && (
-                      <div style={{ marginTop: 4 }}>
-                        <CompartilharBotoes texto={`"${devocional.texto}" — ${devocional.label}`} />
-                      </div>
+                      <>
+                        <AudioPlayer texto={`"${devocional.texto}" — ${devocional.label}`} rotulo="Ouvir leitura" />
+                        <div style={{ marginTop: 4 }}>
+                          <CompartilharBotoes texto={`"${devocional.texto}" — ${devocional.label}`} />
+                        </div>
+                      </>
                     )}
                     <button className="action-btn chunky" style={styles.primaryBtn} onClick={() => setPasso(1)} disabled={carregandoDevocional}>
                       Continuar
@@ -491,6 +511,8 @@ export default function DevocionalApp({ usuario }) {
                 )}
               </div>
             )}
+
+            <CardDoacao />
 
             <p style={styles.footnote}>
               Os versículos deste devocional são buscados ao vivo da tradução de Almeida (domínio público) — a mesma fonte

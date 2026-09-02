@@ -2,9 +2,10 @@
  * Missões, estilo jogo: metas curtas e recorrentes (diárias e semanais)
  * que complementam as conquistas (badges, que são pra sempre). Os números
  * vêm da função RPC obter_progresso_semana() (ver supabase/schema.sql) e
- * do `jaFezHoje` que já existe no hook useOfensiva.
+ * do `jaFezHoje` que já existe no hook useOfensiva. `quizRespondidas` é
+ * local à sessão (não persiste no banco) -- ver src/components/QuizVersiculo.jsx.
  */
-export function calcularMissoes({ jaFezHoje, progresso }) {
+export function calcularMissoes({ jaFezHoje, progresso, quizRespondidas = 0 }) {
   const devocionaisSemana = progresso?.devocionais_semana ?? 0;
   const temasSemana = progresso?.temas_semana ?? 0;
   const refletiuHoje = progresso?.refletiu_hoje ?? false;
@@ -27,6 +28,15 @@ export function calcularMissoes({ jaFezHoje, progresso }) {
       descricao: "Escreva uma reflexão no devocional de hoje.",
       atual: refletiuHoje ? 1 : 0,
       meta: 1,
+    },
+    {
+      id: "quiz_hoje",
+      tipo: "diaria",
+      icone: "🧠",
+      titulo: "Quiz do dia",
+      descricao: "Responda as perguntas sobre o versículo de hoje.",
+      atual: Math.min(quizRespondidas, 2),
+      meta: 2,
     },
     {
       id: "semana_constante",

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
+import CardDoacao from "@/src/components/CardDoacao";
 
 // useSearchParams() exige um limite de Suspense no App Router -- sem isso o
 // build falha/avisa. O fallback abaixo praticamente não aparece (é só o
@@ -97,6 +98,7 @@ function FormularioLogin() {
               <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
                 {enviando ? "Enviando..." : "Enviar link de acesso"}
               </button>
+              <CardDoacao compacto={true} />
             </form>
           )}
 
@@ -222,6 +224,14 @@ const styles = {
     color: "#B15A4A",
     marginTop: 12,
     marginBottom: 0,
+  },
+  donationText: {
+    fontSize: 11.5,
+    color: "#9AA79C",
+    lineHeight: 1.5,
+    marginTop: 12,
+    marginBottom: 0,
+    textAlign: "center",
   },
   footnote: {
     fontSize: 11.5,

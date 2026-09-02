@@ -119,13 +119,63 @@ function montarPerguntaLacuna(texto) {
   };
 }
 
+/** Pergunta 3: Ordenação de blocos de texto (estilo Duolingo). */
+function montarPerguntaOrdenacao(texto) {
+  if (!texto) return null;
+  const palavras = texto.split(/\s+/).filter(Boolean);
+  if (palavras.length < 5 || palavras.length > 25) return null;
+
+  // Divide o texto em 4 a 6 blocos curtos de palavras
+  const numBlocos = Math.min(6, Math.max(4, Math.floor(palavras.length / 3)));
+  const tamanhoBloco = Math.ceil(palavras.length / numBlocos);
+  const blocos = [];
+
+  for (let i = 0; i < palavras.length; i += tamanhoBloco) {
+    blocos.push(palavras.slice(i, i + tamanhoBloco).join(" "));
+  }
+
+  if (blocos.length < 3) return null;
+
+  const blocosEmbaralhados = embaralhar(blocos);
+
+  return {
+    id: "ordenacao",
+    pergunta: "Ordene os blocos para montar a mensagem do versículo:",
+    blocos: blocosEmbaralhados,
+    respostaCorreta: blocos, // Array de blocos na ordem original
+  };
+}
+
+/** Pergunta 4: Testamento / Origem da passagem. */
+function montarPerguntaOrigem(entrada) {
+  if (!entrada || !entrada.ref) return null;
+  const ref = entrada.ref;
+
+  const ehNovoTestamento = /^(Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation)/i.test(ref);
+
+  const respostaCorreta = ehNovoTestamento ? "Novo Testamento" : "Antigo Testamento";
+  const opcoes = ["Antigo Testamento", "Novo Testamento"];
+
+  return {
+    id: "origem",
+    pergunta: "Este versículo pertence a qual parte da Bíblia?",
+    opcoes,
+    respostaCorreta,
+  };
+}
+
 /**
- * Monta o quiz completo (até 2 perguntas) pro versículo do dia. Pode
- * retornar menos de 2 perguntas em casos raros (ex: texto muito curto sem
- * palavra boa pra lacuna) -- o componente lida com isso mostrando só o que
- * conseguiu montar.
+ * Monta o quiz completo (com variação de perguntas) pro versículo do dia.
  */
 export function montarQuizDoDia(entrada, texto) {
-  const perguntas = [montarPerguntaContexto(entrada), montarPerguntaLacuna(texto)].filter(Boolean);
-  return perguntas;
+  const perguntasPossiveis = [
+    montarPerguntaContexto(entrada),
+    montarPerguntaLacuna(texto),
+    montarPerguntaOrdenacao(texto),
+    montarPerguntaOrigem(entrada),
+  ].filter(Boolean);
+
+  // Retorna até 2 ou 3 perguntas variadas a cada sessão
+  return perguntasPossiveis.slice(0, 3);
 }
+

@@ -1,5 +1,7 @@
 "use client";
 
+import CompartilharBotoes from "@/src/components/CompartilharBotoes";
+
 /**
  * Painel de Missões, estilo quest de jogo: metas curtas (diárias e
  * semanais) que dão um objetivo claro pra abrir o app hoje, além do
@@ -7,6 +9,8 @@
  * progresso de cada uma é calculado.
  */
 export default function MissoesCard({ missoes }) {
+  const concluidas = missoes.filter((m) => m.atual >= m.meta).length;
+
   return (
     <div style={estilos.card}>
       <p style={estilos.titulo}>Missões</p>
@@ -47,6 +51,18 @@ export default function MissoesCard({ missoes }) {
           );
         })}
       </div>
+
+      {concluidas > 0 && (
+        <div style={estilos.compartilharLinha}>
+          <span style={estilos.compartilharTexto}>
+            {concluidas}/{missoes.length} missões cumpridas
+          </span>
+          <CompartilharBotoes
+            compact
+            texto={`🎯 Cumpri ${concluidas}/${missoes.length} missões no Devocional Diário!`}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -107,4 +123,15 @@ const estilos = {
   barraFundo: { height: 7, borderRadius: 999, background: "#EFEAD9", overflow: "hidden" },
   barraProgresso: { height: "100%", borderRadius: 999, transition: "width 0.4s ease" },
   fracao: { flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "#9AA79C", minWidth: 28, textAlign: "right" },
+  compartilharLinha: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTop: "1px solid #EFEAD9",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  compartilharTexto: { fontSize: 12, fontWeight: 700, color: "#7A8A7F" },
 };

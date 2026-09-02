@@ -1,0 +1,12 @@
+{
+  "appId": "com.aggillintelligence.devocionaldiario",
+  "appName": "Devocional Diário",
+  "webDir": "public",
+  "server": {
+    "url": "https://main.d357ab4gel6chc.amplifyapp.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
