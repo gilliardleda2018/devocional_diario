@@ -30,7 +30,12 @@ export function useAmigos(usuarioId) {
       supabase.rpc("obter_pedidos_pendentes"),
       supabase.rpc("obter_meu_codigo_amigo"),
     ]);
-    if (!respostaAmigos.error) setAmigos(respostaAmigos.data ?? []);
+    if (respostaAmigos.error) {
+      console.error("Erro ao carregar amigos:", respostaAmigos.error);
+      setErro(respostaAmigos.error.message);
+    } else {
+      setAmigos(respostaAmigos.data ?? []);
+    }
     if (!respostaPedidos.error) setPedidos(respostaPedidos.data ?? []);
     if (!respostaCodigo.error) setMeuCodigo(respostaCodigo.data ?? null);
     setCarregando(false);

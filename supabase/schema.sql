@@ -367,18 +367,16 @@ begin
   if v_existente.id is not null then
     if v_existente.status = 'aceita' then
       raise exception 'Vocês já são amigos';
-    elsif v_existente.solicitante_id = v_destinatario_id and v_existente.status = 'pendente' then
+    else
       update public.amizades set status = 'aceita', respondido_em = now()
         where id = v_existente.id
         returning * into v_resultado;
       return v_resultado;
-    else
-      raise exception 'Pedido já enviado, aguardando resposta';
     end if;
   end if;
 
-  insert into public.amizades (solicitante_id, destinatario_id)
-    values (auth.uid(), v_destinatario_id)
+  insert into public.amizades (solicitante_id, destinatario_id, status, respondido_em)
+    values (auth.uid(), v_destinatario_id, 'aceita', now())
     returning * into v_resultado;
   return v_resultado;
 end;
