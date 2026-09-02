@@ -9,6 +9,7 @@ import {
   BOOKS_PT,
   OLD_TESTAMENT_COUNT,
   buscarLivro,
+  buscarCapitulo,
   buscarTextoReferencia,
   interpretarReferenciaPortugues,
 } from "@/src/lib/biblia/getBibleApi";
@@ -17,8 +18,11 @@ import { COMMEMORATIVE_LABELS, obterVersiculoDoDia } from "@/src/lib/devocional/
 import { calcularMissoes } from "@/src/lib/devocional/missoes";
 import Mascote from "@/src/components/Mascote";
 import ProgressoTab from "@/src/components/ProgressoTab";
+import AmigosTab from "@/src/components/AmigosTab";
 import TrilhaFases from "@/src/components/TrilhaFases";
 import MissoesCard from "@/src/components/MissoesCard";
+import OfensivaCard from "@/src/components/OfensivaCard";
+import QuizVersiculo from "@/src/components/QuizVersiculo";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
 import GuiaLeituraBiblia from "@/src/components/GuiaLeituraBiblia";
 
@@ -35,9 +39,10 @@ export default function DevocionalApp({ usuario }) {
 
   // --- Missões (metas curtas, estilo quest de jogo) ----------------------
   const { progresso: progressoSemana } = useProgressoSemana(usuario.id, gatilhoRecarga);
+  const [quizRespondidas, setQuizRespondidas] = useState(0);
   const missoes = useMemo(
-    () => calcularMissoes({ jaFezHoje, progresso: progressoSemana }),
-    [jaFezHoje, progressoSemana]
+    () => calcularMissoes({ jaFezHoje, progresso: progressoSemana, quizRespondidas }),
+    [jaFezHoje, progressoSemana, quizRespondidas]
   );
 
   // --- Versículo do dia -----------------------------------------------
@@ -129,6 +134,9 @@ export default function DevocionalApp({ usuario }) {
   const [capituloPendente, setCapituloPendente] = useState(null);
   const [buscaTexto, setBuscaTexto] = useState("");
   const [erroBusca, setErroBusca] = useState(false);
+  const [versiculosDoCapitulo, setVersiculosDoCapitulo] = useState(null);
+  const [carregandoCapitulo, setCarregandoCapitulo] = useState(false);
+  const [erroCapitulo, setErroCapitulo] = useState(false);
 
   async function abrirLivro(numero, capituloInicial) {
     setNumeroLivroSelecionado(numero);
@@ -159,6 +167,34 @@ export default function DevocionalApp({ usuario }) {
     }
   }, [dadosLivro, capituloPendente]);
 
+  // Busca o texto do capítulo só quando o usuário realmente abre ele --
+  // cada capítulo vem sob demanda da API agora (em vez do livro inteiro de
+  // uma vez), então isso substitui o que antes era só um `.find()` síncrono
+  // dentro de `dadosLivro.chapters`.
+  useEffect(() => {
+    if (numeroLivroSelecionado == null || capituloSelecionado == null) {
+      setVersiculosDoCapitulo(null);
+      return;
+    }
+    let vivo = true;
+    setVersiculosDoCapitulo(null);
+    setErroCapitulo(false);
+    setCarregandoCapitulo(true);
+    buscarCapitulo(numeroLivroSelecionado, capituloSelecionado)
+      .then((dados) => {
+        if (vivo) setVersiculosDoCapitulo(dados);
+      })
+      .catch(() => {
+        if (vivo) setErroCapitulo(true);
+      })
+      .finally(() => {
+        if (vivo) setCarregandoCapitulo(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [numeroLivroSelecionado, capituloSelecionado]);
+
   function fecharLivro() {
     setNumeroLivroSelecionado(null);
     setDadosLivro(null);
@@ -185,11 +221,6 @@ export default function DevocionalApp({ usuario }) {
     }
   }
 
-  const versiculosDoCapitulo =
-    dadosLivro && capituloSelecionado != null
-      ? dadosLivro.chapters.find((c) => c.chapter === capituloSelecionado)
-      : null;
-
   const ehPrimeiroCapituloDaBiblia = numeroLivroSelecionado === 1 && capituloSelecionado === 1;
   const ehUltimoCapituloDaBiblia =
     numeroLivroSelecionado === BOOKS_PT.length &&
@@ -205,6 +236,15 @@ export default function DevocionalApp({ usuario }) {
     }
     setErroBusca(false);
     abrirLivro(interpretada.numeroDoLivro, interpretada.capitulo);
+  }
+
+  // Usado pelo guia de leitura quando ele aparece na aba Início: além de
+  // abrir o livro/capítulo, precisa levar o usuário pra aba Bíblia completa
+  // pra ele realmente ver o resultado (na aba Bíblia o guia já está lá, não
+  // precisa trocar de aba).
+  function abrirLivroDoGuiaNaInicio(numero, capitulo) {
+    abrirLivro(numero, capitulo);
+    setAba("biblia");
   }
 
   async function sair() {
@@ -295,10 +335,20 @@ export default function DevocionalApp({ usuario }) {
           >
             Progresso
           </button>
+          <button
+            className="tab-btn"
+            style={aba === "amigos" ? styles.tabActive : styles.tabInactive}
+            onClick={() => setAba("amigos")}
+          >
+            Amigos
+          </button>
         </div>
 
         {aba === "inicio" && (
           <>
+            {/* OFENSIVA: reforça a chama da oração diária, incentiva a não perder a sequência */}
+            <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} />
+
             {/* VERSÍCULO DO DIA */}
             <div style={styles.card}>
               <p style={styles.cardLabel}>
@@ -321,8 +371,18 @@ export default function DevocionalApp({ usuario }) {
               )}
             </div>
 
+            {textoDoDia && (
+              <div style={{ marginTop: 20 }}>
+                <QuizVersiculo entrada={versiculoDoDia} texto={textoDoDia} onProgresso={setQuizRespondidas} />
+              </div>
+            )}
+
             <div style={{ marginTop: 20 }}>
               <MissoesCard missoes={missoes} />
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <GuiaLeituraBiblia onAbrirLivro={abrirLivroDoGuiaNaInicio} />
             </div>
 
             {!devocional && (
@@ -433,7 +493,7 @@ export default function DevocionalApp({ usuario }) {
             )}
 
             <p style={styles.footnote}>
-              Os versículos deste devocional são buscados ao vivo da Almeida (1911, domínio público) — a mesma fonte
+              Os versículos deste devocional são buscados ao vivo da tradução de Almeida (domínio público) — a mesma fonte
               da aba &quot;Bíblia completa&quot;. Em datas comemorativas (Dia das Mães, dos Pais, Páscoa, Natal...), a
               palavra do dia muda automaticamente para um versículo relacionado.
             </p>
@@ -469,7 +529,7 @@ export default function DevocionalApp({ usuario }) {
 
                 <h2 style={styles.sectionTitle}>Escolha um livro</h2>
                 <p style={styles.sectionSubtitle}>
-                  Texto completo em português (Almeida, 1911 — domínio público), buscado ao vivo.
+                  Texto completo em português (tradução de Almeida, domínio público), buscado ao vivo.
                 </p>
                 <p style={styles.testamentLabel}>Antigo Testamento</p>
                 <div style={styles.bookGrid}>
@@ -535,9 +595,11 @@ export default function DevocionalApp({ usuario }) {
                         <span style={styles.readerVerseNum}>{v.verse}</span> {v.text}
                       </p>
                     ))
-                  ) : (
+                  ) : erroCapitulo ? (
+                    <p style={styles.loadingText}>Não foi possível carregar este capítulo agora. Tente novamente.</p>
+                  ) : carregandoCapitulo ? (
                     <p style={styles.loadingText}>Carregando...</p>
-                  )}
+                  ) : null}
                 </div>
                 <div style={styles.navRow}>
                   <button
@@ -569,6 +631,8 @@ export default function DevocionalApp({ usuario }) {
             gatilhoRecarga={gatilhoRecarga}
           />
         )}
+
+        {aba === "amigos" && <AmigosTab usuarioId={usuario.id} />}
       </div>
     </div>
   );
