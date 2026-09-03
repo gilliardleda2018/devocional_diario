@@ -30,6 +30,8 @@ import LembreteModal from "@/src/components/LembreteModal";
 import CardDoacao from "@/src/components/CardDoacao";
 import FavoritosTab from "@/src/components/FavoritosTab";
 import { useFavoritos } from "@/src/lib/hooks/useFavoritos";
+import AvatarUsuario from "@/src/components/AvatarUsuario";
+import PerfilModal from "@/src/components/PerfilModal";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -39,6 +41,33 @@ export default function DevocionalApp({ usuario }) {
   const [aba, setAba] = useState("inicio");
   const [gatilhoRecarga, setGatilhoRecarga] = useState(0);
   const [modalLembreteAberto, setModalLembreteAberto] = useState(false);
+  const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
+
+  const [perfil, setPerfil] = useState({
+    nome_exibicao: usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
+    foto_url: usuario?.user_metadata?.avatar_url || usuario?.user_metadata?.picture || null,
+  });
+
+  useEffect(() => {
+    let vivo = true;
+    async function carregarPerfil() {
+      if (!usuario?.id) return;
+      try {
+        const supabase = criarClienteSupabase();
+        const { data } = await supabase.from("profiles").select("nome_exibicao, foto_url").eq("id", usuario.id).maybeSingle();
+        if (vivo && data) {
+          setPerfil({
+            nome_exibicao: data.nome_exibicao || usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
+            foto_url: data.foto_url || usuario?.user_metadata?.avatar_url || usuario?.user_metadata?.picture || null,
+          });
+        }
+      } catch (e) {
+        console.error("Erro ao carregar perfil:", e);
+      }
+    }
+    carregarPerfil();
+    return () => { vivo = false; };
+  }, [usuario]);
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario.id);
   const { favoritos, carregando: carregandoFavoritos, eFavorito, alternarFavorito } = useFavoritos(usuario.id);
@@ -296,7 +325,24 @@ export default function DevocionalApp({ usuario }) {
       <div style={styles.container}>
         {/* CABEÇALHO: usuário + ofensiva + sair */}
         <div style={styles.topBar}>
-          <span style={styles.topBarUser}>Olá, {nomeExibicao}</span>
+          <button
+            onClick={() => setModalPerfilAberto(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              textAlign: "left",
+            }}
+            title="Editar perfil e foto"
+          >
+            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={36} />
+            <span style={styles.topBarUser}>Olá, {perfil.nome_exibicao}</span>
+          </button>
+
           <div style={styles.topBarRight}>
             <button
               className="action-btn"
@@ -316,6 +362,13 @@ export default function DevocionalApp({ usuario }) {
         </div>
 
         <LembreteModal aberto={modalLembreteAberto} aoFechar={() => setModalLembreteAberto(false)} />
+        <PerfilModal
+          usuario={usuario}
+          perfilAtual={perfil}
+          aberto={modalPerfilAberto}
+          aoFechar={() => setModalPerfilAberto(false)}
+          aoSalvar={(novosDados) => setPerfil((antigo) => ({ ...antigo, ...novosDados }))}
+        />
 
         {/* HERO */}
         <div style={styles.hero}>

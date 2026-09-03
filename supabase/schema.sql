@@ -17,8 +17,11 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   nome_exibicao text,
   codigo_amigo text unique,
+  foto_url text,
   criado_em timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists foto_url text;
 
 alter table public.profiles enable row level security;
 
@@ -215,6 +218,7 @@ grant execute on function public.obter_estatisticas_usuario() to authenticated;
 create or replace function public.obter_ranking(p_limite integer default 20)
 returns table(
   nome_exibicao text,
+  foto_url text,
   xp_total integer,
   ofensiva_atual integer,
   maior_ofensiva integer,
@@ -224,7 +228,7 @@ language sql
 security definer
 set search_path = public
 as $$
-  select p.nome_exibicao, s.xp_total, s.ofensiva_atual, s.maior_ofensiva,
+  select p.nome_exibicao, p.foto_url, s.xp_total, s.ofensiva_atual, s.maior_ofensiva,
          row_number() over (order by s.xp_total desc, s.maior_ofensiva desc) as posicao
   from public.streaks s
   join public.profiles p on p.id = s.user_id
@@ -424,13 +428,14 @@ returns table(
   amizade_id uuid,
   solicitante_id uuid,
   nome_exibicao text,
+  foto_url text,
   criado_em timestamptz
 )
 language sql
 security definer
 set search_path = public
 as $$
-  select a.id, a.solicitante_id, p.nome_exibicao, a.criado_em
+  select a.id, a.solicitante_id, p.nome_exibicao, p.foto_url, a.criado_em
   from public.amizades a
   join public.profiles p on p.id = a.solicitante_id
   where a.destinatario_id = auth.uid() and a.status = 'pendente'
@@ -444,6 +449,7 @@ returns table(
   amizade_id uuid,
   amigo_id uuid,
   nome_exibicao text,
+  foto_url text,
   ofensiva_atual integer,
   maior_ofensiva integer,
   amigos_desde timestamptz
@@ -456,6 +462,7 @@ as $$
     a.id,
     case when a.solicitante_id = auth.uid() then a.destinatario_id else a.solicitante_id end,
     p.nome_exibicao,
+    p.foto_url,
     coalesce(s.ofensiva_atual, 0),
     coalesce(s.maior_ofensiva, 0),
     a.respondido_em
@@ -534,6 +541,7 @@ returns table(
   quando timestamptz,
   pessoa_id uuid,
   nome_exibicao text,
+  foto_url text,
   tema_oracao text,
   referencia_versiculo text,
   ofensiva_atual integer
@@ -548,6 +556,7 @@ as $$
       dl.criado_em,
       dl.user_id,
       p.nome_exibicao,
+      p.foto_url,
       dl.tema_oracao,
       dl.referencia_versiculo,
       coalesce(s.ofensiva_atual, 0)
@@ -566,6 +575,7 @@ as $$
       t.criado_em,
       t.remetente_id,
       p.nome_exibicao,
+      p.foto_url,
       null::text,
       null::text,
       null::integer
@@ -586,6 +596,7 @@ grant execute on function public.obter_feed_amigos(integer) to authenticated;
 create or replace function public.obter_ranking_amigos(p_limite integer default 20)
 returns table(
   nome_exibicao text,
+  foto_url text,
   xp_total integer,
   ofensiva_atual integer,
   maior_ofensiva integer,
@@ -603,7 +614,15 @@ as $$
     from public.amizades a
     where a.status = 'aceita' and (a.solicitante_id = auth.uid() or a.destinatario_id = auth.uid())
   )
-  select p.nome_exibicao, s.xp_total, s.ofensiva_atual, s.maior_ofensiva,
+  select p.nome_exibicao, p.foto_url, s.xp_total, s.ofensiva_atual, s.maior_ofensiva,
+         row_number() over (order by s.xp_total desc, s.maior_ofensiva desc) as posicao,
+         s.user_id = auth.uid() as sou_eu
+  from public.streaks s
+  join public.profiles p on p.id = s.user_id
+  where s.user_id in (select user_id from membros)
+  order by s.xp_total desc, s.maior_ofensiva desc
+  limit p_limite;
+$$;
          row_number() over (order by s.xp_total desc, s.maior_ofensiva desc) as posicao,
          s.user_id = auth.uid() as sou_eu
   from public.streaks s
@@ -780,8 +799,13 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, nome_exibicao, codigo_amigo)
-  values (new.id, coalesce(new.raw_user_meta_data ->> 'full_name', new.email), public.gerar_codigo_amigo());
+  insert into public.profiles (id, nome_exibicao, codigo_amigo, foto_url)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
+    public.gerar_codigo_amigo(),
+    coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture')
+  );
 
   insert into public.streaks (user_id, ofensiva_atual, maior_ofensiva, ultimo_dia)
   values (new.id, 0, 0, null);

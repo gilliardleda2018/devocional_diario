@@ -7,6 +7,7 @@ import { useDesafios } from "@/src/lib/hooks/useDesafios";
 import { useRankingAmigos } from "@/src/lib/hooks/useRankingAmigos";
 import { MOODS } from "@/src/lib/devocional/versiculos";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
+import AvatarUsuario from "@/src/components/AvatarUsuario";
 
 const SUBABAS = [
   { id: "feed", label: "Feed" },
@@ -74,11 +75,11 @@ function FeedAmigos({ usuarioId, irParaAmigos }) {
     <div style={styles.lista}>
       {feed.map((item, indice) => (
         <div key={indice} style={styles.feedCard}>
-          <span style={styles.feedIcone}>{item.tipo === "torcida" ? "🔥" : "📖"}</span>
+          <AvatarUsuario nome={item.nome_exibicao} fotoUrl={item.foto_url} tamanho={36} />
           <div style={{ flex: 1, minWidth: 0 }}>
             {item.tipo === "torcida" ? (
               <p style={styles.feedTexto}>
-                <strong>{item.nome_exibicao}</strong> torceu por você!
+                <strong>{item.nome_exibicao}</strong> torceu por você! 🔥
               </p>
             ) : (
               <p style={styles.feedTexto}>
@@ -171,7 +172,10 @@ function ListaAmigos({ usuarioId }) {
           <div style={styles.lista}>
             {pedidos.map((p) => (
               <div key={p.amizade_id} style={styles.pedidoCard}>
-                <span style={styles.pedidoNome}>{p.nome_exibicao}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
+                  <span style={styles.pedidoNome}>{p.nome_exibicao}</span>
+                </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
                     className="action-btn chunky"
@@ -204,6 +208,7 @@ function ListaAmigos({ usuarioId }) {
           <div style={styles.lista}>
             {amigos.map((amigo) => (
               <div key={amigo.amizade_id} style={styles.amigoCard}>
+                <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={styles.pedidoNome}>{amigo.nome_exibicao}</p>
                   <p style={styles.feedQuando}>🔥 {amigo.ofensiva_atual} dias · recorde {amigo.maior_ofensiva}</p>
@@ -425,7 +430,10 @@ function LigaAmigos({ usuarioId }) {
       {ranking.map((r) => (
         <div key={`${r.posicao}-${r.nome_exibicao}`} style={{ ...styles.rankingRow, ...(r.sou_eu ? styles.rankingRowEu : {}) }}>
           <span style={styles.rankingPosicao}>#{r.posicao}</span>
-          <span style={styles.rankingNome}>{r.nome_exibicao}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+            <AvatarUsuario nome={r.nome_exibicao} fotoUrl={r.foto_url} tamanho={28} />
+            <span style={styles.rankingNome}>{r.nome_exibicao}</span>
+          </div>
           <span style={styles.rankingXp}>{r.xp_total} XP</span>
         </div>
       ))}

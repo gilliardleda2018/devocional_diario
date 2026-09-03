@@ -6,6 +6,7 @@ import { NIVEIS, obterNivel } from "@/src/lib/devocional/niveis";
 import { calcularConquistas } from "@/src/lib/devocional/badges";
 import TrilhaFases from "@/src/components/TrilhaFases";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
+import AvatarUsuario from "@/src/components/AvatarUsuario";
 
 export default function ProgressoTab({ usuarioId, nomeExibicao, gatilhoRecarga }) {
   const { stats, carregando: carregandoStats } = useEstatisticas(usuarioId, gatilhoRecarga);
@@ -148,7 +149,10 @@ export default function ProgressoTab({ usuarioId, nomeExibicao, gatilhoRecarga }
                 }}
               >
                 <span style={styles.rankingPosicao}>#{r.posicao}</span>
-                <span style={styles.rankingNome}>{r.nome_exibicao}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                  <AvatarUsuario nome={r.nome_exibicao} fotoUrl={r.foto_url} tamanho={28} />
+                  <span style={styles.rankingNome}>{r.nome_exibicao}</span>
+                </div>
                 <span style={styles.rankingXp}>{r.xp_total} XP</span>
               </div>
             ))}
