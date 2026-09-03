@@ -10,6 +10,10 @@
 # production / build
 /bundle/
 
+# keys and secrets
+*.jks
+*.keystore
+
 # local env files
 .env*.local
 
