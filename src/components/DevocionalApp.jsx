@@ -28,6 +28,8 @@ import GuiaLeituraBiblia from "@/src/components/GuiaLeituraBiblia";
 import AudioPlayer from "@/src/components/AudioPlayer";
 import LembreteModal from "@/src/components/LembreteModal";
 import CardDoacao from "@/src/components/CardDoacao";
+import FavoritosTab from "@/src/components/FavoritosTab";
+import { useFavoritos } from "@/src/lib/hooks/useFavoritos";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -39,6 +41,8 @@ export default function DevocionalApp({ usuario }) {
   const [modalLembreteAberto, setModalLembreteAberto] = useState(false);
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario.id);
+  const { favoritos, carregando: carregandoFavoritos, eFavorito, alternarFavorito } = useFavoritos(usuario.id);
+  const [tamanhoFonte, setTamanhoFonte] = useState(16);
   const estadoMascote = jaFezHoje ? "feliz" : (ofensiva?.ofensiva_atual ?? 0) === 0 && (ofensiva?.maior_ofensiva ?? 0) > 0 ? "triste" : "neutro";
 
   // --- Missões (metas curtas, estilo quest de jogo) ----------------------
@@ -340,7 +344,14 @@ export default function DevocionalApp({ usuario }) {
             style={aba === "biblia" ? styles.tabActive : styles.tabInactive}
             onClick={() => setAba("biblia")}
           >
-            Bíblia completa
+            Bíblia
+          </button>
+          <button
+            className="tab-btn"
+            style={aba === "favoritos" ? styles.tabActive : styles.tabInactive}
+            onClick={() => setAba("favoritos")}
+          >
+            ⭐ Favoritos {favoritos.length > 0 && `(${favoritos.length})`}
           </button>
           <button
             className="tab-btn"
@@ -381,7 +392,26 @@ export default function DevocionalApp({ usuario }) {
               {textoDoDia && (
                 <>
                   <AudioPlayer texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} rotulo="Ouvir versículo" />
-                  <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
+                  <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                    <button
+                      className="action-btn"
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: 13,
+                        borderRadius: 10,
+                        border: "1px solid #E7E0D0",
+                        background: eFavorito(versiculoDoDia.label) ? "#FEF3C7" : "#FFFFFF",
+                        color: eFavorito(versiculoDoDia.label) ? "#92400E" : "#4B5563",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                      onClick={() => alternarFavorito(versiculoDoDia.label, textoDoDia)}
+                    >
+                      {eFavorito(versiculoDoDia.label) ? "⭐ Salvo nos Favoritos" : "☆ Salvar nos Favoritos"}
+                    </button>
                     <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
                   </div>
                 </>
@@ -604,19 +634,77 @@ export default function DevocionalApp({ usuario }) {
 
             {numeroLivroSelecionado && capituloSelecionado && (
               <>
-                <button className="action-btn" style={styles.backBtn} onClick={() => setCapituloSelecionado(null)}>
-                  ← Capítulos
-                </button>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <button className="action-btn" style={styles.backBtn} onClick={() => setCapituloSelecionado(null)}>
+                    ← Capítulos
+                  </button>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "#7A8A7F", fontWeight: 600 }}>Tamanho:</span>
+                    <button
+                      className="action-btn"
+                      style={{ padding: "3px 8px", fontSize: 12, background: "#FFFFFF", border: "1px solid #E7E0D0", borderRadius: 8, fontWeight: 700 }}
+                      onClick={() => setTamanhoFonte((f) => Math.max(13, f - 2))}
+                      title="Diminuir fonte"
+                    >
+                      A-
+                    </button>
+                    <button
+                      className="action-btn"
+                      style={{ padding: "3px 8px", fontSize: 12, background: "#FFFFFF", border: "1px solid #E7E0D0", borderRadius: 8, fontWeight: 700 }}
+                      onClick={() => setTamanhoFonte((f) => Math.min(24, f + 2))}
+                      title="Aumentar fonte"
+                    >
+                      A+
+                    </button>
+                  </div>
+                </div>
+
                 <h2 style={styles.sectionTitle}>
                   {BOOKS_PT[numeroLivroSelecionado - 1]} {capituloSelecionado}
                 </h2>
+
                 <div style={styles.readerCard}>
                   {versiculosDoCapitulo ? (
-                    versiculosDoCapitulo.verses.map((v) => (
-                      <p key={v.verse} style={styles.readerVerse}>
-                        <span style={styles.readerVerseNum}>{v.verse}</span> {v.text}
-                      </p>
-                    ))
+                    versiculosDoCapitulo.verses.map((v) => {
+                      const refVersiculo = `${BOOKS_PT[numeroLivroSelecionado - 1]} ${capituloSelecionado}:${v.verse}`;
+                      const salvo = eFavorito(refVersiculo);
+                      return (
+                        <div
+                          key={v.verse}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            justifyContent: "space-between",
+                            gap: 8,
+                            padding: "6px 8px",
+                            borderRadius: 8,
+                            marginBottom: 4,
+                            background: salvo ? "rgba(254, 243, 199, 0.45)" : "transparent",
+                            transition: "background 0.2s ease",
+                          }}
+                        >
+                          <p style={{ ...styles.readerVerse, fontSize: tamanhoFonte, margin: 0, flex: 1, lineHeight: 1.6 }}>
+                            <span style={styles.readerVerseNum}>{v.verse}</span> {v.text}
+                          </p>
+                          <button
+                            onClick={() => alternarFavorito(refVersiculo, v.text)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              fontSize: 16,
+                              padding: "2px 4px",
+                              opacity: salvo ? 1 : 0.35,
+                              transition: "transform 0.15s ease, opacity 0.15s ease",
+                            }}
+                            title={salvo ? "Remover dos favoritos" : "Salvar versículo"}
+                          >
+                            {salvo ? "⭐" : "☆"}
+                          </button>
+                        </div>
+                      );
+                    })
                   ) : erroCapitulo ? (
                     <p style={styles.loadingText}>Não foi possível carregar este capítulo agora. Tente novamente.</p>
                   ) : carregandoCapitulo ? (
@@ -644,6 +732,14 @@ export default function DevocionalApp({ usuario }) {
               </>
             )}
           </div>
+        )}
+
+        {aba === "favoritos" && (
+          <FavoritosTab
+            favoritos={favoritos}
+            carregando={carregandoFavoritos}
+            alternarFavorito={alternarFavorito}
+          />
         )}
 
         {aba === "progresso" && (
