@@ -36,17 +36,16 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 26, moldura = t
   const eEmoji = fotoUrl && fotoUrl.length <= 4;
 
   const containerStyle = {
-    width: tamanho,
-    height: tamanho,
-    minWidth: tamanho,
-    minHeight: tamanho,
-    maxWidth: tamanho,
-    maxHeight: tamanho,
+    width: `${tamanho}px`,
+    height: `${tamanho}px`,
+    minWidth: `${tamanho}px`,
+    minHeight: `${tamanho}px`,
+    maxWidth: `${tamanho}px`,
+    maxHeight: `${tamanho}px`,
     borderRadius: "50%",
     overflow: "hidden",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
+    display: "inline-block",
+    verticalAlign: "middle",
     flexShrink: 0,
     border: moldura ? "1.5px solid #C89A5E" : "1.5px solid #E7E0D0",
     boxShadow: moldura
@@ -60,6 +59,8 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 26, moldura = t
   const imgStyle = {
     width: "100%",
     height: "100%",
+    maxWidth: "100%",
+    maxHeight: "100%",
     objectFit: "cover",
     borderRadius: "50%",
     display: "block",
