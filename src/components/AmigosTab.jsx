@@ -6,18 +6,25 @@ import { useFeedAmigos } from "@/src/lib/hooks/useFeedAmigos";
 import { useDesafios } from "@/src/lib/hooks/useDesafios";
 import { useRankingAmigos } from "@/src/lib/hooks/useRankingAmigos";
 import { MOODS } from "@/src/lib/devocional/versiculos";
-import CompartilharBotoes from "@/src/components/CompartilharBotoes";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
 
-const SUBABAS = [
+const SUBABAS_PRINCIPAIS = [
   { id: "feed", label: "Feed" },
-  { id: "amigos", label: "Amigos" },
+  { id: "conexoes", label: "Conexões" },
   { id: "desafios", label: "Desafios" },
   { id: "liga", label: "Liga" },
 ];
 
+const SUBABAS_CONEXOES = [
+  { id: "amigos", label: "Amigos" },
+  { id: "pedidos", label: "Pedidos" },
+  { id: "enviados", label: "Enviados" },
+  { id: "sugestoes", label: "Sugestões" },
+];
+
 function formatarQuando(iso) {
+  if (!iso) return "";
   const data = new Date(iso);
   return data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
@@ -28,14 +35,16 @@ function rotuloMood(moodId) {
 
 export default function AmigosTab({ usuarioId }) {
   const [subaba, setSubaba] = useState("feed");
+  const [abaConexao, setAbaConexao] = useState("amigos");
   const [amigoSelecionado, setAmigoSelecionado] = useState(null);
 
   const { amigos, enviarPedido, torcer } = useAmigos(usuarioId);
 
   return (
     <div style={styles.wrap}>
+      {/* Navegação Principal */}
       <div style={styles.subtabRow}>
-        {SUBABAS.map((s) => (
+        {SUBABAS_PRINCIPAIS.map((s) => (
           <button
             key={s.id}
             className="tab-btn"
@@ -50,17 +59,36 @@ export default function AmigosTab({ usuarioId }) {
       {subaba === "feed" && (
         <FeedAmigos
           usuarioId={usuarioId}
-          irParaAmigos={() => setSubaba("amigos")}
+          irParaConexoes={() => { setSubaba("conexoes"); setAbaConexao("sugestoes"); }}
           onAbrirPerfil={(item) => setAmigoSelecionado(item)}
         />
       )}
-      {subaba === "amigos" && (
-        <ListaAmigos
-          usuarioId={usuarioId}
-          onAbrirPerfil={(item) => setAmigoSelecionado(item)}
-        />
+
+      {subaba === "conexoes" && (
+        <div>
+          {/* Navegação Secundária de Conexões */}
+          <div style={styles.conexoesTabRow}>
+            {SUBABAS_CONEXOES.map((c) => (
+              <button
+                key={c.id}
+                style={abaConexao === c.id ? styles.conexaoAtiva : styles.conexaoInativa}
+                onClick={() => setAbaConexao(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+
+          <CentralConexoes
+            usuarioId={usuarioId}
+            abaAtiva={abaConexao}
+            onAbrirPerfil={(item) => setAmigoSelecionado(item)}
+          />
+        </div>
       )}
+
       {subaba === "desafios" && <Desafios usuarioId={usuarioId} />}
+      
       {subaba === "liga" && (
         <LigaAmigos
           usuarioId={usuarioId}
@@ -83,9 +111,9 @@ export default function AmigosTab({ usuarioId }) {
 }
 
 // ---------------------------------------------------------------------------
-// Feed dos Amigos em Tempo Real
+// Feed dos Amigos
 // ---------------------------------------------------------------------------
-function FeedAmigos({ usuarioId, irParaAmigos, onAbrirPerfil }) {
+function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
   const { feed, carregando, novoItemAlert } = useFeedAmigos(usuarioId);
 
   if (carregando) return <p style={styles.loadingText}>Carregando o feed...</p>;
@@ -93,10 +121,10 @@ function FeedAmigos({ usuarioId, irParaAmigos, onAbrirPerfil }) {
   if (!feed.length) {
     return (
       <div style={styles.vazio}>
-        <p style={styles.vazioTitulo}>Seu feed está quieto por aqui.</p>
-        <p style={styles.vazioTexto}>Adicione amigos pra acompanhar as leituras e mandar torcidas em tempo real!</p>
-        <button className="action-btn chunky" style={styles.primaryBtnPequeno} onClick={irParaAmigos}>
-          Adicionar amigos
+        <p style={styles.vazioTitulo}>Seu feed está quieto por aqui. 🕊️</p>
+        <p style={styles.vazioTexto}>Conecte-se com irmãos em fé para acompanhar as leituras e mandar torcidas em tempo real!</p>
+        <button className="action-btn chunky" style={styles.primaryBtnPequeno} onClick={irParaConexoes}>
+          Encontrar Conexões
         </button>
       </div>
     );
@@ -105,7 +133,7 @@ function FeedAmigos({ usuarioId, irParaAmigos, onAbrirPerfil }) {
   return (
     <div style={styles.lista}>
       {novoItemAlert && (
-        <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-xs font-bold text-center border border-amber-300 dark:border-amber-700 animate-pulse">
+        <div style={styles.alertRealtime}>
           ⚡ Nova atualização dos seus amigos em tempo real!
         </div>
       )}
@@ -116,27 +144,19 @@ function FeedAmigos({ usuarioId, irParaAmigos, onAbrirPerfil }) {
             style={styles.avatarBtn}
             title={`Ver perfil de ${item.nome_exibicao}`}
           >
-            <AvatarUsuario nome={item.nome_exibicao} fotoUrl={item.foto_url} tamanho={32} />
+            <AvatarUsuario nome={item.nome_exibicao} fotoUrl={item.foto_url} tamanho={36} />
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
             {item.tipo === "torcida" ? (
               <p style={styles.feedTexto}>
-                <strong
-                  onClick={() => onAbrirPerfil(item)}
-                  style={styles.nomeClicavel}
-                  title="Ver perfil"
-                >
+                <strong onClick={() => onAbrirPerfil(item)} style={styles.nomeClicavel}>
                   {item.nome_exibicao}
                 </strong>{" "}
                 torceu por você! 🔥
               </p>
             ) : (
               <p style={styles.feedTexto}>
-                <strong
-                  onClick={() => onAbrirPerfil(item)}
-                  style={styles.nomeClicavel}
-                  title="Ver perfil"
-                >
+                <strong onClick={() => onAbrirPerfil(item)} style={styles.nomeClicavel}>
                   {item.nome_exibicao}
                 </strong>{" "}
                 completou o devocional de hoje
@@ -154,235 +174,129 @@ function FeedAmigos({ usuarioId, irParaAmigos, onAbrirPerfil }) {
 }
 
 // ---------------------------------------------------------------------------
-// Amigos: Convites WhatsApp + Busca por Nome + Pedidos Pendentes + Lista
+// Central de Conexões (Amigos, Pedidos, Enviados, Sugestões)
 // ---------------------------------------------------------------------------
-function ListaAmigos({ usuarioId, onAbrirPerfil }) {
+function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
   const {
     amigos,
     pedidos,
+    pedidosEnviados,
     meuCodigo,
     carregando,
-    erro,
     recarregar,
-    buscarPessoasPorNome,
+    buscarUsuarios,
     enviarPedido,
+    cancelarPedido,
     responderPedido,
     removerAmigo,
+    bloquearUsuario,
     torcer,
   } = useAmigos(usuarioId);
 
-  const [buscaNome, setBuscaNome] = useState("");
+  const [buscaTermo, setBuscaTermo] = useState("");
   const [resultadosBusca, setResultadosBusca] = useState([]);
   const [buscando, setBuscando] = useState(false);
-  const [adicionandoId, setAdicionandoId] = useState(null);
-  const [mensagem, setMensagem] = useState(null);
-  const [confirmandoRemocao, setConfirmandoRemocao] = useState(null);
   const [torcidaEnviada, setTorcidaEnviada] = useState({});
+  const [confirmandoRemocao, setConfirmandoRemocao] = useState(null);
+  const [sugestoesIgnoradas, setSugestoesIgnoradas] = useState({});
 
-  // Busca em tempo real conforme digita o nome
+  // Busca em tempo real
   useEffect(() => {
-    if (!buscaNome.trim() || buscaNome.trim().length < 2) {
+    if (!buscaTermo.trim() || buscaTermo.trim().length < 2) {
       setResultadosBusca([]);
       return;
     }
     const timer = setTimeout(async () => {
       setBuscando(true);
-      const res = await buscarPessoasPorNome(buscaNome.trim());
+      const res = await buscarUsuarios(buscaTermo.trim());
       setResultadosBusca(res);
       setBuscando(false);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [buscaNome, buscarPessoasPorNome]);
-
-  async function handleAdicionarPorCodigo(codigo) {
-    setAdicionandoId(codigo);
-    setMensagem(null);
-    const resultado = await enviarPedido(codigo);
-    setAdicionandoId(null);
-    if (resultado.sucesso) {
-      setMensagem({ tipo: "sucesso", texto: "Amigo adicionado com sucesso! 🎉" });
-      setBuscaNome("");
-      setResultadosBusca([]);
-    } else {
-      setMensagem({ tipo: "erro", texto: resultado.erro });
-    }
-  }
+  }, [buscaTermo, buscarUsuarios]);
 
   async function handleTorcer(amigoId) {
     setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: true }));
-    const r = await torcer(amigoId);
-    if (!r.sucesso) {
-      alert(r.erro ?? "Você já torceu por essa pessoa hoje!");
-    }
+    await torcer(amigoId);
   }
 
-  const mensagemWhatsapp = `Olá! Baixei o app Devocional Diário para minhas leituras e orações bíblicas. Venha acompanhar meus devocionais e torcer comigo! 📖✨ Acesse aqui: https://main.d357ab4gel6chc.amplifyapp.com`;
+  const mensagemWhatsapp = `Olá! Baixei o app Devocional Diário para minhas leituras e orações bíblicas. Venha acompanhar meus devocionais e torcer comigo! 📖✨ Acesse aqui: https://main.d357ab4gel6chc.amplifyapp.com (Meu código: ${meuCodigo || ""})`;
 
-  if (carregando) return <p style={styles.loadingText}>Carregando amigos...</p>;
+  if (carregando) return <p style={styles.loadingText}>Carregando conexões...</p>;
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* 🟢 CARD PRINCIPAL DE DESTAQUE: Conectar via WhatsApp */}
-      <div style={styles.whatsappCard}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 32 }}>💬</span>
-          <div>
-            <h3 style={styles.whatsappTitulo}>Conectar Amigos do WhatsApp</h3>
-            <p style={styles.whatsappSubtitulo}>
-              Envie um convite direto pelo WhatsApp e conecte-se com seus contatos em 1 clique!
-            </p>
+  // ABA 1: AMIGOS
+  if (abaAtiva === "amigos") {
+    const listaAmigosExibida = buscaTermo.trim().length >= 2 ? resultadosBusca : amigos;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Card WhatsApp */}
+        <div style={styles.whatsappCard}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 28 }}>💬</span>
+            <div>
+              <h3 style={styles.whatsappTitulo}>Conectar Amigos do WhatsApp</h3>
+              <p style={styles.whatsappSubtitulo}>Envie um convite direto e conecte-se com seus contatos!</p>
+            </div>
           </div>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(mensagemWhatsapp)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.whatsappBtn}
+          >
+            <span>📲 Abrir WhatsApp e Convidar Contatos</span>
+          </a>
         </div>
-        <a
-          href={`https://wa.me/?text=${encodeURIComponent(mensagemWhatsapp)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={styles.whatsappBtn}
-          className="action-btn chunky"
-        >
-          <span>📲 Abrir WhatsApp e Convidar Contatos</span>
-        </a>
-      </div>
 
-      {/* 🔍 BUSCA DIRETA POR NOME (SEM CÓDIGO) */}
-      <div>
-        <h2 style={styles.sectionTitle}>Buscar amigos pelo nome</h2>
+        {/* Input de Busca de Amigos */}
         <div style={{ position: "relative" }}>
           <input
             type="text"
-            placeholder="Digite o nome do seu amigo (ex: Gilliard, Maria...)"
-            value={buscaNome}
-            onChange={(e) => setBuscaNome(e.target.value)}
-            style={styles.inputBuscaNome}
+            placeholder="Buscar amigos por nome ou @username..."
+            value={buscaTermo}
+            onChange={(e) => setBuscaTermo(e.target.value)}
+            style={styles.inputBusca}
           />
           {buscando && <span style={styles.spinnerBusca}>🔍...</span>}
         </div>
 
-        {/* Resultados da busca por nome */}
-        {resultadosBusca.length > 0 && (
-          <div style={styles.resultadosContainer}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#8A9184", margin: "0 0 6px" }}>
-              Pessoas encontradas:
-            </p>
-            {resultadosBusca.map((pessoa) => {
-              const ehAmigo = amigos.some((a) => a.amigo_id === pessoa.id || a.id === pessoa.id);
-              return (
-                <div key={pessoa.id} style={styles.resultadoItem}>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer" }}
-                    onClick={() => onAbrirPerfil(pessoa)}
-                  >
-                    <AvatarUsuario nome={pessoa.nome_exibicao} fotoUrl={pessoa.foto_url} tamanho={32} />
-                    <span style={styles.resultadoNome}>{pessoa.nome_exibicao}</span>
-                  </div>
-                  {ehAmigo ? (
-                    <span style={{ fontSize: 12, color: "#3F7A4D", fontWeight: 700 }}>✓ Já é amigo</span>
-                  ) : (
-                    <button
-                      className="action-btn chunky"
-                      style={styles.aceitarBtn}
-                      disabled={adicionandoId === pessoa.codigo_amigo}
-                      onClick={() => handleAdicionarPorCodigo(pessoa.codigo_amigo)}
-                    >
-                      {adicionandoId === pessoa.codigo_amigo ? "..." : "➕ Adicionar"}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {mensagem && (
-          <p style={{ ...styles.mensagem, color: mensagem.tipo === "sucesso" ? "#3F7A4D" : "#B15A4A" }}>
-            {mensagem.texto}
-          </p>
-        )}
-      </div>
-
-      {/* Pedidos Pendentes */}
-      {pedidos.length > 0 && (
-        <div>
-          <h2 style={styles.sectionTitle}>Pedidos pendentes ({pedidos.length})</h2>
-          <div style={styles.lista}>
-            {pedidos.map((p) => (
-              <div key={p.amizade_id} style={styles.pedidoCard}>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, cursor: "pointer" }}
-                  onClick={() => onAbrirPerfil(p)}
-                >
-                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={32} />
-                  <span style={styles.pedidoNome}>{p.nome_exibicao}</span>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    className="action-btn chunky"
-                    style={styles.aceitarBtn}
-                    onClick={() => responderPedido(p.amizade_id, true)}
-                  >
-                    Aceitar
-                  </button>
-                  <button
-                    className="action-btn"
-                    style={styles.recusarBtn}
-                    onClick={() => responderPedido(p.amizade_id, false)}
-                  >
-                    Recusar
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h3 style={styles.sectionTitle}>Seus Amigos ({amigos.length})</h3>
+          <button onClick={recarregar} style={styles.refreshBtn}>🔄 Atualizar</button>
         </div>
-      )}
 
-      {/* Lista de Amigos Conectados */}
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <h2 style={styles.sectionTitle}>Seus amigos ({amigos.length})</h2>
-          <button
-            onClick={recarregar}
-            style={styles.refreshBtn}
-            title="Atualizar lista de amigos"
-          >
-            🔄 Atualizar
-          </button>
-        </div>
-        {amigos.length === 0 ? (
-          <p style={styles.vazioTexto}>Você ainda não tem amigos conectados. Convide seus contatos do WhatsApp!</p>
+        {listaAmigosExibida.length === 0 ? (
+          <div style={styles.emptyCard}>
+            <p style={styles.emptyTitle}>Suas conexões aparecerão aqui. 🤝</p>
+            <p style={styles.emptySub}>Você ainda não adicionou amigos ou nenhum resultado foi encontrado.</p>
+          </div>
         ) : (
           <div style={styles.lista}>
-            {amigos.map((amigo) => (
-              <div key={amigo.amizade_id} style={styles.amigoCard}>
-                <button
-                  onClick={() => onAbrirPerfil(amigo)}
-                  style={styles.avatarBtn}
-                  title={`Ver perfil de ${amigo.nome_exibicao}`}
-                >
-                  <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={34} />
+            {listaAmigosExibida.map((amigo) => (
+              <div key={amigo.amizade_id || amigo.id} style={styles.itemCard}>
+                <button onClick={() => onAbrirPerfil(amigo)} style={styles.avatarBtn}>
+                  <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={36} />
                 </button>
-                <div
-                  style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
-                  onClick={() => onAbrirPerfil(amigo)}
-                >
-                  <p style={styles.pedidoNome}>{amigo.nome_exibicao}</p>
-                  <p style={styles.feedQuando}>🔥 {amigo.ofensiva_atual} dias · recorde {amigo.maior_ofensiva}</p>
+                <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(amigo)}>
+                  <p style={styles.itemNome}>{amigo.nome_exibicao}</p>
+                  <p style={styles.itemSub}>
+                    {amigo.username ? `@${amigo.username} · ` : ""}
+                    🔥 {amigo.ofensiva_atual || 0} dias
+                  </p>
                 </div>
                 <button
-                  className="action-btn chunky"
                   style={styles.torcerBtn}
-                  disabled={!!torcidaEnviada[amigo.amigo_id]}
-                  onClick={() => handleTorcer(amigo.amigo_id)}
+                  disabled={!!torcidaEnviada[amigo.amigo_id || amigo.id]}
+                  onClick={() => handleTorcer(amigo.amigo_id || amigo.id)}
                 >
-                  {torcidaEnviada[amigo.amigo_id] ? "🔥 Torceu!" : "🔥 Torcer"}
+                  {torcidaEnviada[amigo.amigo_id || amigo.id] ? "🔥 Torceu!" : "🔥 Torcer"}
                 </button>
-                {confirmandoRemocao === amigo.amizade_id ? (
+                {confirmandoRemocao === (amigo.amizade_id || amigo.id) ? (
                   <button
-                    className="action-btn"
-                    style={{ ...styles.recusarBtn, fontSize: 11 }}
+                    style={styles.btnConfirmarRemocao}
                     onClick={async () => {
-                      await removerAmigo(amigo.amizade_id);
+                      await removerAmigo(amigo.amigo_id || amigo.id);
                       setConfirmandoRemocao(null);
                     }}
                   >
@@ -390,10 +304,9 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
                   </button>
                 ) : (
                   <button
-                    className="action-btn"
-                    style={styles.linkBtnPequeno}
+                    style={styles.btnRemoverIcone}
                     title="Remover amigo"
-                    onClick={() => setConfirmandoRemocao(amigo.amizade_id)}
+                    onClick={() => setConfirmandoRemocao(amigo.amizade_id || amigo.id)}
                   >
                     ✕
                   </button>
@@ -403,28 +316,182 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
           </div>
         )}
       </div>
+    );
+  }
+
+  // ABA 2: PEDIDOS RECEBIDOS
+  if (abaAtiva === "pedidos") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <h3 style={styles.sectionTitle}>Solicitações Recebidas ({pedidos.length})</h3>
+        {pedidos.length === 0 ? (
+          <div style={styles.emptyCard}>
+            <p style={styles.emptyTitle}>Nenhum pedido novo por aqui. 🕊️</p>
+            <p style={styles.emptySub}>Quando alguém te adicionar como amigo, o pedido aparecerá nesta aba.</p>
+          </div>
+        ) : (
+          <div style={styles.lista}>
+            {pedidos.map((p) => (
+              <div key={p.amizade_id || p.id} style={styles.itemCard}>
+                <button onClick={() => onAbrirPerfil(p)} style={styles.avatarBtn}>
+                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
+                </button>
+                <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(p)}>
+                  <p style={styles.itemNome}>{p.nome_exibicao}</p>
+                  <p style={styles.itemSub}>{p.username ? `@${p.username}` : "Quer se conectar com você"}</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button style={styles.btnAceitar} onClick={() => responderPedido(p.amizade_id || p.id, true)}>
+                    ACEITAR
+                  </button>
+                  <button style={styles.btnRemover} onClick={() => responderPedido(p.amizade_id || p.id, false)}>
+                    REMOVER
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ABA 3: PEDIDOS ENVIADOS
+  if (abaAtiva === "enviados") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <h3 style={styles.sectionTitle}>Solicitações Enviadas ({pedidosEnviados.length})</h3>
+        {pedidosEnviados.length === 0 ? (
+          <div style={styles.emptyCard}>
+            <p style={styles.emptyTitle}>Nenhuma solicitação pendente.</p>
+            <p style={styles.emptySub}>As pessoas a quem você enviou um pedido de amizade aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div style={styles.lista}>
+            {pedidosEnviados.map((p) => (
+              <div key={p.amizade_id || p.id} style={styles.itemCard}>
+                <button onClick={() => onAbrirPerfil(p)} style={styles.avatarBtn}>
+                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
+                </button>
+                <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(p)}>
+                  <p style={styles.itemNome}>{p.nome_exibicao}</p>
+                  <p style={styles.itemSub}>Aguardando resposta...</p>
+                </div>
+                <button style={styles.btnCancelar} onClick={() => cancelarPedido(p.amizade_id || p.id)}>
+                  Cancelar pedido
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ABA 4: SUGESTÕES
+  if (abaAtiva === "sugestoes") {
+    return (
+      <SugestoesTab
+        usuarioId={usuarioId}
+        sugestoesIgnoradas={sugestoesIgnoradas}
+        onIgnorar={(candId) => setSugestoesIgnoradas((prev) => ({ ...prev, [candId]: true }))}
+        onAdicionar={enviarPedido}
+        onAbrirPerfil={onAbrirPerfil}
+      />
+    );
+  }
+
+  return null;
+}
+
+// Componente para a aba de sugestões explicáveis
+function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, onAbrirPerfil }) {
+  const [sugestoes, setSugestoes] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [adicionados, setAdicionados] = useState({});
+
+  useEffect(() => {
+    let vivo = true;
+    async function carregarSugestoes() {
+      setCarregando(true);
+      try {
+        const { criarClienteSupabase } = await import("@/src/lib/supabase/client");
+        const supabase = criarClienteSupabase();
+        const { data } = await supabase.rpc("obter_recomendacoes_pessoas", { p_limite: 15 });
+        if (vivo && data) setSugestoes(data);
+      } catch (e) {
+        console.error("Erro ao carregar sugestões:", e);
+      } finally {
+        if (vivo) setCarregando(false);
+      }
+    }
+    carregarSugestoes();
+    return () => { vivo = false; };
+  }, [usuarioId]);
+
+  if (carregando) return <p style={styles.loadingText}>Buscando pessoas recomendadas...</p>;
+
+  const listaFiltrada = sugestoes.filter((s) => !sugestoesIgnoradas[s.candidate_id]);
+
+  if (listaFiltrada.length === 0) {
+    return (
+      <div style={styles.emptyCard}>
+        <p style={styles.emptyTitle}>Sem sugestões no momento. 🌿</p>
+        <p style={styles.emptySub}>Convide amigos pelo WhatsApp ou pesquise pelo nome na aba Amigos.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <h3 style={styles.sectionTitle}>Pessoas que Você Pode Conhecer</h3>
+      <div style={styles.lista}>
+        {listaFiltrada.map((item) => (
+          <div key={item.candidate_id} style={styles.itemCard}>
+            <button onClick={() => onAbrirPerfil({ id: item.candidate_id, nome_exibicao: item.nome_exibicao, foto_url: item.foto_url })} style={styles.avatarBtn}>
+              <AvatarUsuario nome={item.nome_exibicao} fotoUrl={item.foto_url} tamanho={38} />
+            </button>
+            <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil({ id: item.candidate_id, nome_exibicao: item.nome_exibicao, foto_url: item.foto_url })}>
+              <p style={styles.itemNome}>{item.nome_exibicao}</p>
+              <p style={styles.itemSub}>{item.reason_text || "Recomendado para você"}</p>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                style={adicionados[item.candidate_id] ? styles.btnAdicionado : styles.btnAdicionar}
+                disabled={adicionados[item.candidate_id]}
+                onClick={async () => {
+                  setAdicionados((prev) => ({ ...prev, [item.candidate_id]: true }));
+                  await onAdicionar(item.candidate_id);
+                }}
+              >
+                {adicionados[item.candidate_id] ? "Enviado" : "Adicionar"}
+              </button>
+              <button style={styles.btnIgnorar} onClick={() => onIgnorar(item.candidate_id)}>
+                Ignorar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Desafios entre Amigos
+// Desafios
 // ---------------------------------------------------------------------------
 function Desafios({ usuarioId }) {
   const { desafios = [], concluidos = [], carregando } = useDesafios(usuarioId);
 
   if (carregando) return <p style={styles.loadingText}>Carregando desafios...</p>;
 
-  const listaAtivos = desafios || [];
-  const listaConcluidos = concluidos || [];
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h2 style={styles.sectionTitle}>Desafios Ativos ({listaAtivos.length})</h2>
-      {listaAtivos.length === 0 ? (
-        <p style={styles.vazioTexto}>Adicione mais amigos para desbloquear desafios em grupo ou complete os devocionais do dia!</p>
+      <h3 style={styles.sectionTitle}>Desafios Ativos ({desafios.length})</h3>
+      {desafios.length === 0 ? (
+        <p style={styles.vazioTexto}>Adicione amigos para desbloquear desafios em grupo ou complete os devocionais do dia!</p>
       ) : (
-        listaAtivos.map((d) => (
+        desafios.map((d) => (
           <div key={d.id} style={styles.desafioCard}>
             <div style={styles.desafioTopo}>
               <strong style={{ fontSize: 14, color: "#33422F" }}>{d.titulo}</strong>
@@ -436,40 +503,23 @@ function Desafios({ usuarioId }) {
             <div style={styles.barraFundo}>
               <div style={{ ...styles.barraProgresso, width: `${Math.min(100, Math.round(((d.progresso || 0) / (d.meta || 1)) * 100))}%` }} />
             </div>
-            <p style={{ fontSize: 11, color: "#8A9184", margin: "6px 0 0", textAlign: "right" }}>
-              {d.progresso || 0} / {d.meta || 1}
-            </p>
           </div>
         ))
-      )}
-
-      {listaConcluidos.length > 0 && (
-        <>
-          <h2 style={{ ...styles.sectionTitle, marginTop: 12 }}>Desafios Concluídos ({listaConcluidos.length})</h2>
-          {listaConcluidos.map((d) => (
-            <div key={d.id} style={{ ...styles.desafioCard, opacity: 0.75 }}>
-              <div style={styles.desafioTopo}>
-                <span style={{ fontSize: 14, color: "#33422F", textDecoration: "line-through" }}>{d.titulo}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#3F7A4D" }}>✓ Concluído</span>
-              </div>
-            </div>
-          ))}
-        </>
       )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Liga de Amigos / Ranking Semanal
+// Liga / Ranking
 // ---------------------------------------------------------------------------
 function LigaAmigos({ usuarioId, onAbrirPerfil }) {
   const { ranking, carregando } = useRankingAmigos(usuarioId);
 
-  if (carregando) return <p style={styles.loadingText}>Carregando ranking...</p>;
+  if (carregando) return <p style={styles.loadingText}>Carregando liga de amigos...</p>;
 
   if (ranking.length <= 1) {
-    return <p style={styles.vazioTexto}>Adicione amigos pra formar sua liga.</p>;
+    return <p style={styles.vazioTexto}>Adicione amigos pra formar sua liga e comparar devocionais.</p>;
   }
 
   return (
@@ -477,10 +527,7 @@ function LigaAmigos({ usuarioId, onAbrirPerfil }) {
       {ranking.map((r) => (
         <div key={`${r.posicao}-${r.nome_exibicao}`} style={{ ...styles.rankingRow, ...(r.sou_eu ? styles.rankingRowEu : {}) }}>
           <span style={styles.rankingPosicao}>#{r.posicao}</span>
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }}
-            onClick={() => onAbrirPerfil(r)}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(r)}>
             <AvatarUsuario nome={r.nome_exibicao} fotoUrl={r.foto_url} tamanho={28} />
             <span style={styles.rankingNome}>{r.nome_exibicao}</span>
           </div>
@@ -499,72 +546,89 @@ const styles = {
     background: "#F1EAD6",
     borderRadius: 12,
     padding: 4,
-    marginBottom: 20,
-    flexWrap: "wrap",
+    marginBottom: 14,
   },
   subtabAtiva: {
     flex: 1,
-    minWidth: 70,
     padding: "8px 10px",
     borderRadius: 9,
     border: "none",
     background: "#FFFFFF",
     color: "#33422F",
     fontWeight: 700,
-    fontSize: 12.5,
+    fontSize: 13,
     cursor: "pointer",
     boxShadow: "0 2px 6px rgba(80,70,40,0.08)",
   },
   subtabInativa: {
     flex: 1,
-    minWidth: 70,
     padding: "8px 10px",
     borderRadius: 9,
     border: "none",
     background: "transparent",
     color: "#8A8069",
     fontWeight: 600,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  conexoesTabRow: {
+    display: "flex",
+    gap: 4,
+    borderBottom: "1px solid #E7E0D0",
+    marginBottom: 16,
+    paddingBottom: 4,
+  },
+  conexaoAtiva: {
+    flex: 1,
+    padding: "8px 6px",
+    background: "#B98B4E",
+    color: "#FFFFFF",
+    fontWeight: 700,
     fontSize: 12.5,
+    borderRadius: 8,
+    border: "none",
+    textAlign: "center",
+    cursor: "pointer",
+  },
+  conexaoInativa: {
+    flex: 1,
+    padding: "8px 6px",
+    background: "transparent",
+    color: "#7A8A7F",
+    fontWeight: 600,
+    fontSize: 12.5,
+    borderRadius: 8,
+    border: "none",
+    textAlign: "center",
     cursor: "pointer",
   },
   whatsappCard: {
     background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
     color: "#FFFFFF",
-    borderRadius: 18,
-    padding: "18px",
-    boxShadow: "0 6px 18px rgba(37, 211, 102, 0.25)",
+    borderRadius: 16,
+    padding: "16px",
+    boxShadow: "0 6px 18px rgba(37, 211, 102, 0.22)",
   },
-  whatsappTitulo: {
-    fontSize: 16,
-    fontWeight: 700,
-    margin: "0 0 2px",
-    color: "#FFFFFF",
-  },
-  whatsappSubtitulo: {
-    fontSize: 12.5,
-    opacity: 0.9,
-    margin: 0,
-    lineHeight: 1.35,
-  },
+  whatsappTitulo: { fontSize: 15, fontWeight: 700, margin: "0 0 2px", color: "#FFFFFF" },
+  whatsappSubtitulo: { fontSize: 12, opacity: 0.92, margin: 0, lineHeight: 1.3 },
   whatsappBtn: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    padding: "12px",
-    borderRadius: 12,
+    padding: "10px",
+    borderRadius: 10,
     background: "#FFFFFF",
     color: "#075E54",
     fontWeight: 800,
-    fontSize: 13.5,
+    fontSize: 13,
     textDecoration: "none",
-    marginTop: 12,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+    marginTop: 10,
     boxSizing: "border-box",
   },
-  inputBuscaNome: {
+  inputBusca: {
     width: "100%",
-    padding: "12px 14px",
+    padding: "11px 14px",
     borderRadius: 12,
     border: "1px solid #E7E0D0",
     background: "#FFFFFF",
@@ -572,195 +636,51 @@ const styles = {
     color: "#33422F",
     outline: "none",
     boxSizing: "border-box",
-    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.03)",
   },
-  spinnerBusca: {
-    position: "absolute",
-    right: 12,
-    top: "50%",
-    transform: "translateY(-50%)",
-    fontSize: 12,
-    color: "#8A9184",
-  },
-  resultadosContainer: {
-    background: "#FBF9F3",
-    border: "1px solid #E7E0D0",
-    borderRadius: 14,
-    padding: "12px",
-    marginTop: 10,
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  },
-  resultadoItem: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "8px 10px",
-    background: "#FFFFFF",
-    border: "1px solid #F1EEE3",
-    borderRadius: 10,
-  },
-  resultadoNome: {
-    fontSize: 13.5,
-    fontWeight: 700,
-    color: "#33422F",
-  },
-  vazioTexto: { fontSize: 12.5, color: "#7A8A7F", margin: "0 0 10px" },
-  vazio: {
-    background: "#FBF9F3",
-    border: "1px solid #E7E0D0",
-    borderRadius: 18,
-    padding: "26px 20px",
-    textAlign: "center",
-  },
-  vazioTitulo: { fontSize: 15, fontWeight: 700, color: "#33422F", margin: "0 0 6px" },
-  loadingText: { fontSize: 13, color: "#9AA79C", fontStyle: "italic" },
-  sectionTitle: {
-    fontFamily: "'Fraunces', serif",
-    fontWeight: 500,
-    fontSize: 18,
-    margin: "0 0 12px",
-    color: "#33422F",
-  },
-  primaryBtnPequeno: {
-    flexShrink: 0,
-    background: "linear-gradient(180deg, #C89A5E 0%, #B98B4E 100%)",
-    color: "#FFFFFF",
-    border: "none",
-    borderBottom: "3px solid #8A6224",
-    borderRadius: 10,
-    padding: "10px 16px",
-    fontWeight: 700,
-    fontSize: 13,
-    cursor: "pointer",
-  },
-  mensagem: { fontSize: 12.5, fontWeight: 600, margin: "10px 0 0" },
-  lista: { display: "flex", flexDirection: "column", gap: 10 },
-  feedCard: {
+  spinnerBusca: { position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#8A9184" },
+  sectionTitle: { fontFamily: "'Fraunces', serif", fontWeight: 500, fontSize: 17, margin: 0, color: "#33422F" },
+  refreshBtn: { background: "#FBF9F3", color: "#8A6224", border: "1px solid #E7E0D0", borderRadius: 8, padding: "4px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" },
+  lista: { display: "flex", flexDirection: "column", gap: 8 },
+  itemCard: {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    background: "#FBF9F3",
+    background: "#FFFFFF",
     border: "1px solid #E7E0D0",
-    borderRadius: 14,
-    padding: "12px 14px",
+    borderRadius: 12,
+    padding: "10px 14px",
   },
-  avatarBtn: {
-    background: "none",
-    border: "none",
-    padding: 0,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    flexShrink: 0,
-  },
-  nomeClicavel: {
-    cursor: "pointer",
-    color: "#2D3B33",
-    textDecoration: "underline text-decoration-color: #B98B4E",
-  },
+  avatarBtn: { background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" },
+  itemNome: { fontSize: 13.5, fontWeight: 700, color: "#33422F", margin: 0 },
+  itemSub: { fontSize: 11.5, color: "#7A8A7F", margin: "2px 0 0" },
+  torcerBtn: { background: "#F2A65A", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" },
+  btnRemoverIcone: { background: "none", border: "none", color: "#9AA79C", fontWeight: 700, fontSize: 14, cursor: "pointer", padding: "4px 6px" },
+  btnConfirmarRemocao: { background: "#B15A4A", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" },
+  btnAceitar: { background: "#B98B4E", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" },
+  btnRemover: { background: "#EAF0EC", color: "#5C7060", border: "1px solid #E7E0D0", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  btnCancelar: { background: "transparent", color: "#B15A4A", border: "1px solid #E7E0D0", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  btnAdicionar: { background: "#B98B4E", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" },
+  btnAdicionado: { background: "#EAF0EC", color: "#4F6D5C", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700 },
+  btnIgnorar: { background: "transparent", color: "#7A8A7F", border: "none", padding: "6px 8px", fontSize: 12, cursor: "pointer" },
+  emptyCard: { background: "#FBF9F3", border: "1px dashed #E7E0D0", borderRadius: 14, padding: "28px 16px", textAlign: "center" },
+  emptyTitle: { fontSize: 14, fontWeight: 700, color: "#33422F", margin: "0 0 4px" },
+  emptySub: { fontSize: 12.5, color: "#7A8A7F", margin: 0 },
+  loadingText: { fontSize: 13, color: "#9AA79C", fontStyle: "italic" },
+  vazio: { background: "#FBF9F3", border: "1px solid #E7E0D0", borderRadius: 18, padding: "26px 20px", textAlign: "center" },
+  vazioTitulo: { fontSize: 15, fontWeight: 700, color: "#33422F", margin: "0 0 6px" },
+  vazioTexto: { fontSize: 12.5, color: "#7A8A7F", margin: "0 0 10px" },
+  alertRealtime: { padding: 10, background: "#FEF3C7", color: "#92400E", borderRadius: 10, fontSize: 12, fontWeight: 700, textAlign: "center", marginBottom: 10 },
+  feedCard: { display: "flex", alignItems: "center", gap: 12, background: "#FBF9F3", border: "1px solid #E7E0D0", borderRadius: 14, padding: "12px 14px" },
+  nomeClicavel: { cursor: "pointer", color: "#2D3B33", textDecoration: "underline text-decoration-color: #B98B4E" },
   feedTexto: { fontSize: 13, color: "#3C4A3F", margin: 0, lineHeight: 1.4 },
   feedQuando: { fontSize: 11, color: "#9AA79C", fontWeight: 600, margin: "4px 0 0" },
-  pedidoCard: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    background: "#FFFDF7",
-    border: "1px solid #F0DFAF",
-    borderRadius: 14,
-    padding: "10px 14px",
-  },
-  pedidoNome: { fontSize: 13.5, fontWeight: 700, color: "#33422F", margin: 0 },
-  aceitarBtn: {
-    background: "linear-gradient(180deg, #8FCB9A 0%, #4F9463 100%)",
-    color: "#FFFFFF",
-    border: "none",
-    borderBottom: "2px solid #35704A",
-    borderRadius: 9,
-    padding: "7px 12px",
-    fontWeight: 700,
-    fontSize: 12,
-    cursor: "pointer",
-  },
-  recusarBtn: {
-    background: "#FFFFFF",
-    border: "1px solid #E7E0D0",
-    borderRadius: 9,
-    padding: "7px 12px",
-    fontWeight: 700,
-    fontSize: 12,
-    color: "#8A3A26",
-    cursor: "pointer",
-  },
-  amigoCard: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    background: "#FBF9F3",
-    border: "1px solid #E7E0D0",
-    borderRadius: 14,
-    padding: "10px 14px",
-  },
-  torcerBtn: {
-    flexShrink: 0,
-    background: "linear-gradient(180deg, #F2A65A 0%, #E08428 100%)",
-    color: "#FFFFFF",
-    border: "none",
-    borderBottom: "2px solid #A85E10",
-    borderRadius: 9,
-    padding: "8px 12px",
-    fontWeight: 700,
-    fontSize: 12,
-    cursor: "pointer",
-  },
-  linkBtnPequeno: {
-    background: "transparent",
-    border: "none",
-    color: "#9AA79C",
-    fontWeight: 700,
-    fontSize: 12,
-    cursor: "pointer",
-    padding: "6px 8px",
-  },
-  refreshBtn: {
-    background: "#FBF9F3",
-    color: "#8A6224",
-    border: "1px solid #E7E0D0",
-    borderRadius: 10,
-    padding: "4px 10px",
-    fontSize: 11.5,
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  desafioCard: {
-    background: "#FBF9F3",
-    border: "1px solid #E7E0D0",
-    borderRadius: 14,
-    padding: "12px 14px",
-  },
-  desafioTopo: { display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" },
+  primaryBtnPequeno: { background: "#B98B4E", color: "#FFFFFF", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" },
+  desafioCard: { background: "#FBF9F3", border: "1px solid #E7E0D0", borderRadius: 14, padding: "12px 14px" },
+  desafioTopo: { display: "flex", alignItems: "center", justifyContent: "space-between" },
   barraFundo: { height: 7, borderRadius: 999, background: "#EFEAD9", overflow: "hidden", marginTop: 3 },
-  barraProgresso: {
-    height: "100%",
-    borderRadius: 999,
-    background: "linear-gradient(90deg, #D9A94C, #B98B4E)",
-    transition: "width 0.4s ease",
-  },
-  rankingCard: {
-    background: "#FFFFFF",
-    border: "1px solid #E7E0D0",
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  rankingRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "10px 16px",
-    borderBottom: "1px solid #F1EEE3",
-    fontSize: 13.5,
-  },
+  barraProgresso: { height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #D9A94C, #B98B4E)", transition: "width 0.4s ease" },
+  rankingCard: { background: "#FFFFFF", border: "1px solid #E7E0D0", borderRadius: 16, overflow: "hidden" },
+  rankingRow: { display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid #F1EEE3", fontSize: 13.5 },
   rankingRowEu: { background: "#F1E2C4", fontWeight: 700 },
   rankingPosicao: { width: 32, color: "#B98B4E", fontWeight: 700 },
   rankingNome: { flex: 1, color: "#2D3B33", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },

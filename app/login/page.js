@@ -5,9 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import CardDoacao from "@/src/components/CardDoacao";
 
-// useSearchParams() exige um limite de Suspense no App Router -- sem isso o
-// build falha/avisa. O fallback abaixo praticamente não aparece (é só o
-// tempo de ler o parâmetro "erro" da URL, instantâneo).
 export default function PaginaLogin() {
   return (
     <Suspense fallback={<div style={styles.page} />}>
@@ -18,13 +15,17 @@ export default function PaginaLogin() {
 
 function FormularioLogin() {
   const searchParams = useSearchParams();
+  const [modo, setModo] = useState("entrar"); // "entrar" | "cadastro" | "magic"
   const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [nomeCompleto, setNomeCompleto] = useState("");
+  const [nomeExibicao, setNomeExibicao] = useState("");
+  
   const [enviando, setEnviando] = useState(false);
-  const [linkEnviado, setLinkEnviado] = useState(false);
+  const [mensagemSucesso, setMensagemSucesso] = useState(null);
   const [erro, setErro] = useState(null);
 
-  // Erro vindo da rota /auth/callback (ex: link de e-mail expirado, usado
-  // em outro navegador, ou já utilizado antes).
   useEffect(() => {
     const erroDaUrl = searchParams.get("erro");
     if (erroDaUrl) setErro(erroDaUrl);
@@ -40,6 +41,72 @@ function FormularioLogin() {
       },
     });
     if (error) setErro(error.message);
+  }
+
+  async function entrarComSenha(e) {
+    e.preventDefault();
+    setErro(null);
+    setEnviando(true);
+    const supabase = criarClienteSupabase();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+    });
+    setEnviando(false);
+    if (error) {
+      setErro(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message);
+    }
+  }
+
+  async function cadastrarNovoUsuario(e) {
+    e.preventDefault();
+    setErro(null);
+    setMensagemSucesso(null);
+
+    if (senha !== confirmarSenha) {
+      setErro("As senhas não coincidem.");
+      return;
+    }
+
+    if (senha.length < 6) {
+      setErro("A senha deve ter no mínimo 6 caracteres.");
+      return;
+    }
+
+    setEnviando(true);
+    const supabase = criarClienteSupabase();
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: senha,
+      options: {
+        data: {
+          full_name: nomeCompleto.trim() || nomeExibicao.trim(),
+          display_name: nomeExibicao.trim() || nomeCompleto.trim(),
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    setEnviando(false);
+
+    if (error) {
+      setErro(error.message);
+      return;
+    }
+
+    // Tenta gravar metadados estendidos na tabela profiles
+    if (data?.user?.id) {
+      await supabase.from("profiles").upsert({
+        id: data.user.id,
+        email: email.trim(),
+        nome_completo: nomeCompleto.trim(),
+        nome_exibicao: nomeExibicao.trim() || nomeCompleto.trim(),
+        status: "ACTIVE",
+      });
+    }
+
+    setMensagemSucesso("Conta criada com sucesso! Confira seu e-mail para confirmar a conta ou faça login.");
   }
 
   async function enviarMagicLink(e) {
@@ -58,7 +125,7 @@ function FormularioLogin() {
       setErro(error.message);
       return;
     }
-    setLinkEnviado(true);
+    setMensagemSucesso(`Link de acesso enviado para ${email}. Confira sua caixa de entrada.`);
   }
 
   return (
@@ -71,21 +138,91 @@ function FormularioLogin() {
         <h1 style={styles.title}>Devocional Diário</h1>
         <p style={styles.subtitle}>Um versículo por dia e um devocional guiado para o seu momento.</p>
 
+        {/* Abas Entrar / Cadastrar */}
+        <div style={styles.tabContainer}>
+          <button
+            type="button"
+            style={modo === "entrar" ? styles.tabActive : styles.tabInactive}
+            onClick={() => { setModo("entrar"); setErro(null); setMensagemSucesso(null); }}
+          >
+            Entrar
+          </button>
+          <button
+            type="button"
+            style={modo === "cadastro" ? styles.tabActive : styles.tabInactive}
+            onClick={() => { setModo("cadastro"); setErro(null); setMensagemSucesso(null); }}
+          >
+            Criar Conta
+          </button>
+        </div>
+
         <div style={styles.card}>
           <button className="action-btn" style={styles.googleBtn} onClick={entrarComGoogle}>
-            <span style={{ fontSize: 18 }}>🔎</span> Entrar com Google
+            <span style={{ fontSize: 18 }}>🔎</span> Continuar com Google
           </button>
 
           <div style={styles.divider}>
             <span style={styles.dividerText}>ou por e-mail</span>
           </div>
 
-          {linkEnviado ? (
-            <p style={styles.confirmText}>
-              Link enviado para <strong>{email}</strong>. Confira sua caixa de entrada (e o spam) e clique nele para
-              entrar.
-            </p>
-          ) : (
+          {mensagemSucesso ? (
+            <div style={{ textAlign: "center" }}>
+              <p style={styles.confirmText}>{mensagemSucesso}</p>
+              <button
+                style={{ ...styles.primaryBtn, marginTop: 14 }}
+                onClick={() => { setModo("entrar"); setMensagemSucesso(null); }}
+              >
+                Ir para o Login
+              </button>
+            </div>
+          ) : modo === "cadastro" ? (
+            <form onSubmit={cadastrarNovoUsuario}>
+              <input
+                type="text"
+                required
+                placeholder="Nome completo"
+                value={nomeCompleto}
+                onChange={(e) => setNomeCompleto(e.target.value)}
+                style={styles.input}
+              />
+              <input
+                type="text"
+                required
+                placeholder="Nome de exibição (ex: João Silva)"
+                value={nomeExibicao}
+                onChange={(e) => setNomeExibicao(e.target.value)}
+                style={styles.input}
+              />
+              <input
+                type="email"
+                required
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.input}
+              />
+              <input
+                type="password"
+                required
+                placeholder="Crie uma senha (mínimo 6 caracteres)"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                style={styles.input}
+              />
+              <input
+                type="password"
+                required
+                placeholder="Confirme sua senha"
+                value={confirmarSenha}
+                onChange={(e) => setConfirmarSenha(e.target.value)}
+                style={styles.input}
+              />
+
+              <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
+                {enviando ? "Criando conta..." : "Criar Minha Conta"}
+              </button>
+            </form>
+          ) : modo === "magic" ? (
             <form onSubmit={enviarMagicLink}>
               <input
                 type="email"
@@ -98,7 +235,42 @@ function FormularioLogin() {
               <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
                 {enviando ? "Enviando..." : "Enviar link de acesso"}
               </button>
-              <CardDoacao compacto={true} />
+              <button
+                type="button"
+                style={styles.linkToggleBtn}
+                onClick={() => setModo("entrar")}
+              >
+                « Entrar com E-mail e Senha
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={entrarComSenha}>
+              <input
+                type="email"
+                required
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.input}
+              />
+              <input
+                type="password"
+                required
+                placeholder="Sua senha"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                style={styles.input}
+              />
+              <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
+                {enviando ? "Entrando..." : "Entrar com Senha"}
+              </button>
+              <button
+                type="button"
+                style={styles.linkToggleBtn}
+                onClick={() => setModo("magic")}
+              >
+                ✨ Entrar sem senha via Link por E-mail
+              </button>
             </form>
           )}
 
@@ -106,8 +278,10 @@ function FormularioLogin() {
         </div>
 
         <p style={styles.footnote}>
-          Sem senha — você entra com um link enviado ao seu e-mail, ou com sua conta Google.
+          Seguro e intuitivo — entre com sua conta Google, e-mail e senha, ou link direto por e-mail.
         </p>
+
+        <CardDoacao compacto={true} />
       </div>
     </div>
   );
@@ -154,7 +328,37 @@ const styles = {
   subtitle: {
     fontSize: 14,
     color: "#7A8A7F",
-    margin: "0 0 28px",
+    margin: "0 0 20px",
+  },
+  tabContainer: {
+    display: "flex",
+    background: "rgba(220, 215, 200, 0.5)",
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  tabActive: {
+    flex: 1,
+    padding: "8px 12px",
+    background: "#FBF9F3",
+    color: "#33422F",
+    fontWeight: 700,
+    fontSize: 13.5,
+    borderRadius: 8,
+    border: "none",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+    cursor: "pointer",
+  },
+  tabInactive: {
+    flex: 1,
+    padding: "8px 12px",
+    background: "transparent",
+    color: "#7A8A7F",
+    fontWeight: 600,
+    fontSize: 13.5,
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
   },
   card: {
     background: "#FBF9F3",
@@ -163,6 +367,7 @@ const styles = {
     padding: "26px 24px",
     boxShadow: "0 8px 24px rgba(80, 70, 40, 0.06)",
     textAlign: "left",
+    marginBottom: 16,
   },
   googleBtn: {
     width: "100%",
@@ -200,7 +405,8 @@ const styles = {
     fontFamily: "'Karla', sans-serif",
     fontSize: 14,
     color: "#2D3B33",
-    marginBottom: 12,
+    marginBottom: 10,
+    boxSizing: "border-box",
   },
   primaryBtn: {
     width: "100%",
@@ -212,6 +418,17 @@ const styles = {
     fontWeight: 700,
     fontSize: 14,
     cursor: "pointer",
+  },
+  linkToggleBtn: {
+    background: "none",
+    border: "none",
+    color: "#5C7060",
+    fontSize: 12.5,
+    cursor: "pointer",
+    width: "100%",
+    marginTop: 12,
+    textAlign: "center",
+    textDecoration: "underline",
   },
   confirmText: {
     fontSize: 13.5,
@@ -225,18 +442,11 @@ const styles = {
     marginTop: 12,
     marginBottom: 0,
   },
-  donationText: {
-    fontSize: 11.5,
-    color: "#9AA79C",
-    lineHeight: 1.5,
-    marginTop: 12,
-    marginBottom: 0,
-    textAlign: "center",
-  },
   footnote: {
     fontSize: 11.5,
     color: "#9AA79C",
-    marginTop: 20,
+    marginTop: 12,
+    marginBottom: 16,
     lineHeight: 1.5,
   },
 };

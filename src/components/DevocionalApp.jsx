@@ -33,6 +33,10 @@ import FavoritosTab from "@/src/components/FavoritosTab";
 import { useFavoritos } from "@/src/lib/hooks/useFavoritos";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilModal from "@/src/components/PerfilModal";
+import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
+import CentralNotificacoesModal from "@/src/components/CentralNotificacoesModal";
+import OnboardingModal from "@/src/components/OnboardingModal";
+import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -43,10 +47,16 @@ export default function DevocionalApp({ usuario }) {
   const [gatilhoRecarga, setGatilhoRecarga] = useState(0);
   const [modalLembreteAberto, setModalLembreteAberto] = useState(false);
   const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
+  const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState(false);
+  const [modalOnboardingAberto, setModalOnboardingAberto] = useState(false);
+  const [perfilAmigoId, setPerfilAmigoId] = useState(null);
+
+  const { unreadNotificationsCount } = useNotificacoes(usuario?.id);
 
   const [perfil, setPerfil] = useState({
     nome_exibicao: usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
     foto_url: usuario?.user_metadata?.avatar_url || usuario?.user_metadata?.picture || null,
+    username: null,
   });
 
   useEffect(() => {
@@ -55,12 +65,25 @@ export default function DevocionalApp({ usuario }) {
       if (!usuario?.id) return;
       try {
         const supabase = criarClienteSupabase();
-        const { data } = await supabase.from("profiles").select("nome_exibicao, foto_url").eq("id", usuario.id).maybeSingle();
+        const { data } = await supabase.from("profiles").select("*").eq("id", usuario.id).maybeSingle();
         if (vivo && data) {
           setPerfil({
+            id: data.id,
             nome_exibicao: data.nome_exibicao || usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
             foto_url: data.foto_url || usuario?.user_metadata?.avatar_url || usuario?.user_metadata?.picture || null,
+            username: data.username || null,
+            nome_completo: data.nome_completo || null,
+            cidade: data.cidade || null,
+            igreja: data.igreja || null,
+            bio: data.bio || null,
           });
+
+          // Se novo usuário sem username configurado, abre OnboardingModal
+          if (!data.username && !localStorage.getItem(`onboarding_concluido_${usuario.id}`)) {
+            setModalOnboardingAberto(true);
+          }
+        } else if (vivo && !data) {
+          setModalOnboardingAberto(true);
         }
       } catch (e) {
         console.error("Erro ao carregar perfil:", e);
@@ -336,13 +359,28 @@ export default function DevocionalApp({ usuario }) {
           </button>
 
           <div style={styles.topBarRight}>
+            {/* Ícone de Notificações com Badge */}
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <button
+                className="action-btn"
+                style={{ ...styles.linkBtn, padding: "4px 8px", fontSize: 17 }}
+                onClick={() => setModalNotificacoesAberto(true)}
+                title="Central de Notificações"
+              >
+                🔔
+              </button>
+              {unreadNotificationsCount > 0 && (
+                <span style={styles.bellBadge}>{unreadNotificationsCount}</span>
+              )}
+            </div>
+
             <button
               className="action-btn"
               style={{ ...styles.linkBtn, padding: "4px 8px", fontSize: 16 }}
               onClick={() => setModalLembreteAberto(true)}
               title="Configurar Lembrete Diário"
             >
-              🔔
+              ⏰
             </button>
             <span style={styles.ofensivaChip} title={`Maior sequência: ${ofensiva?.maior_ofensiva ?? 0} dias`}>
               <span className="flame-icon">🔥</span> {ofensiva?.ofensiva_atual ?? 0}
@@ -354,6 +392,7 @@ export default function DevocionalApp({ usuario }) {
         </div>
 
         <LembreteModal aberto={modalLembreteAberto} aoFechar={() => setModalLembreteAberto(false)} />
+        
         <PerfilModal
           usuario={usuario}
           perfilAtual={perfil}
@@ -361,6 +400,46 @@ export default function DevocionalApp({ usuario }) {
           aoFechar={() => setModalPerfilAberto(false)}
           aoSalvar={(novosDados) => setPerfil((antigo) => ({ ...antigo, ...novosDados }))}
         />
+
+        {modalNotificacoesAberto && (
+          <CentralNotificacoesModal
+            usuarioId={usuario.id}
+            aoFechar={() => setModalNotificacoesAberto(false)}
+            aoAbrirPerfilAmigo={(actorId) => {
+              setModalNotificacoesAberto(false);
+              setPerfilAmigoId(actorId);
+            }}
+          />
+        )}
+
+        {modalOnboardingAberto && (
+          <OnboardingModal
+            usuario={usuario}
+            perfilAtual={perfil}
+            aoConcluir={() => {
+              setModalOnboardingAberto(false);
+              localStorage.setItem(`onboarding_concluido_${usuario.id}`, "true");
+              // Recarrega o perfil local
+              criarClienteSupabase()
+                .from("profiles")
+                .select("*")
+                .eq("id", usuario.id)
+                .maybeSingle()
+                .then(({ data }) => {
+                  if (data) setPerfil((p) => ({ ...p, ...data }));
+                });
+            }}
+          />
+        )}
+
+        {perfilAmigoId && (
+          <PerfilAmigoModal
+            aberto={!!perfilAmigoId}
+            aoFechar={() => setPerfilAmigoId(null)}
+            amigo={{ id: perfilAmigoId }}
+            usuarioAtualId={usuario.id}
+          />
+        )}
 
         {/* HERO */}
         <div style={styles.hero}>
@@ -1273,5 +1352,19 @@ const styles = {
     color: "#B98B4E",
     verticalAlign: "super",
     marginRight: 2,
+  },
+  bellBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    background: "#B98B4E",
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: 800,
+    borderRadius: 999,
+    padding: "1px 5px",
+    lineHeight: 1,
+    boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+    pointerEvents: "none",
   },
 };
