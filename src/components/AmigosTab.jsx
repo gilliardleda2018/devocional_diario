@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAmigos } from "@/src/lib/hooks/useAmigos";
 import { useFeedAmigos } from "@/src/lib/hooks/useFeedAmigos";
 import { useDesafios } from "@/src/lib/hooks/useDesafios";
@@ -154,27 +154,55 @@ function FeedAmigos({ usuarioId, irParaAmigos, onAbrirPerfil }) {
 }
 
 // ---------------------------------------------------------------------------
-// Amigos: meu código, pedidos pendentes, adicionar, lista
+// Amigos: Convites WhatsApp + Busca por Nome + Pedidos Pendentes + Lista
 // ---------------------------------------------------------------------------
 function ListaAmigos({ usuarioId, onAbrirPerfil }) {
-  const { amigos, pedidos, meuCodigo, carregando, erro, enviarPedido, responderPedido, removerAmigo, torcer } =
-    useAmigos(usuarioId);
-  const [codigoDigitado, setCodigoDigitado] = useState("");
-  const [enviando, setEnviando] = useState(false);
+  const {
+    amigos,
+    pedidos,
+    meuCodigo,
+    carregando,
+    erro,
+    buscarPessoasPorNome,
+    enviarPedido,
+    responderPedido,
+    removerAmigo,
+    torcer,
+  } = useAmigos(usuarioId);
+
+  const [buscaNome, setBuscaNome] = useState("");
+  const [resultadosBusca, setResultadosBusca] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [adicionandoId, setAdicionandoId] = useState(null);
   const [mensagem, setMensagem] = useState(null);
   const [confirmandoRemocao, setConfirmandoRemocao] = useState(null);
   const [torcidaEnviada, setTorcidaEnviada] = useState({});
 
-  async function handleAdicionar(e) {
-    e.preventDefault();
-    if (!codigoDigitado.trim()) return;
-    setEnviando(true);
+  // Busca em tempo real conforme digita o nome
+  useEffect(() => {
+    if (!buscaNome.trim() || buscaNome.trim().length < 2) {
+      setResultadosBusca([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setBuscando(true);
+      const res = await buscarPessoasPorNome(buscaNome.trim());
+      setResultadosBusca(res);
+      setBuscando(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [buscaNome, buscarPessoasPorNome]);
+
+  async function handleAdicionarPorCodigo(codigo) {
+    setAdicionandoId(codigo);
     setMensagem(null);
-    const resultado = await enviarPedido(codigoDigitado.trim());
-    setEnviando(false);
+    const resultado = await enviarPedido(codigo);
+    setAdicionandoId(null);
     if (resultado.sucesso) {
-      setCodigoDigitado("");
       setMensagem({ tipo: "sucesso", texto: "Amigo adicionado com sucesso! 🎉" });
+      setBuscaNome("");
+      setResultadosBusca([]);
     } else {
       setMensagem({ tipo: "erro", texto: resultado.erro });
     }
@@ -188,49 +216,88 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
     }
   }
 
+  const mensagemWhatsapp = `Olá! Baixei o app Devocional Diário para minhas leituras e orações bíblicas. Venha acompanhar meus devocionais e torcer comigo! 📖✨ Acesse aqui: https://main.d357ab4gel6chc.amplifyapp.com`;
+
   if (carregando) return <p style={styles.loadingText}>Carregando amigos...</p>;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Meu Código de Convite */}
-      <div style={styles.card}>
-        <p style={styles.cardLabel}>Seu código de amigo</p>
-        <p style={styles.codigoGrande}>{meuCodigo ?? "------"}</p>
-        <p style={styles.vazioTexto}>Compartilhe esse código pros seus amigos te adicionarem no app.</p>
-        {meuCodigo && (
-          <CompartilharBotoes
-            texto={`Me adiciona no app Devocional Diário! Meu código de amigo é ${meuCodigo}`}
-            referencia="Conecte-se comigo no Devocional"
-          />
-        )}
+      {/* 🟢 CARD PRINCIPAL DE DESTAQUE: Conectar via WhatsApp */}
+      <div style={styles.whatsappCard}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 32 }}>💬</span>
+          <div>
+            <h3 style={styles.whatsappTitulo}>Conectar Amigos do WhatsApp</h3>
+            <p style={styles.whatsappSubtitulo}>
+              Envie um convite direto pelo WhatsApp e conecte-se com seus contatos em 1 clique!
+            </p>
+          </div>
+        </div>
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(mensagemWhatsapp)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={styles.whatsappBtn}
+          className="action-btn chunky"
+        >
+          <span>📲 Abrir WhatsApp e Convidar Contatos</span>
+        </a>
       </div>
 
-      {/* Adicionar amigo por código */}
+      {/* 🔍 BUSCA DIRETA POR NOME (SEM CÓDIGO) */}
       <div>
-        <h2 style={styles.sectionTitle}>Adicionar novo amigo</h2>
-        <form onSubmit={handleAdicionar} style={styles.formLinha}>
+        <h2 style={styles.sectionTitle}>Buscar amigos pelo nome</h2>
+        <div style={{ position: "relative" }}>
           <input
             type="text"
-            placeholder="Cole o código do amigo (ex: ABC12345)"
-            value={codigoDigitado}
-            onChange={(e) => setCodigoDigitado(e.target.value.toUpperCase())}
-            style={styles.input}
+            placeholder="Digite o nome do seu amigo (ex: Gilliard, Maria...)"
+            value={buscaNome}
+            onChange={(e) => setBuscaNome(e.target.value)}
+            style={styles.inputBuscaNome}
           />
-          <button
-            type="submit"
-            className="action-btn chunky"
-            style={styles.primaryBtnPequeno}
-            disabled={enviando}
-          >
-            {enviando ? "..." : "Adicionar"}
-          </button>
-        </form>
+          {buscando && <span style={styles.spinnerBusca}>🔍...</span>}
+        </div>
+
+        {/* Resultados da busca por nome */}
+        {resultadosBusca.length > 0 && (
+          <div style={styles.resultadosContainer}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#8A9184", margin: "0 0 6px" }}>
+              Pessoas encontradas:
+            </p>
+            {resultadosBusca.map((pessoa) => {
+              const ehAmigo = amigos.some((a) => a.amigo_id === pessoa.id || a.id === pessoa.id);
+              return (
+                <div key={pessoa.id} style={styles.resultadoItem}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer" }}
+                    onClick={() => onAbrirPerfil(pessoa)}
+                  >
+                    <AvatarUsuario nome={pessoa.nome_exibicao} fotoUrl={pessoa.foto_url} tamanho={32} />
+                    <span style={styles.resultadoNome}>{pessoa.nome_exibicao}</span>
+                  </div>
+                  {ehAmigo ? (
+                    <span style={{ fontSize: 12, color: "#3F7A4D", fontWeight: 700 }}>✓ Já é amigo</span>
+                  ) : (
+                    <button
+                      className="action-btn chunky"
+                      style={styles.aceitarBtn}
+                      disabled={adicionandoId === pessoa.codigo_amigo}
+                      onClick={() => handleAdicionarPorCodigo(pessoa.codigo_amigo)}
+                    >
+                      {adicionandoId === pessoa.codigo_amigo ? "..." : "➕ Adicionar"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {mensagem && (
           <p style={{ ...styles.mensagem, color: mensagem.tipo === "sucesso" ? "#3F7A4D" : "#B15A4A" }}>
             {mensagem.texto}
           </p>
         )}
-        {erro && <p style={{ ...styles.mensagem, color: "#B15A4A" }}>{erro}</p>}
       </div>
 
       {/* Pedidos Pendentes */}
@@ -269,11 +336,11 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
         </div>
       )}
 
-      {/* Lista de Amigos */}
+      {/* Lista de Amigos Conectados */}
       <div>
         <h2 style={styles.sectionTitle}>Seus amigos ({amigos.length})</h2>
         {amigos.length === 0 ? (
-          <p style={styles.vazioTexto}>Você ainda não tem amigos por aqui. Compartilhe seu código!</p>
+          <p style={styles.vazioTexto}>Você ainda não tem amigos conectados. Convide seus contatos do WhatsApp!</p>
         ) : (
           <div style={styles.lista}>
             {amigos.map((amigo) => (
@@ -447,28 +514,84 @@ const styles = {
     fontSize: 12.5,
     cursor: "pointer",
   },
-  card: {
+  whatsappCard: {
+    background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+    color: "#FFFFFF",
+    borderRadius: 18,
+    padding: "18px",
+    boxShadow: "0 6px 18px rgba(37, 211, 102, 0.25)",
+  },
+  whatsappTitulo: {
+    fontSize: 16,
+    fontWeight: 700,
+    margin: "0 0 2px",
+    color: "#FFFFFF",
+  },
+  whatsappSubtitulo: {
+    fontSize: 12.5,
+    opacity: 0.9,
+    margin: 0,
+    lineHeight: 1.35,
+  },
+  whatsappBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    padding: "12px",
+    borderRadius: 12,
+    background: "#FFFFFF",
+    color: "#075E54",
+    fontWeight: 800,
+    fontSize: 13.5,
+    textDecoration: "none",
+    marginTop: 12,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+    boxSizing: "border-box",
+  },
+  inputBuscaNome: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid #E7E0D0",
+    background: "#FFFFFF",
+    fontSize: 13.5,
+    color: "#33422F",
+    outline: "none",
+    boxSizing: "border-box",
+    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.03)",
+  },
+  spinnerBusca: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    transform: "translateY(-50%)",
+    fontSize: 12,
+    color: "#8A9184",
+  },
+  resultadosContainer: {
     background: "#FBF9F3",
     border: "1px solid #E7E0D0",
-    borderRadius: 18,
-    padding: "18px 18px 20px",
-    boxShadow: "0 8px 24px rgba(80, 70, 40, 0.06)",
+    borderRadius: 14,
+    padding: "12px",
+    marginTop: 10,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
   },
-  cardLabel: {
-    fontSize: 11,
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    color: "#B98B4E",
+  resultadoItem: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 10px",
+    background: "#FFFFFF",
+    border: "1px solid #F1EEE3",
+    borderRadius: 10,
+  },
+  resultadoNome: {
+    fontSize: 13.5,
     fontWeight: 700,
-    margin: "0 0 10px",
-  },
-  codigoGrande: {
-    fontFamily: "'Fraunces', serif",
-    fontWeight: 600,
-    fontSize: 30,
-    letterSpacing: 3,
     color: "#33422F",
-    margin: "0 0 6px",
   },
   vazioTexto: { fontSize: 12.5, color: "#7A8A7F", margin: "0 0 10px" },
   vazio: {
@@ -485,16 +608,6 @@ const styles = {
     fontWeight: 500,
     fontSize: 18,
     margin: "0 0 12px",
-    color: "#33422F",
-  },
-  formLinha: { display: "flex", gap: 8, alignItems: "center" },
-  input: {
-    flex: 1,
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #E7E0D0",
-    fontSize: 13.5,
-    background: "#FFFFFF",
     color: "#33422F",
   },
   primaryBtnPequeno: {
@@ -539,7 +652,7 @@ const styles = {
   pedidoCard: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justify.content: "space-between",
     background: "#FFFDF7",
     border: "1px solid #F0DFAF",
     borderRadius: 14,

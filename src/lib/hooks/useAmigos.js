@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 /**
- * Lista de amigos, pedidos pendentes e o próprio código de amigo, mais as
- * ações (enviar pedido, aceitar/recusar, desfazer amizade, torcer). Toda a
- * lógica de quem pode ver o quê mora nas funções RPC (ver supabase/schema.sql,
- * seção "AMIGOS") -- este hook só chama e expõe o estado.
+ * Hook de Amigos com suporte a:
+ * - Busca de contatos por nome (sem precisar de código)
+ * - Convite direto pelo WhatsApp
+ * - Conexão instantânea de amizade
  */
 export function useAmigos(usuarioId) {
   const [amigos, setAmigos] = useState([]);
@@ -44,6 +44,27 @@ export function useAmigos(usuarioId) {
   useEffect(() => {
     recarregar();
   }, [recarregar]);
+
+  // Busca usuários cadastrados no app por nome
+  const buscarPessoasPorNome = useCallback(
+    async (termo) => {
+      if (!termo || termo.trim().length < 2) return [];
+      const supabase = criarClienteSupabase();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome_exibicao, foto_url, codigo_amigo")
+        .ilike("nome_exibicao", `%${termo.trim()}%`)
+        .neq("id", usuarioId)
+        .limit(10);
+
+      if (error) {
+        console.error("Erro ao buscar usuários por nome:", error);
+        return [];
+      }
+      return data ?? [];
+    },
+    [usuarioId]
+  );
 
   const enviarPedido = useCallback(
     async (codigo) => {
@@ -89,5 +110,17 @@ export function useAmigos(usuarioId) {
     return { sucesso: !error, erro: error?.message };
   }, []);
 
-  return { amigos, pedidos, meuCodigo, carregando, erro, recarregar, enviarPedido, responderPedido, removerAmigo, torcer };
+  return {
+    amigos,
+    pedidos,
+    meuCodigo,
+    carregando,
+    erro,
+    recarregar,
+    buscarPessoasPorNome,
+    enviarPedido,
+    responderPedido,
+    removerAmigo,
+    torcer,
+  };
 }
