@@ -78,7 +78,7 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
       </div>
 
       {/* Filtros */}
-      <div style={styles.filterRow}>
+      <div style={styles.filterRow} className="no-scrollbar">
         <button
           style={filtroVisibilidade === "ALL" ? styles.filterActive : styles.filterInactive}
           onClick={() => setFiltroVisibilidade("ALL")}
@@ -318,6 +318,8 @@ const styles = {
     display: "flex",
     gap: 8,
     marginBottom: 16,
+    overflowX: "auto",
+    WebkitOverflowScrolling: "touch",
   },
   filterActive: {
     background: "#FFFFFF",
@@ -329,6 +331,8 @@ const styles = {
     fontWeight: 700,
     cursor: "pointer",
     boxShadow: "0 2px 6px rgba(80,70,40,0.06)",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   },
   filterInactive: {
     background: "#FBF9F3",
@@ -339,6 +343,8 @@ const styles = {
     fontSize: 12.5,
     fontWeight: 600,
     cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   },
   loadingBox: {
     textAlign: "center",

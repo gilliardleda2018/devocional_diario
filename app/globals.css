@@ -10,6 +10,7 @@ body {
   padding: 0;
   background: #f6efe1;
   color: #2d3b33;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -19,4 +20,46 @@ a {
 
 button {
   font-family: inherit;
+}
+
+/* Ocultar barra de rolagem para navegação suave de abas em telas mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Efeito Chunky / 3D nos botões de ação */
+.action-btn.chunky {
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.action-btn.chunky:active {
+  transform: translateY(2px);
+  filter: brightness(0.95);
+}
+
+/* Responsividade Global de Imagens e Modais */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Animações Suaves */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

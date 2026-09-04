@@ -376,7 +376,7 @@ export default function DevocionalApp({ usuario }) {
         </div>
 
         {/* TABS */}
-        <div style={styles.tabRow}>
+        <div style={styles.tabRow} className="no-scrollbar">
           <button
             className="tab-btn"
             style={aba === "inicio" ? styles.tabActive : styles.tabInactive}
@@ -832,9 +832,10 @@ const styles = {
     opacity: 0.6,
   },
   container: {
-    maxWidth: 480,
+    maxWidth: 520,
+    width: "100%",
     margin: "0 auto",
-    padding: "24px 20px 0",
+    padding: "20px 16px 0",
   },
   topBar: {
     display: "flex",
@@ -957,34 +958,38 @@ const styles = {
   },
   tabRow: {
     display: "flex",
-    gap: 8,
-    marginBottom: 24,
+    gap: 6,
+    marginBottom: 20,
     background: "#EFEAD9",
     borderRadius: 12,
     padding: 4,
+    overflowX: "auto",
+    WebkitOverflowScrolling: "touch",
   },
   tabActive: {
-    flex: 1,
+    flexShrink: 0,
     background: "#FFFFFF",
     color: "#33422F",
     border: "none",
     borderRadius: 9,
-    padding: "10px 0",
+    padding: "8px 14px",
     fontWeight: 700,
-    fontSize: 13.5,
+    fontSize: 13,
     cursor: "pointer",
     boxShadow: "0 2px 8px rgba(80,70,40,0.08)",
+    whiteSpace: "nowrap",
   },
   tabInactive: {
-    flex: 1,
+    flexShrink: 0,
     background: "transparent",
     color: "#8A9184",
     border: "none",
     borderRadius: 9,
-    padding: "10px 0",
-    fontWeight: 700,
-    fontSize: 13.5,
+    padding: "8px 14px",
+    fontWeight: 600,
+    fontSize: 13,
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   card: {
     background: "#FBF9F3",

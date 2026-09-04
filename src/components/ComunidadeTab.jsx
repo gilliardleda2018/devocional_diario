@@ -41,7 +41,7 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
       </div>
 
       {/* Sub Navegação da Comunidade */}
-      <div style={styles.subTabRow}>
+      <div style={styles.subTabRow} className="no-scrollbar">
         <button
           style={subAba === "descobrir" ? styles.subTabActive : styles.subTabInactive}
           onClick={() => setSubAba("descobrir")}
@@ -177,29 +177,35 @@ const styles = {
     background: "#EFEAD9",
     borderRadius: 12,
     padding: 3,
+    overflowX: "auto",
+    WebkitOverflowScrolling: "touch",
   },
   subTabActive: {
     flex: 1,
+    minWidth: "fit-content",
     background: "#FFFFFF",
     color: "#33422F",
     border: "none",
     borderRadius: 9,
-    padding: "8px 0",
+    padding: "8px 12px",
     fontWeight: 700,
     fontSize: 13,
     cursor: "pointer",
     boxShadow: "0 2px 6px rgba(80,70,40,0.08)",
+    whiteSpace: "nowrap",
   },
   subTabInactive: {
     flex: 1,
+    minWidth: "fit-content",
     background: "transparent",
     color: "#8A9184",
     border: "none",
     borderRadius: 9,
-    padding: "8px 0",
+    padding: "8px 12px",
     fontWeight: 600,
     fontSize: 13,
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   sectionHeader: {
     marginBottom: 14,
