@@ -304,7 +304,8 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
 
   // ABA 1: AMIGOS
   if (abaAtiva === "amigos") {
-    const listaAmigosExibida = buscaTermo.trim().length >= 2 ? resultadosBusca : amigos;
+    const listaAmigosExibida = buscaTermo.trim().length >= 2 ? (resultadosBusca || []) : (amigos || []);
+    const totalAmigos = (amigos || []).length;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Banner Redes Sociais */}
@@ -323,7 +324,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={styles.sectionTitle}>Seus Amigos ({amigos.length})</h3>
+          <h3 style={styles.sectionTitle}>Seus Amigos ({totalAmigos})</h3>
           <button onClick={recarregar} style={styles.refreshBtn}>🔄 Atualizar</button>
         </div>
 
@@ -334,7 +335,9 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
           </div>
         ) : (
           <div style={styles.lista}>
-            {listaAmigosExibida.map((amigo) => (
+            {listaAmigosExibida.map((amigo) => {
+              if (!amigo) return null;
+              return (
               <div key={amigo.amizade_id || amigo.id} style={styles.itemCard}>
                 <button onClick={() => onAbrirPerfil(amigo)} style={styles.avatarBtn}>
                   <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={36} />
@@ -373,7 +376,8 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
                   </button>
                 )}
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>

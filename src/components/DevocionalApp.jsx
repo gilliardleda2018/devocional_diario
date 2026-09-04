@@ -876,17 +876,17 @@ export default function DevocionalApp({ usuario }) {
 
         {aba === "progresso" && (
           <ProgressoTab
-            usuarioId={usuario.id}
-            nomeExibicao={nomeExibicao}
+            usuarioId={usuario?.id}
+            nomeExibicao={perfil?.nome_exibicao}
             gatilhoRecarga={gatilhoRecarga}
           />
         )}
 
         {aba === "comunidade" && (
-          <ComunidadeTab usuarioId={usuario.id} nomeUsuario={perfil.nome_exibicao} />
+          <ComunidadeTab usuarioId={usuario?.id} nomeUsuario={perfil?.nome_exibicao} />
         )}
 
-        {aba === "amigos" && <AmigosTab usuarioId={usuario.id} />}
+        {aba === "amigos" && <AmigosTab usuarioId={usuario?.id} />}
       </div>
     </div>
   );
