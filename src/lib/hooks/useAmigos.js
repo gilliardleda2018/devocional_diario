@@ -29,98 +29,97 @@ export function useAmigos(usuarioId) {
 
     try {
       const supabase = criarClienteSupabase();
-      const [respostaAmigos, respostaPedidos, respostaCodigo] = await Promise.all([
-        supabase.rpc("obter_meus_amigos").catch(() => ({ error: true })),
-        supabase.rpc("obter_pedidos_pendentes").catch(() => ({ error: true })),
-        supabase.rpc("obter_meu_codigo_amigo").catch(() => ({ error: true })),
-      ]);
 
-      // 1. Amigos Aceitos
+      // 1. Amigos Aceitos - Query direta em amizades
+      const { data: directAmigos } = await supabase
+        .from("amizades")
+        .select("id, solicitante_id, destinatario_id, status")
+        .eq("status", "aceita")
+        .or(`solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`)
+        .catch(() => ({ data: null }));
+
       let listaAmigos = [];
-      if (!respostaAmigos.error && respostaAmigos.data && Array.isArray(respostaAmigos.data)) {
-        listaAmigos = respostaAmigos.data;
-      } else {
-        const { data: directAmigos } = await supabase
-          .from("amizades")
-          .select("id, solicitante_id, destinatario_id, status")
-          .eq("status", "aceita")
-          .or(`solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`)
-          .catch(() => ({ data: null }));
+      if (directAmigos && directAmigos.length > 0) {
+        const outrosIds = [...new Set(
+          directAmigos.map((item) => (item.solicitante_id === usuarioId ? item.destinatario_id : item.solicitante_id)).filter(Boolean)
+        )];
 
-        if (directAmigos && directAmigos.length > 0) {
-          const outrosIds = [...new Set(
-            directAmigos.map((item) => (item.solicitante_id === usuarioId ? item.destinatario_id : item.solicitante_id)).filter(Boolean)
-          )];
+        let profilesMap = {};
+        if (outrosIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, nome_exibicao, foto_url, username, codigo_amigo, cidade, igreja")
+            .in("id", outrosIds)
+            .catch(() => ({ data: null }));
 
-          let profilesMap = {};
-          if (outrosIds.length > 0) {
-            const { data: profs } = await supabase
-              .from("profiles")
-              .select("id, nome_exibicao, foto_url, username, codigo_amigo")
-              .in("id", outrosIds)
-              .catch(() => ({ data: null }));
-
-            if (profs) {
-              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
-            }
+          if (profs) {
+            profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
           }
+        }
 
-          listaAmigos = directAmigos.map((item) => {
-            const outroId = item.solicitante_id === usuarioId ? item.destinatario_id : item.solicitante_id;
-            const outro = profilesMap[outroId] || {};
-            return {
-              amizade_id: item.id,
-              amigo_id: outroId,
-              usuario_id: outroId,
-              id: outroId,
-              nome_exibicao: outro.nome_exibicao || "Irmão em Fé",
-              username: outro.username || null,
-              foto_url: outro.foto_url || null,
-              codigo_amigo: outro.codigo_amigo || null,
-            };
-          });
+        listaAmigos = directAmigos.map((item) => {
+          const outroId = item.solicitante_id === usuarioId ? item.destinatario_id : item.solicitante_id;
+          const outro = profilesMap[outroId] || {};
+          return {
+            amizade_id: item.id,
+            amigo_id: outroId,
+            usuario_id: outroId,
+            id: outroId,
+            nome_exibicao: outro.nome_exibicao || "Irmão em Fé",
+            username: outro.username || null,
+            foto_url: outro.foto_url || null,
+            codigo_amigo: outro.codigo_amigo || null,
+            cidade: outro.cidade || null,
+            igreja: outro.igreja || null,
+          };
+        });
+      } else {
+        const { data: rpcAmigos } = await supabase.rpc("obter_meus_amigos").catch(() => ({ data: null }));
+        if (rpcAmigos && Array.isArray(rpcAmigos) && rpcAmigos.length > 0) {
+          listaAmigos = rpcAmigos;
         }
       }
       setAmigos(listaAmigos);
 
       // 2. Pedidos Recebidos
+      const { data: directPedidos } = await supabase
+        .from("amizades")
+        .select("id, solicitante_id, criado_em")
+        .eq("destinatario_id", usuarioId)
+        .eq("status", "pendente")
+        .catch(() => ({ data: null }));
+
       let listaPedidos = [];
-      if (!respostaPedidos.error && respostaPedidos.data && Array.isArray(respostaPedidos.data)) {
-        listaPedidos = respostaPedidos.data;
-      } else {
-        const { data: directPedidos } = await supabase
-          .from("amizades")
-          .select("id, solicitante_id, criado_em")
-          .eq("destinatario_id", usuarioId)
-          .eq("status", "pendente")
-          .catch(() => ({ data: null }));
-
-        if (directPedidos && directPedidos.length > 0) {
-          const solicitantesIds = [...new Set(directPedidos.map((p) => p.solicitante_id).filter(Boolean))];
-          let profilesMap = {};
-          if (solicitantesIds.length > 0) {
-            const { data: profs } = await supabase
-              .from("profiles")
-              .select("id, nome_exibicao, foto_url, username")
-              .in("id", solicitantesIds)
-              .catch(() => ({ data: null }));
-            if (profs) {
-              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
-            }
+      if (directPedidos && directPedidos.length > 0) {
+        const solicitantesIds = [...new Set(directPedidos.map((p) => p.solicitante_id).filter(Boolean))];
+        let profilesMap = {};
+        if (solicitantesIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, nome_exibicao, foto_url, username")
+            .in("id", solicitantesIds)
+            .catch(() => ({ data: null }));
+          if (profs) {
+            profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
           }
+        }
 
-          listaPedidos = directPedidos.map((item) => {
-            const sol = profilesMap[item.solicitante_id] || {};
-            return {
-              id: item.id,
-              amizade_id: item.id,
-              solicitante_id: item.solicitante_id,
-              nome_exibicao: sol.nome_exibicao || "Irmão em Fé",
-              username: sol.username || null,
-              foto_url: sol.foto_url || null,
-              criado_em: item.criado_em,
-            };
-          });
+        listaPedidos = directPedidos.map((item) => {
+          const sol = profilesMap[item.solicitante_id] || {};
+          return {
+            id: item.id,
+            amizade_id: item.id,
+            solicitante_id: item.solicitante_id,
+            nome_exibicao: sol.nome_exibicao || "Irmão em Fé",
+            username: sol.username || null,
+            foto_url: sol.foto_url || null,
+            criado_em: item.criado_em,
+          };
+        });
+      } else {
+        const { data: rpcPedidos } = await supabase.rpc("obter_pedidos_pendentes").catch(() => ({ data: null }));
+        if (rpcPedidos && Array.isArray(rpcPedidos) && rpcPedidos.length > 0) {
+          listaPedidos = rpcPedidos;
         }
       }
       setPedidos(listaPedidos);
@@ -165,12 +164,8 @@ export function useAmigos(usuarioId) {
       }
 
       // 4. Código do Usuário
-      if (!respostaCodigo.error && respostaCodigo.data) {
-        setMeuCodigo(respostaCodigo.data);
-      } else {
-        const { data: prof } = await supabase.from("profiles").select("codigo_amigo").eq("id", usuarioId).maybeSingle();
-        setMeuCodigo(prof?.codigo_amigo || usuarioId.slice(0, 8));
-      }
+      const { data: prof } = await supabase.from("profiles").select("codigo_amigo").eq("id", usuarioId).maybeSingle().catch(() => ({ data: null }));
+      setMeuCodigo(prof?.codigo_amigo || (usuarioId ? usuarioId.slice(0, 8) : "devocional"));
     } catch (e) {
       console.error("Erro ao carregar amigos:", e);
       setAmigos([]);
@@ -207,15 +202,6 @@ export function useAmigos(usuarioId) {
       if (!usuarioId || !targetId) return "NONE";
       if (usuarioId === targetId) return "SELF";
 
-      try {
-        const supabase = criarClienteSupabase();
-        const { data, error } = await supabase.rpc("get_relationship_state", { p_target_id: targetId });
-        if (!error && data) return data;
-      } catch (e) {
-        console.error("Erro ao obter estado do relacionamento:", e);
-      }
-
-      // Fallback local
       if (amigos.some((a) => a.amigo_id === targetId || a.id === targetId || a.usuario_id === targetId)) {
         return "FRIENDS";
       }
@@ -232,28 +218,16 @@ export function useAmigos(usuarioId) {
 
   // Busca Paginada de Pessoas por Nome, Username, Cidade ou Igreja
   const buscarUsuarios = useCallback(
-    async (termo, limite = 20, offset = 0) => {
-      if (!termo || typeof termo !== "string" || termo.trim().length < 2) return [];
+    async (termo, limite = 30, offset = 0) => {
+      if (!termo || typeof termo !== "string" || termo.trim().length < 1) return [];
       const t = termo.trim();
       try {
         const supabase = criarClienteSupabase();
-        
-        // 1. Tenta RPC primeiro
-        const { data, error } = await supabase
-          .rpc("buscar_usuarios", {
-            p_termo: t,
-            p_limite: limite,
-            p_offset: offset,
-          })
-          .catch(() => ({ error: true }));
 
-        if (!error && data && Array.isArray(data)) return data;
-
-        // 2. Fallback direto seguro no PostgREST
         let query = supabase
           .from("profiles")
           .select("id, nome_exibicao, username, foto_url, cidade, igreja, codigo_amigo")
-          .or(`nome_exibicao.ilike.%${t}%,username.ilike.%${t.replace("@", "")}%`)
+          .or(`nome_exibicao.ilike.%${t}%,username.ilike.%${t.replace("@", "")}%,cidade.ilike.%${t}%,igreja.ilike.%${t}%`)
           .limit(limite);
 
         if (usuarioId) {
@@ -261,8 +235,19 @@ export function useAmigos(usuarioId) {
         }
 
         const { data: rawData } = await query.catch(() => ({ data: null }));
+        if (rawData && Array.isArray(rawData) && rawData.length > 0) {
+          return rawData;
+        }
 
-        return rawData && Array.isArray(rawData) ? rawData : [];
+        const { data: rpcData } = await supabase
+          .rpc("buscar_usuarios", {
+            p_termo: t,
+            p_limite: limite,
+            p_offset: offset,
+          })
+          .catch(() => ({ data: null }));
+
+        return rpcData && Array.isArray(rpcData) ? rpcData : [];
       } catch (e) {
         console.error("Erro na busca de usuários:", e);
         return [];
@@ -278,33 +263,16 @@ export function useAmigos(usuarioId) {
 
       try {
         const supabase = criarClienteSupabase();
-        const { error: rpcError } = await supabase
-          .rpc("enviar_pedido_amizade_v2", { p_identificador: identificador })
-          .catch(() => ({ error: true }));
 
-        if (!rpcError) {
-          await recarregar();
-          return { sucesso: true };
-        }
-
-        // Tenta v1 RPC
-        const { error: rpc1Error } = await supabase
-          .rpc("enviar_pedido_amizade", { p_codigo_amigo: identificador })
-          .catch(() => ({ error: true }));
-
-        if (!rpc1Error) {
-          await recarregar();
-          return { sucesso: true };
-        }
-
-        // Fallback direto
+        // 1. Resolve ID do destinatário se foi passado username ou código
         let targetId = identificador;
         if (identificador.length !== 36) {
           const { data: targetProfile } = await supabase
             .from("profiles")
             .select("id")
-            .or(`codigo_amigo.eq.${identificador},username.eq.${identificador.replace('@','')}`)
-            .maybeSingle();
+            .or(`codigo_amigo.eq.${identificador},username.eq.${identificador.replace("@", "")}`)
+            .maybeSingle()
+            .catch(() => ({ data: null }));
 
           if (!targetProfile) {
             return { sucesso: false, erro: "Usuário não encontrado." };
@@ -312,14 +280,30 @@ export function useAmigos(usuarioId) {
           targetId = targetProfile.id;
         }
 
+        if (targetId === usuarioId) {
+          return { sucesso: false, erro: "Você não pode enviar convite para você mesmo." };
+        }
+
+        // 2. Tenta inserção direta na tabela amizades
         const { error: insertError } = await supabase.from("amizades").insert({
           solicitante_id: usuarioId,
           destinatario_id: targetId,
           status: "pendente",
         });
 
-        if (insertError) {
-          return { sucesso: false, erro: insertError.message };
+        if (!insertError) {
+          await recarregar();
+          return { sucesso: true };
+        }
+
+        // 3. Se a RPC v2 existir, tenta via RPC
+        const { error: rpcError } = await supabase
+          .rpc("enviar_pedido_amizade_v2", { p_identificador: identificador })
+          .catch(() => ({ error: true }));
+
+        if (!rpcError) {
+          await recarregar();
+          return { sucesso: true };
         }
 
         await recarregar();

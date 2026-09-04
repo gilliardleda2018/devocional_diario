@@ -16,13 +16,6 @@ const SUBABAS_PRINCIPAIS = [
   { id: "liga", label: "Liga" },
 ];
 
-const SUBABAS_CONEXOES = [
-  { id: "amigos", label: "Amigos" },
-  { id: "pedidos", label: "Pedidos" },
-  { id: "enviados", label: "Enviados" },
-  { id: "sugestoes", label: "Sugestões" },
-];
-
 function formatarQuando(iso) {
   if (!iso) return "";
   const data = new Date(iso);
@@ -38,7 +31,14 @@ export default function AmigosTab({ usuarioId }) {
   const [abaConexao, setAbaConexao] = useState("amigos");
   const [amigoSelecionado, setAmigoSelecionado] = useState(null);
 
-  const { amigos, enviarPedido, torcer } = useAmigos(usuarioId);
+  const { amigos = [], pedidos = [], pedidosEnviados = [], enviarPedido, torcer } = useAmigos(usuarioId);
+
+  const subabasConexoes = [
+    { id: "amigos", label: `Amigos (${amigos.length})` },
+    { id: "pedidos", label: pedidos.length > 0 ? `Pedidos (${pedidos.length}) 🔴` : "Pedidos" },
+    { id: "enviados", label: pedidosEnviados.length > 0 ? `Enviados (${pedidosEnviados.length})` : "Enviados" },
+    { id: "sugestoes", label: "Sugestões" },
+  ];
 
   return (
     <div style={styles.wrap}>
@@ -68,7 +68,7 @@ export default function AmigosTab({ usuarioId }) {
         <div>
           {/* Navegação Secundária de Conexões */}
           <div style={styles.conexoesTabRow}>
-            {SUBABAS_CONEXOES.map((c) => (
+            {subabasConexoes.map((c) => (
               <button
                 key={c.id}
                 style={abaConexao === c.id ? styles.conexaoAtiva : styles.conexaoInativa}
@@ -259,9 +259,9 @@ function CardConectarRedes({ meuCodigo }) {
 // ---------------------------------------------------------------------------
 function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
   const {
-    amigos,
-    pedidos,
-    pedidosEnviados,
+    amigos = [],
+    pedidos = [],
+    pedidosEnviados = [],
     meuCodigo,
     carregando,
     recarregar,
@@ -277,21 +277,22 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
   const [buscando, setBuscando] = useState(false);
   const [resultadosBusca, setResultadosBusca] = useState([]);
   const [torcidaEnviada, setTorcidaEnviada] = useState({});
+  const [pedidoEnviadoEstado, setPedidoEnviadoEstado] = useState({});
   const [confirmandoRemocao, setConfirmandoRemocao] = useState(null);
   const [sugestoesIgnoradas, setSugestoesIgnoradas] = useState({});
 
   // Busca em tempo real
   useEffect(() => {
-    if (!buscaTermo.trim() || buscaTermo.trim().length < 2) {
+    if (!buscaTermo.trim()) {
       setResultadosBusca([]);
       return;
     }
     const timer = setTimeout(async () => {
       setBuscando(true);
       const res = await buscarUsuarios(buscaTermo.trim());
-      setResultadosBusca(res);
+      setResultadosBusca(res || []);
       setBuscando(false);
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [buscaTermo, buscarUsuarios]);
@@ -301,84 +302,205 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
     await torcer(amigoId);
   }
 
+  async function handleEnviarPedido(targetId) {
+    setPedidoEnviadoEstado((prev) => ({ ...prev, [targetId]: "enviando" }));
+    const res = await enviarPedido(targetId);
+    if (res?.sucesso !== false) {
+      setPedidoEnviadoEstado((prev) => ({ ...prev, [targetId]: "enviado" }));
+    } else {
+      setPedidoEnviadoEstado((prev) => ({ ...prev, [targetId]: "erro" }));
+      alert(res?.erro || "Não foi possível enviar a solicitação.");
+    }
+  }
+
   if (carregando) return <p style={styles.loadingText}>Carregando conexões...</p>;
 
-  // ABA 1: AMIGOS
+  // ABA 1: AMIGOS (COM BUSCA EM TEMPO REAL E RECOMENDAÇÕES INLINE SE 0 AMIGOS)
   if (abaAtiva === "amigos") {
-    const listaAmigosExibida = buscaTermo.trim().length >= 2 ? (resultadosBusca || []) : (amigos || []);
-    const totalAmigos = (amigos || []).length;
+    const temBusca = buscaTermo.trim().length > 0;
+    const totalAmigos = amigos.length;
+
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Banner Redes Sociais */}
         <CardConectarRedes meuCodigo={meuCodigo} />
 
-        {/* Input de Busca de Amigos */}
+        {/* Input de Busca de Amigos / Pessoas */}
         <div style={{ position: "relative" }}>
           <input
             type="text"
-            placeholder="Buscar amigos por nome ou @username..."
+            placeholder="Buscar por nome, @username, cidade ou igreja..."
             value={buscaTermo}
             onChange={(e) => setBuscaTermo(e.target.value)}
             style={styles.inputBusca}
           />
+          {temBusca && (
+            <button
+              onClick={() => setBuscaTermo("")}
+              style={styles.btnClearBusca}
+              title="Limpar busca"
+            >
+              ✕
+            </button>
+          )}
           {buscando && <span style={styles.spinnerBusca}>🔍...</span>}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={styles.sectionTitle}>Seus Amigos ({totalAmigos})</h3>
-          <button onClick={recarregar} style={styles.refreshBtn}>🔄 Atualizar</button>
-        </div>
+        {temBusca ? (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <h3 style={styles.sectionTitle}>
+                Resultados da busca ({resultadosBusca.length})
+              </h3>
+            </div>
 
-        {listaAmigosExibida.length === 0 ? (
-          <div style={styles.emptyCard}>
-            <p style={styles.emptyTitle}>Suas conexões aparecerão aqui. 🤝</p>
-            <p style={styles.emptySub}>Você ainda não adicionou amigos ou nenhum resultado foi encontrado.</p>
+            {resultadosBusca.length === 0 && !buscando ? (
+              <div style={styles.emptyCard}>
+                <p style={styles.emptyTitle}>Nenhum usuário encontrado 🔍</p>
+                <p style={styles.emptySub}>Tente buscar por nome completo, @username, cidade ou igreja.</p>
+              </div>
+            ) : (
+              <div style={styles.lista}>
+                {resultadosBusca.map((user) => {
+                  if (!user) return null;
+                  const targetId = user.id;
+
+                  const ehEu = targetId === usuarioId;
+                  const ehAmigo = amigos.some((a) => a.amigo_id === targetId || a.id === targetId || a.usuario_id === targetId);
+                  const jaEnviado = pedidosEnviados.some((p) => p.destinatario_id === targetId) || pedidoEnviadoEstado[targetId] === "enviado";
+                  const jaRecebido = pedidos.some((p) => p.solicitante_id === targetId);
+
+                  return (
+                    <div key={user.id} style={styles.itemCard}>
+                      <button onClick={() => onAbrirPerfil(user)} style={styles.avatarBtn}>
+                        <AvatarUsuario nome={user.nome_exibicao} fotoUrl={user.foto_url} tamanho={38} />
+                      </button>
+
+                      <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(user)}>
+                        <p style={styles.itemNome}>{user.nome_exibicao}</p>
+                        <p style={styles.itemSub}>
+                          {user.username ? `@${user.username}` : user.cidade ? `📍 ${user.cidade}` : user.igreja ? `⛪ ${user.igreja}` : "Membro"}
+                        </p>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {ehEu ? (
+                          <span style={styles.badgeVoce}>Você</span>
+                        ) : ehAmigo ? (
+                          <>
+                            <span style={styles.badgeAmigo}>✓ Amigo</span>
+                            <button
+                              style={styles.torcerBtn}
+                              disabled={!!torcidaEnviada[targetId]}
+                              onClick={() => handleTorcer(targetId)}
+                            >
+                              {torcidaEnviada[targetId] ? "🔥 Torceu!" : "🔥 Torcer"}
+                            </button>
+                          </>
+                        ) : jaEnviado ? (
+                          <span style={styles.badgeEnviado}>⌛ Pedido Enviado</span>
+                        ) : jaRecebido ? (
+                          <button
+                            style={styles.btnAceitar}
+                            onClick={async () => {
+                              const ped = pedidos.find((p) => p.solicitante_id === targetId);
+                              if (ped) await responderPedido(ped.amizade_id || ped.id, true);
+                            }}
+                          >
+                            ✅ Aceitar
+                          </button>
+                        ) : (
+                          <button
+                            style={styles.btnAdicionar}
+                            disabled={pedidoEnviadoEstado[targetId] === "enviando"}
+                            onClick={() => handleEnviarPedido(targetId)}
+                          >
+                            {pedidoEnviadoEstado[targetId] === "enviando" ? "Enviando..." : "➕ Adicionar"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
-          <div style={styles.lista}>
-            {listaAmigosExibida.map((amigo) => {
-              if (!amigo) return null;
-              return (
-              <div key={amigo.amizade_id || amigo.id} style={styles.itemCard}>
-                <button onClick={() => onAbrirPerfil(amigo)} style={styles.avatarBtn}>
-                  <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={36} />
-                </button>
-                <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(amigo)}>
-                  <p style={styles.itemNome}>{amigo.nome_exibicao}</p>
-                  <p style={styles.itemSub}>
-                    {amigo.username ? `@${amigo.username} · ` : ""}
-                    🔥 {amigo.ofensiva_atual || 0} dias
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h3 style={styles.sectionTitle}>Seus Amigos ({totalAmigos})</h3>
+              <button onClick={recarregar} style={styles.refreshBtn}>🔄 Atualizar</button>
+            </div>
+
+            {totalAmigos === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={styles.emptyCard}>
+                  <p style={styles.emptyTitle}>Suas conexões aparecerão aqui. 🤝</p>
+                  <p style={styles.emptySub}>
+                    Você ainda não adicionou nenhum amigo. Veja abaixo sugestões de irmãos para conectar!
                   </p>
                 </div>
-                <button
-                  style={styles.torcerBtn}
-                  disabled={!!torcidaEnviada[amigo.amigo_id || amigo.id]}
-                  onClick={() => handleTorcer(amigo.amigo_id || amigo.id)}
-                >
-                  {torcidaEnviada[amigo.amigo_id || amigo.id] ? "🔥 Torceu!" : "🔥 Torcer"}
-                </button>
-                {confirmandoRemocao === (amigo.amizade_id || amigo.id) ? (
-                  <button
-                    style={styles.btnConfirmarRemocao}
-                    onClick={async () => {
-                      await removerAmigo(amigo.amigo_id || amigo.id);
-                      setConfirmandoRemocao(null);
-                    }}
-                  >
-                    Confirmar?
-                  </button>
-                ) : (
-                  <button
-                    style={styles.btnRemoverIcone}
-                    title="Remover amigo"
-                    onClick={() => setConfirmandoRemocao(amigo.amizade_id || amigo.id)}
-                  >
-                    ✕
-                  </button>
-                )}
+
+                <div style={{ marginTop: 4 }}>
+                  <h4 style={styles.inlineSugestaoTitle}>💡 Recomendados para você conectar:</h4>
+                  <SugestoesTab
+                    usuarioId={usuarioId}
+                    sugestoesIgnoradas={sugestoesIgnoradas}
+                    onIgnorar={(candId) => setSugestoesIgnoradas((prev) => ({ ...prev, [candId]: true }))}
+                    onAdicionar={enviarPedido}
+                    onAbrirPerfil={onAbrirPerfil}
+                    semCardRedes={true}
+                  />
+                </div>
               </div>
-            );
-          })}
+            ) : (
+              <div style={styles.lista}>
+                {amigos.map((amigo) => {
+                  if (!amigo) return null;
+                  const friendId = amigo.amigo_id || amigo.id;
+                  return (
+                    <div key={amigo.amizade_id || amigo.id} style={styles.itemCard}>
+                      <button onClick={() => onAbrirPerfil(amigo)} style={styles.avatarBtn}>
+                        <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={38} />
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(amigo)}>
+                        <p style={styles.itemNome}>{amigo.nome_exibicao}</p>
+                        <p style={styles.itemSub}>
+                          {amigo.username ? `@${amigo.username} · ` : ""}
+                          🔥 {amigo.ofensiva_atual || 0} dias
+                        </p>
+                      </div>
+                      <button
+                        style={styles.torcerBtn}
+                        disabled={!!torcidaEnviada[friendId]}
+                        onClick={() => handleTorcer(friendId)}
+                      >
+                        {torcidaEnviada[friendId] ? "🔥 Torceu!" : "🔥 Torcer"}
+                      </button>
+                      {confirmandoRemocao === (amigo.amizade_id || amigo.id) ? (
+                        <button
+                          style={styles.btnConfirmarRemocao}
+                          onClick={async () => {
+                            await removerAmigo(friendId);
+                            setConfirmandoRemocao(null);
+                          }}
+                        >
+                          Confirmar?
+                        </button>
+                      ) : (
+                        <button
+                          style={styles.btnRemoverIcone}
+                          title="Remover amigo"
+                          onClick={() => setConfirmandoRemocao(amigo.amizade_id || amigo.id)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -401,7 +523,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
             {listaPedidos.map((p) => (
               <div key={p.amizade_id || p.id} style={styles.itemCard}>
                 <button onClick={() => onAbrirPerfil(p)} style={styles.avatarBtn}>
-                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
+                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={38} />
                 </button>
                 <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(p)}>
                   <p style={styles.itemNome}>{p.nome_exibicao}</p>
@@ -439,7 +561,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
             {listaEnviados.map((p) => (
               <div key={p.amizade_id || p.id} style={styles.itemCard}>
                 <button onClick={() => onAbrirPerfil(p)} style={styles.avatarBtn}>
-                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
+                  <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={38} />
                 </button>
                 <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(p)}>
                   <p style={styles.itemNome}>{p.nome_exibicao}</p>
@@ -473,7 +595,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
 }
 
 // Componente para a aba de sugestões explicáveis
-function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, onAbrirPerfil }) {
+function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicionar, onAbrirPerfil, semCardRedes = false }) {
   const [sugestoes, setSugestoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [adicionados, setAdicionados] = useState({});
@@ -534,7 +656,7 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, o
   if (listaFiltrada.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <CardConectarRedes meuCodigo={null} />
+        {!semCardRedes && <CardConectarRedes meuCodigo={null} />}
         <div style={styles.emptyCard}>
           <p style={styles.emptyTitle}>Sem mais sugestões no momento. 🌿</p>
           <p style={styles.emptySub}>Convide seus amigos do WhatsApp e Instagram para se juntarem a você!</p>
@@ -545,8 +667,8 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, o
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <CardConectarRedes meuCodigo={null} />
-      <h3 style={styles.sectionTitle}>Pessoas que Você Pode Conhecer</h3>
+      {!semCardRedes && <CardConectarRedes meuCodigo={null} />}
+      {!semCardRedes && <h3 style={styles.sectionTitle}>Pessoas que Você Pode Conhecer</h3>}
       <div style={styles.lista}>
         {listaFiltrada.map((item) => (
           <div key={item.candidate_id} style={styles.itemCard}>
@@ -616,7 +738,7 @@ function Desafios({ usuarioId }) {
 // Liga / Ranking
 // ---------------------------------------------------------------------------
 function LigaAmigos({ usuarioId, onAbrirPerfil }) {
-  const { ranking, carregando } = useRankingAmigos(usuarioId);
+  const { ranking = [], carregando } = useRankingAmigos(usuarioId);
 
   if (carregando) return <p style={styles.loadingText}>Carregando liga de amigos...</p>;
 
@@ -686,7 +808,7 @@ const styles = {
     background: "#B98B4E",
     color: "#FFFFFF",
     fontWeight: 700,
-    fontSize: 12.5,
+    fontSize: 12,
     borderRadius: 8,
     border: "none",
     textAlign: "center",
@@ -698,7 +820,7 @@ const styles = {
     background: "transparent",
     color: "#7A8A7F",
     fontWeight: 600,
-    fontSize: 12.5,
+    fontSize: 12,
     borderRadius: 8,
     border: "none",
     textAlign: "center",
@@ -773,7 +895,7 @@ const styles = {
   },
   inputBusca: {
     width: "100%",
-    padding: "11px 14px",
+    padding: "11px 36px 11px 14px",
     borderRadius: 12,
     border: "1px solid #E7E0D0",
     background: "#FFFFFF",
@@ -782,8 +904,21 @@ const styles = {
     outline: "none",
     boxSizing: "border-box",
   },
-  spinnerBusca: { position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#8A9184" },
+  btnClearBusca: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "none",
+    border: "none",
+    fontSize: 14,
+    color: "#8A9184",
+    cursor: "pointer",
+    padding: 4,
+  },
+  spinnerBusca: { position: "absolute", right: 32, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#8A9184" },
   sectionTitle: { fontFamily: "'Fraunces', serif", fontWeight: 500, fontSize: 17, margin: 0, color: "#33422F" },
+  inlineSugestaoTitle: { fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 15, color: "#33422F", margin: "0 0 10px" },
   refreshBtn: { background: "#FBF9F3", color: "#8A6224", border: "1px solid #E7E0D0", borderRadius: 8, padding: "4px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer" },
   lista: { display: "flex", flexDirection: "column", gap: 8 },
   itemCard: {
@@ -798,6 +933,9 @@ const styles = {
   avatarBtn: { background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" },
   itemNome: { fontSize: 13.5, fontWeight: 700, color: "#33422F", margin: 0 },
   itemSub: { fontSize: 11.5, color: "#7A8A7F", margin: "2px 0 0" },
+  badgeVoce: { background: "#E7E0D0", color: "#33422F", padding: "4px 8px", fontSize: 11.5, fontWeight: 700, borderRadius: 6 },
+  badgeAmigo: { background: "#EAF4EC", color: "#3F7A4D", padding: "4px 8px", fontSize: 11.5, fontWeight: 700, borderRadius: 6 },
+  badgeEnviado: { background: "#FEF3C7", color: "#92400E", padding: "4px 8px", fontSize: 11.5, fontWeight: 700, borderRadius: 6 },
   torcerBtn: { background: "#F2A65A", color: "#FFFFFF", border: "none", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" },
   btnRemoverIcone: { background: "none", border: "none", color: "#9AA79C", fontWeight: 700, fontSize: 14, cursor: "pointer", padding: "4px 6px" },
   btnConfirmarRemocao: { background: "#B15A4A", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" },
