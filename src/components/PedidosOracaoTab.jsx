@@ -105,7 +105,7 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
         </div>
       )}
 
-      {erro && (
+      {erro && pedidosFiltrados.length === 0 && (
         <div style={styles.errorBox}>
           <p style={styles.errorText}>Ops, não foi possível carregar os pedidos. Tente recarregar.</p>
           <button style={styles.retryBtn} onClick={recarregar}>
@@ -114,7 +114,7 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
         </div>
       )}
 
-      {!carregando && !erro && pedidosFiltrados.length === 0 && (
+      {!carregando && pedidosFiltrados.length === 0 && (
         <div style={styles.emptyCard}>
           <span style={{ fontSize: 36, display: "block", marginBottom: 8 }}>🙏</span>
           <p style={styles.emptyTitle}>Nenhum pedido de oração encontrado</p>
@@ -136,19 +136,21 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
           const autorFoto = item.is_anonimo ? null : item.profiles?.foto_url;
           const jaOra = item.intersections?.some((i) => i.user_id === usuarioId) || item.user_prayed;
 
+          const handleAbrirPerfil = () => {
+            if (item.is_anonimo) return;
+            setPerfilSelecionado(
+              item.profiles
+                ? { ...item.profiles, usuario_id: item.autor_id }
+                : { usuario_id: item.autor_id, nome_exibicao: autorNome, foto_url: autorFoto }
+            );
+          };
+
           return (
             <div key={item.id} style={styles.card}>
               <div style={styles.cardHeader}>
                 <div style={styles.authorInfo}>
                   <button
-                    onClick={() =>
-                      !item.is_anonimo &&
-                      setPerfilSelecionado(
-                        item.profiles
-                          ? { ...item.profiles, usuario_id: item.autor_id }
-                          : { usuario_id: item.autor_id, nome_exibicao: autorNome }
-                      )
-                    }
+                    onClick={handleAbrirPerfil}
                     style={{ background: "none", border: "none", padding: 0, cursor: item.is_anonimo ? "default" : "pointer" }}
                     title={item.is_anonimo ? "Anônimo" : `Ver perfil de ${autorNome}`}
                   >
@@ -160,19 +162,23 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
                     />
                   </button>
                   <div>
-                    <h4
-                      style={{ ...styles.authorName, cursor: item.is_anonimo ? "default" : "pointer" }}
-                      onClick={() =>
-                        !item.is_anonimo &&
-                        setPerfilSelecionado(
-                          item.profiles
-                            ? { ...item.profiles, usuario_id: item.autor_id }
-                            : { usuario_id: item.autor_id, nome_exibicao: autorNome }
-                        )
-                      }
-                    >
-                      {autorNome}
-                    </h4>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <h4
+                        style={{ ...styles.authorName, cursor: item.is_anonimo ? "default" : "pointer" }}
+                        onClick={handleAbrirPerfil}
+                      >
+                        {autorNome}
+                      </h4>
+                      {!eAutor && !item.is_anonimo && (
+                        <button
+                          onClick={handleAbrirPerfil}
+                          style={styles.quickAddBtn}
+                          title={`Adicionar ${autorNome} como amigo`}
+                        >
+                          ➕ Adicionar
+                        </button>
+                      )}
+                    </div>
                     <span style={styles.cardTime}>
                       {new Date(item.created_at).toLocaleDateString("pt-BR", {
                         day: "numeric",
@@ -468,6 +474,17 @@ const styles = {
     fontWeight: 700,
     color: "#33422F",
     margin: 0,
+  },
+  quickAddBtn: {
+    background: "#F1E2C4",
+    color: "#8A6224",
+    border: "1px solid #D8CFB8",
+    borderRadius: 999,
+    padding: "2px 8px",
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   cardTime: {
     fontSize: 11,
