@@ -339,7 +339,7 @@ export default function DevocionalApp({ usuario }) {
             }}
             title="Editar perfil e foto"
           >
-            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={36} />
+            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={30} />
             <span style={styles.topBarUser}>Olá, {perfil.nome_exibicao}</span>
           </button>
 

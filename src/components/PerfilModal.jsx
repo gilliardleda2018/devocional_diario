@@ -78,12 +78,12 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
         </div>
 
         {/* Preview do Avatar */}
-        <div className="flex flex-col items-center justify-center space-y-2">
+        <div className="flex flex-col items-center justify-center space-y-1.5">
           <AvatarUsuario
             nome={nomeExibicao}
             fotoUrl={urlPersonalizada.trim() || fotoUrl}
-            tamanho={84}
-            className="ring-4 ring-amber-500/20"
+            tamanho={56}
+            className="ring-2 ring-amber-500/30 shadow-md"
           />
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {usuario?.email}

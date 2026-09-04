@@ -28,7 +28,7 @@ export function obterCorGradiente(identificador) {
   return PALETA_CORES[indice];
 }
 
-export default function AvatarUsuario({ nome, fotoUrl, tamanho = 40, className = "" }) {
+export default function AvatarUsuario({ nome, fotoUrl, tamanho = 32, className = "" }) {
   const iniciais = useMemo(() => obterIniciais(nome), [nome]);
   const gradiente = useMemo(() => obterCorGradiente(nome || fotoUrl), [nome, fotoUrl]);
 
@@ -37,14 +37,14 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 40, className =
 
   return (
     <div
-      className={`relative inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 shadow-sm border-2 border-white/80 dark:border-slate-800 transition-transform ${className}`}
-      style={{ width: tamanho, height: tamanho }}
+      className={`relative inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 shadow-sm border border-amber-500/25 dark:border-amber-400/30 transition-all ${className}`}
+      style={{ width: tamanho, height: tamanho, minWidth: tamanho, minHeight: tamanho }}
     >
       {fotoUrl && !eEmoji ? (
         <img
           src={fotoUrl}
           alt={nome || "Avatar do usuário"}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover rounded-full"
           onError={(e) => {
             // Em caso de erro de carregamento da imagem, esconde a img e cai no fallback
             e.currentTarget.style.display = "none";
@@ -52,15 +52,15 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 40, className =
         />
       ) : eEmoji ? (
         <div
-          className={`w-full h-full bg-gradient-to-br ${gradiente} flex items-center justify-center text-white`}
-          style={{ fontSize: tamanho * 0.5 }}
+          className={`w-full h-full bg-gradient-to-br ${gradiente} flex items-center justify-center text-white select-none`}
+          style={{ fontSize: tamanho * 0.46 }}
         >
           {fotoUrl}
         </div>
       ) : (
         <div
-          className={`w-full h-full bg-gradient-to-br ${gradiente} flex items-center justify-center text-white font-bold tracking-wider`}
-          style={{ fontSize: tamanho * 0.4 }}
+          className={`w-full h-full bg-gradient-to-br ${gradiente} flex items-center justify-center text-white font-semibold tracking-wider select-none`}
+          style={{ fontSize: tamanho * 0.38 }}
         >
           {iniciais}
         </div>
