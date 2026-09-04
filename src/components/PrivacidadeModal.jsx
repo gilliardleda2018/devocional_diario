@@ -1,24 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFaithGraph } from "@/src/lib/hooks/useFaithGraph";
 
 export default function PrivacidadeModal({ usuarioId, isOpen, onClose }) {
   const {
     configPrivacidade,
-    bloqueados,
+    bloqueados = [],
     salvarPrivacidade,
     desbloquearUsuario,
-    carregando,
   } = useFaithGraph(usuarioId);
 
   const [form, setForm] = useState({
-    discoverable: configPrivacidade?.discoverable ?? true,
-    allow_friend_requests: configPrivacidade?.allow_friend_requests ?? true,
-    allow_followers: configPrivacidade?.allow_followers ?? true,
-    show_church: configPrivacidade?.show_church ?? true,
-    show_city: configPrivacidade?.show_city ?? true,
+    discoverable: true,
+    allow_friend_requests: true,
+    allow_followers: true,
+    show_church: true,
+    show_city: true,
   });
+
+  useEffect(() => {
+    if (configPrivacidade) {
+      setForm({
+        discoverable: configPrivacidade.discoverable ?? true,
+        allow_friend_requests: configPrivacidade.allow_friend_requests ?? true,
+        allow_followers: configPrivacidade.allow_followers ?? true,
+        show_church: configPrivacidade.show_church ?? true,
+        show_city: configPrivacidade.show_city ?? true,
+      });
+    }
+  }, [configPrivacidade]);
 
   const [salvando, setSalvando] = useState(false);
   const [mensagemSucesso, setMensagemSucesso] = useState(false);
@@ -37,6 +48,8 @@ export default function PrivacidadeModal({ usuarioId, isOpen, onClose }) {
     setMensagemSucesso(true);
     setTimeout(() => setMensagemSucesso(false), 3000);
   };
+
+  const listaBloqueados = bloqueados || [];
 
   return (
     <div style={styles.overlay} onClick={onClose}>
@@ -118,23 +131,23 @@ export default function PrivacidadeModal({ usuarioId, isOpen, onClose }) {
 
         {/* Usuários Bloqueados */}
         <div style={styles.section}>
-          <h4 style={styles.sectionTitle}>Usuários Bloqueados ({bloqueados.length})</h4>
+          <h4 style={styles.sectionTitle}>Usuários Bloqueados ({listaBloqueados.length})</h4>
           <p style={styles.toggleDesc}>
             Usuários bloqueados não podem ver seus pedidos de oração, enviar solicitações ou ver seu perfil.
           </p>
 
-          {bloqueados.length === 0 ? (
+          {listaBloqueados.length === 0 ? (
             <p style={styles.emptyBlocked}>Nenhum usuário bloqueado no momento.</p>
           ) : (
             <div style={styles.blockedList}>
-              {bloqueados.map((b) => (
-                <div key={b.id || b.blocked_user_id} style={styles.blockedItem}>
+              {listaBloqueados.map((b) => (
+                <div key={b.id || b.blocked_id} style={styles.blockedItem}>
                   <span style={styles.blockedName}>
                     {b.profiles?.nome_exibicao || "Usuário Bloqueado"}
                   </span>
                   <button
                     style={styles.unblockBtn}
-                    onClick={() => desbloquearUsuario(b.blocked_user_id)}
+                    onClick={() => desbloquearUsuario(b.blocked_id)}
                   >
                     Desbloquear
                   </button>

@@ -5,21 +5,23 @@ import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 /**
  * Hook para gerenciar Pedidos de Oração com suporte a:
- * - Filtros por visibilidade (PÚBLICO, AMIGOS, COMUNIDADE)
- * - Reação "Estou Orando" 🙏 (sem transformar em 'likes' superficiais)
- * - Privacidade estrita de textos confidenciais
+ * - Filtros por visibilidade (PUBLIC, AMIGOS, COMMUNITY, PRIVATE)
+ * - Reação "Estou Orando" 🙏
+ * - Mapeamento seguro de aliases de campos
  */
 export function usePedidosOracao(usuarioId) {
-  const [pedidosOracao, setPedidosOracao] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(null);
 
   const recarregar = useCallback(async () => {
     if (!usuarioId) {
-      setPedidosOracao([]);
+      setPedidos([]);
       setCarregando(false);
       return;
     }
     setCarregando(true);
+    setErro(null);
     try {
       const supabase = criarClienteSupabase();
       const { data, error } = await supabase
@@ -27,25 +29,45 @@ export function usePedidosOracao(usuarioId) {
         .select(`
           id,
           autor_id,
+          user_id:autor_id,
           titulo,
           conteudo,
+          descricao:conteudo,
           visibilidade,
+          is_anonimo,
           status,
           criado_em,
-          profiles:autor_id (nome_exibicao, foto_url),
+          created_at:criado_em,
+          profiles:autor_id (id, nome_exibicao, foto_url),
           prayer_interactions (id, user_id, tipo)
         `)
         .order("criado_em", { ascending: false })
-        .limit(30);
+        .limit(40);
 
       if (!error && data) {
-        setPedidosOracao(data);
+        // Mapear propriedades computadas para facilitar consumo na UI
+        const formatados = data.map((item) => {
+          const interactions = item.prayer_interactions || [];
+          const userPrayed = interactions.some((i) => i.user_id === usuarioId);
+          return {
+            ...item,
+            user_id: item.user_id || item.autor_id,
+            descricao: item.descricao || item.conteudo,
+            created_at: item.created_at || item.criado_em,
+            prayer_count: interactions.length,
+            user_prayed: userPrayed,
+            intersections: interactions,
+          };
+        });
+        setPedidos(formatados);
       } else {
-        setPedidosOracao([]);
+        setPedidos([]);
+        if (error) setErro(error.message);
       }
     } catch (e) {
       console.error("Erro ao carregar pedidos de oração:", e);
-      setPedidosOracao([]);
+      setPedidos([]);
+      setErro(e.message);
     } finally {
       setCarregando(false);
     }
@@ -55,61 +77,83 @@ export function usePedidosOracao(usuarioId) {
     recarregar();
   }, [recarregar]);
 
-  const criarPedidoOracao = useCallback(
-    async ({ titulo, conteudo, visibilidade = "PUBLIC", communityId = null }) => {
-      if (!usuarioId || !titulo.trim() || !conteudo.trim()) {
-        return { sucesso: false, erro: "Preencha o título e o conteúdo do pedido." };
+  const criarPedido = useCallback(
+    async ({ titulo, descricao, conteudo, visibilidade = "PUBLIC", isAnonimo = false, communityId = null }) => {
+      const textoFinal = descricao || conteudo;
+      if (!usuarioId || !titulo?.trim() || !textoFinal?.trim()) {
+        return { error: "Preencha o título e o conteúdo do pedido." };
       }
       try {
         const supabase = criarClienteSupabase();
-        const { data, error } = await supabase.from("prayer_requests").insert({
-          autor_id: usuarioId,
-          titulo: titulo.trim(),
-          conteudo: conteudo.trim(),
-          visibilidade,
-          community_id: communityId,
-        }).select().single();
+        const { data, error } = await supabase
+          .from("prayer_requests")
+          .insert({
+            autor_id: usuarioId,
+            titulo: titulo.trim(),
+            conteudo: textoFinal.trim(),
+            visibilidade,
+            is_anonimo: isAnonimo,
+            community_id: communityId,
+          })
+          .select()
+          .single();
 
         if (!error) {
           await recarregar();
-          return { sucesso: true, data };
+          return { data, error: null };
         }
-        return { sucesso: false, erro: error.message };
+        return { error: error.message };
       } catch (e) {
-        return { sucesso: false, erro: e.message };
+        return { error: e.message };
       }
     },
     [usuarioId, recarregar]
   );
 
-  const interagirOracao = useCallback(
+  const alternarOracao = useCallback(
     async (prayerRequestId) => {
-      if (!usuarioId || !prayerRequestId) return { sucesso: false };
+      if (!usuarioId || !prayerRequestId) return { error: "Parâmetros inválidos" };
       try {
         const supabase = criarClienteSupabase();
-        const { error } = await supabase.from("prayer_interactions").insert({
-          prayer_request_id: prayerRequestId,
-          user_id: usuarioId,
-          tipo: "PRAY",
-        });
 
-        if (!error) {
-          await recarregar();
-          return { sucesso: true };
+        // Checar se já orou
+        const { data: existente } = await supabase
+          .from("prayer_interactions")
+          .select("id")
+          .eq("prayer_request_id", prayerRequestId)
+          .eq("user_id", usuarioId)
+          .maybeSingle();
+
+        if (existente) {
+          // Remover oração
+          await supabase.from("prayer_interactions").delete().eq("id", existente.id);
+        } else {
+          // Inserir oração
+          await supabase.from("prayer_interactions").insert({
+            prayer_request_id: prayerRequestId,
+            user_id: usuarioId,
+            tipo: "PRAY",
+          });
         }
-        return { sucesso: false, erro: error.message };
+
+        await recarregar();
+        return { error: null };
       } catch (e) {
-        return { sucesso: false, erro: e.message };
+        return { error: e.message };
       }
     },
     [usuarioId, recarregar]
   );
 
   return {
-    pedidosOracao,
+    pedidos,
+    pedidosOracao: pedidos,
     carregando,
+    erro,
     recarregar,
-    criarPedidoOracao,
-    interagirOracao,
+    criarPedido,
+    criarPedidoOracao: criarPedido,
+    alternarOracao,
+    interagirOracao: alternarOracao,
   };
 }

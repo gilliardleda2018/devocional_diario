@@ -5,13 +5,21 @@ import DescobrirPessoasCard from "./DescobrirPessoasCard";
 import AmigosTab from "./AmigosTab";
 import PedidosOracaoTab from "./PedidosOracaoTab";
 import PrivacidadeModal from "./PrivacidadeModal";
+import PerfilAmigoModal from "./PerfilAmigoModal";
 import { useFaithGraph } from "@/src/lib/hooks/useFaithGraph";
 
 export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
-  const [subAba, setSubAba] = useState("descobrir"); // para_voce, amigos, descobrir, oracoes
+  const [subAba, setSubAba] = useState("descobrir"); // descobrir, oracoes, amigos
   const [modalPrivacidadeAberto, setModalPrivacidadeAberto] = useState(false);
+  const [perfilAmigoSelecionado, setPerfilAmigoSelecionado] = useState(null);
 
-  const { recomendacoes, carregandoRec, seguir, enviarPedido, registrarEvento } = useFaithGraph(usuarioId);
+  const {
+    recomendacoes,
+    carregandoRecomendacoes,
+    seguirUsuario,
+    enviarPedidoAmizade,
+    bloquearUsuario,
+  } = useFaithGraph(usuarioId);
 
   return (
     <div style={styles.container}>
@@ -58,15 +66,38 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
       {subAba === "descobrir" && (
         <div>
           <div style={styles.sectionHeader}>
-            <div>
-              <h3 style={styles.sectionTitle}>Recomendações Inteligentes de Conexão</h3>
-              <p style={styles.sectionSubtitle}>
-                Pessoas com quem você compartilha amigos em comum, leitura bíblica e afinidade espiritual.
-              </p>
-            </div>
+            <h3 style={styles.sectionTitle}>Recomendações Inteligentes de Conexão</h3>
+            <p style={styles.sectionSubtitle}>
+              Pessoas com quem você compartilha amigos em comum, leitura bíblica e afinidade espiritual.
+            </p>
           </div>
 
-          <DescobrirPessoasCard usuarioId={usuarioId} />
+          {carregandoRecomendacoes ? (
+            <div style={styles.loadingBox}>
+              <p style={styles.loadingText}>Buscando conexões de fé para você...</p>
+            </div>
+          ) : recomendacoes.length === 0 ? (
+            <div style={styles.emptyCard}>
+              <span style={{ fontSize: 36, display: "block", marginBottom: 8 }}>✨</span>
+              <p style={styles.emptyTitle}>Sem novas sugestões no momento</p>
+              <p style={styles.emptyDesc}>
+                Convide seus amigos pelo WhatsApp na aba &quot;Meus Amigos&quot; para expandir sua rede de oração!
+              </p>
+            </div>
+          ) : (
+            <div style={styles.cardsGrid}>
+              {recomendacoes.map((candidato) => (
+                <DescobrirPessoasCard
+                  key={candidato.candidate_id}
+                  candidato={candidato}
+                  onAdicionar={enviarPedidoAmizade}
+                  onSeguir={seguirUsuario}
+                  onBloquear={bloquearUsuario}
+                  onAbrirPerfil={(cand) => setPerfilAmigoSelecionado(cand)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -84,6 +115,16 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
         isOpen={modalPrivacidadeAberto}
         onClose={() => setModalPrivacidadeAberto(false)}
       />
+
+      {/* Modal Perfil Amigo */}
+      {perfilAmigoSelecionado && (
+        <PerfilAmigoModal
+          aberto={!!perfilAmigoSelecionado}
+          aoFechar={() => setPerfilAmigoSelecionado(null)}
+          amigo={perfilAmigoSelecionado}
+          usuarioAtualId={usuarioId}
+        />
+      )}
     </div>
   );
 }
@@ -174,5 +215,40 @@ const styles = {
     fontSize: 12,
     color: "#7A8A7F",
     margin: "2px 0 0",
+  },
+  loadingBox: {
+    textAlign: "center",
+    padding: 24,
+    background: "#FBF9F3",
+    borderRadius: 14,
+    border: "1px solid #E7E0D0",
+  },
+  loadingText: {
+    fontSize: 13,
+    color: "#7A8A7F",
+  },
+  emptyCard: {
+    background: "#FBF9F3",
+    border: "1px dashed #D8CFB8",
+    borderRadius: 16,
+    padding: "32px 20px",
+    textAlign: "center",
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#33422F",
+    margin: "0 0 6px",
+  },
+  emptyDesc: {
+    fontSize: 13,
+    color: "#7A8A7F",
+    maxWidth: 320,
+    margin: "0 auto",
+  },
+  cardsGrid: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
   },
 };
