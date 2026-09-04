@@ -478,8 +478,33 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, o
       try {
         const { criarClienteSupabase } = await import("@/src/lib/supabase/client");
         const supabase = criarClienteSupabase();
-        const { data } = await supabase.rpc("obter_recomendacoes_pessoas", { p_limite: 15 });
-        if (vivo && data) setSugestoes(data);
+        
+        // 1. Tenta via RPC
+        const { data, error } = await supabase.rpc("obter_recomendacoes_pessoas", { p_limite: 15 }).catch(() => ({ error: true }));
+        
+        if (vivo && !error && data && Array.isArray(data) && data.length > 0) {
+          setSugestoes(data);
+          return;
+        }
+
+        // 2. Fallback direto se RPC não existir ou retornar vazio
+        const { data: directProfiles } = await supabase
+          .from("profiles")
+          .select("id, nome_exibicao, foto_url, username, cidade, igreja")
+          .neq("id", usuarioId)
+          .limit(15);
+
+        if (vivo && directProfiles) {
+          setSugestoes(
+            directProfiles.map((p) => ({
+              candidate_id: p.id,
+              nome_exibicao: p.nome_exibicao || "Irmão em Fé",
+              foto_url: p.foto_url || null,
+              username: p.username || null,
+              reason_text: p.cidade ? `De ${p.cidade}` : p.igreja ? `Membro de ${p.igreja}` : "Membro da comunidade",
+            }))
+          );
+        }
       } catch (e) {
         console.error("Erro ao carregar sugestões:", e);
       } finally {

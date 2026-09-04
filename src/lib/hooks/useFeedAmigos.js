@@ -20,10 +20,66 @@ export function useFeedAmigos(usuarioId, limite = 30) {
       setCarregando(false);
       return;
     }
-    const supabase = criarClienteSupabase();
-    const { data, error } = await supabase.rpc("obter_feed_amigos", { p_limite: limite });
-    if (!error) setFeed(data ?? []);
-    setCarregando(false);
+    setCarregando(true);
+    try {
+      const supabase = criarClienteSupabase();
+      const { data, error } = await supabase.rpc("obter_feed_amigos", { p_limite: limite }).catch(() => ({ error: true }));
+
+      if (!error && data && Array.isArray(data)) {
+        setFeed(data);
+      } else {
+        // Fallback direto via Supabase se RPC não estiver presente
+        const { data: directAmigos } = await supabase
+          .from("amizades")
+          .select("solicitante_id, destinatario_id")
+          .eq("status", "aceita")
+          .or(`solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`);
+
+        const amigosIds = directAmigos
+          ? directAmigos.map((a) => (a.solicitante_id === usuarioId ? a.destinatario_id : a.solicitante_id))
+          : [];
+
+        if (amigosIds.length > 0) {
+          const { data: devocionais } = await supabase
+            .from("devocionais_diarios")
+            .select(`
+              id,
+              usuario_id,
+              criado_em,
+              tema_oracao,
+              referencia_versiculo,
+              profiles:usuario_id (nome_exibicao, foto_url)
+            `)
+            .in("usuario_id", amigosIds)
+            .order("criado_em", { ascending: false })
+            .limit(limite);
+
+          if (devocionais) {
+            setFeed(
+              devocionais.map((d) => ({
+                id: d.id,
+                tipo: "devocional",
+                usuario_id: d.usuario_id,
+                nome_exibicao: d.profiles?.nome_exibicao || "Irmão em Fé",
+                foto_url: d.profiles?.foto_url || null,
+                quando: d.criado_em,
+                tema_oracao: d.tema_oracao,
+                referencia_versiculo: d.referencia_versiculo,
+              }))
+            );
+          } else {
+            setFeed([]);
+          }
+        } else {
+          setFeed([]);
+        }
+      }
+    } catch (e) {
+      console.error("Erro no feed de amigos:", e);
+      setFeed([]);
+    } finally {
+      setCarregando(false);
+    }
   }, [usuarioId, limite]);
 
   useEffect(() => {
@@ -54,7 +110,7 @@ export function useFeedAmigos(usuarioId, limite = 30) {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "amigos" },
+        { event: "*", schema: "public", table: "amizades" },
         () => {
           recarregar();
         }
