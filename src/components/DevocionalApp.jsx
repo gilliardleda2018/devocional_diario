@@ -19,6 +19,7 @@ import { calcularMissoes } from "@/src/lib/devocional/missoes";
 import Mascote from "@/src/components/Mascote";
 import ProgressoTab from "@/src/components/ProgressoTab";
 import AmigosTab from "@/src/components/AmigosTab";
+import ComunidadeTab from "@/src/components/ComunidadeTab";
 import TrilhaFases from "@/src/components/TrilhaFases";
 import MissoesCard from "@/src/components/MissoesCard";
 import OfensivaCard from "@/src/components/OfensivaCard";
@@ -403,6 +404,13 @@ export default function DevocionalApp({ usuario }) {
             onClick={() => setAba("progresso")}
           >
             Progresso
+          </button>
+          <button
+            className="tab-btn"
+            style={aba === "comunidade" ? styles.tabActive : styles.tabInactive}
+            onClick={() => setAba("comunidade")}
+          >
+            🌐 Comunidade
           </button>
           <button
             className="tab-btn"
@@ -792,6 +800,10 @@ export default function DevocionalApp({ usuario }) {
             nomeExibicao={nomeExibicao}
             gatilhoRecarga={gatilhoRecarga}
           />
+        )}
+
+        {aba === "comunidade" && (
+          <ComunidadeTab usuarioId={usuario.id} nomeUsuario={perfil.nome_exibicao} />
         )}
 
         {aba === "amigos" && <AmigosTab usuarioId={usuario.id} />}
