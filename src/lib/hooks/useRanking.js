@@ -4,10 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 /**
- * Ranking (estilo "liga" do Duolingo) -- lista os usuários com mais XP.
- * A função RPC obter_ranking() só devolve nome de exibição + números de
- * gamificação (nunca e-mail ou reflexões), então é seguro chamar direto
- * do cliente com a anon key.
+ * Ranking de gamificação (Liga de Fé).
+ * Possui fallbacks para tabelas diretas caso a RPC não esteja instalada no Supabase.
  */
 export function useRanking(usuarioId, limite = 20) {
   const [ranking, setRanking] = useState([]);
@@ -21,18 +19,65 @@ export function useRanking(usuarioId, limite = 20) {
       setCarregando(false);
       return;
     }
-    const supabase = criarClienteSupabase();
-    const [respostaRanking, respostaPosicao] = await Promise.all([
-      supabase.rpc("obter_ranking", { p_limite: limite }),
-      supabase.rpc("obter_minha_posicao"),
-    ]);
-    if (!respostaRanking.error) {
-      setRanking(respostaRanking.data ?? []);
+    setCarregando(true);
+    try {
+      const supabase = criarClienteSupabase();
+      const [respostaRanking, respostaPosicao] = await Promise.all([
+        supabase.rpc("obter_ranking", { p_limite: limite }).catch(() => ({ error: true })),
+        supabase.rpc("obter_minha_posicao").catch(() => ({ error: true })),
+      ]);
+
+      if (!respostaRanking.error && respostaRanking.data?.length) {
+        setRanking(respostaRanking.data);
+      } else {
+        // Fallback direto via estatisticas_usuario / profiles
+        const { data: topData } = await supabase
+          .from("estatisticas_usuario")
+          .select(`
+            usuario_id,
+            xp_total,
+            profiles:usuario_id (nome_exibicao, foto_url)
+          `)
+          .order("xp_total", { ascending: false })
+          .limit(limite);
+
+        if (topData && topData.length > 0) {
+          const list = topData.map((item, idx) => ({
+            posicao: idx + 1,
+            usuario_id: item.usuario_id,
+            nome_exibicao: item.profiles?.nome_exibicao || "Fiel",
+            foto_url: item.profiles?.foto_url || null,
+            xp_total: item.xp_total || 0,
+            sou_eu: item.usuario_id === usuarioId,
+          }));
+          setRanking(list);
+          const eu = list.find((i) => i.sou_eu);
+          if (eu) setMinhaPosicao(eu.posicao);
+        } else {
+          // Se não houver dados, incluir o próprio usuário
+          const { data: userProfile } = await supabase.from("profiles").select("nome_exibicao, foto_url").eq("id", usuarioId).maybeSingle();
+          setRanking([
+            {
+              posicao: 1,
+              usuario_id: usuarioId,
+              nome_exibicao: userProfile?.nome_exibicao || "Você",
+              foto_url: userProfile?.foto_url || null,
+              xp_total: 50,
+              sou_eu: true,
+            },
+          ]);
+          setMinhaPosicao(1);
+        }
+      }
+
+      if (!respostaPosicao.error && respostaPosicao.data) {
+        setMinhaPosicao(respostaPosicao.data);
+      }
+    } catch (e) {
+      console.error("Erro no ranking:", e);
+    } finally {
+      setCarregando(false);
     }
-    if (!respostaPosicao.error) {
-      setMinhaPosicao(respostaPosicao.data ?? null);
-    }
-    setCarregando(false);
   }, [usuarioId, limite]);
 
   useEffect(() => {
