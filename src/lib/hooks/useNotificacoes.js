@@ -64,21 +64,31 @@ export function useNotificacoes(usuarioId) {
         }
       }
 
-      // 2. Mescla também solicitações de amizade pendentes recebidas para garantir visibilidade total
-      const { data: pedidosPendentes } = await supabase
+      // 2. Mescla solicitações de amizade pendentes recebidas (join manual em 2 etapas, imune a erros PostgREST)
+      const { data: rawPedidos } = await supabase
         .from("amizades")
-        .select(`
-          id,
-          solicitante_id,
-          criado_em,
-          solicitante:solicitante_id (id, nome_exibicao, username, foto_url)
-        `)
+        .select("id, solicitante_id, criado_em")
         .eq("destinatario_id", usuarioId)
         .eq("status", "pendente")
         .catch(() => ({ data: null }));
 
-      if (pedidosPendentes && pedidosPendentes.length > 0) {
-        pedidosPendentes.forEach((p) => {
+      if (rawPedidos && rawPedidos.length > 0) {
+        const solicitanteIds = [...new Set(rawPedidos.map((p) => p.solicitante_id).filter(Boolean))];
+        let solProfilesMap = {};
+        if (solicitanteIds.length > 0) {
+          const { data: solProfiles } = await supabase
+            .from("profiles")
+            .select("id, nome_exibicao, username, foto_url")
+            .in("id", solicitanteIds)
+            .catch(() => ({ data: null }));
+
+          if (solProfiles) {
+            solProfilesMap = Object.fromEntries(solProfiles.map((sp) => [sp.id, sp]));
+          }
+        }
+
+        rawPedidos.forEach((p) => {
+          const solProfile = solProfilesMap[p.solicitante_id] || {};
           const jaExiste = notifsList.some(
             (n) => n.type === "FRIEND_REQUEST_RECEIVED" && (n.entity_id === p.id || n.actor_id === p.solicitante_id)
           );
@@ -90,9 +100,9 @@ export function useNotificacoes(usuarioId) {
               is_read: false,
               criado_em: p.criado_em || new Date().toISOString(),
               actor_id: p.solicitante_id,
-              actor_nome: p.solicitante?.nome_exibicao || "Um irmão em fé",
-              actor_username: p.solicitante?.username || null,
-              actor_foto_url: p.solicitante?.foto_url || null,
+              actor_nome: solProfile.nome_exibicao || "Um irmão em fé",
+              actor_username: solProfile.username || null,
+              actor_foto_url: solProfile.foto_url || null,
             });
           }
         });

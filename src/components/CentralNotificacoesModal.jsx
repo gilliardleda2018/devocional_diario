@@ -17,8 +17,10 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
   const [processando, setProcessando] = useState({});
 
   function tempoRelativo(dataIso) {
-    if (!dataIso) return "";
-    const diffMs = new Date() - new Date(dataIso);
+    if (!dataIso) return "Recente";
+    const d = new Date(dataIso);
+    if (isNaN(d.getTime())) return "Recente";
+    const diffMs = new Date() - d;
     const diffMin = Math.floor(diffMs / (1000 * 60));
     if (diffMin < 1) return "Agora mesmo";
     if (diffMin < 60) return `Há ${diffMin} min`;
@@ -30,7 +32,7 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
   }
 
   async function handleAceitarPedido(notif) {
-    if (!notif.entity_id) return;
+    if (!notif?.entity_id) return;
     setProcessando((prev) => ({ ...prev, [notif.id]: true }));
     try {
       await responderPedido(notif.entity_id, true);
@@ -43,7 +45,7 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
   }
 
   async function handleRemoverPedido(notif) {
-    if (!notif.entity_id) return;
+    if (!notif?.entity_id) return;
     setProcessando((prev) => ({ ...prev, [notif.id]: true }));
     try {
       await responderPedido(notif.entity_id, false);
@@ -56,39 +58,50 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
   }
 
   function renderGrupo(titulo, lista) {
-    if (!lista || lista.length === 0) return null;
+    if (!lista || !Array.isArray(lista) || lista.length === 0) return null;
     return (
       <div style={styles.grupoSection}>
         <div style={styles.grupoTitulo}>{titulo}</div>
-        {lista.map((item) => {
-          const lida = item.is_read;
+        {lista.map((item, idx) => {
+          if (!item) return null;
+          const itemId = item.id || `notif_${idx}`;
+          const lida = Boolean(item.is_read);
+          const nomeActor = typeof item.actor_nome === "string" && item.actor_nome.trim() ? item.actor_nome : "Um irmão em fé";
+          const inicial = nomeActor.slice(0, 2).toUpperCase() || "FI";
+
           return (
             <div
-              key={item.id}
+              key={itemId}
               style={lida ? styles.cardLido : styles.cardNaoLido}
               onClick={() => {
-                if (!lida) marcarComoLida(item.id);
+                if (!lida && item.id) marcarComoLida(item.id);
               }}
             >
               <div style={styles.avatarWrap}>
                 {item.actor_foto_url ? (
-                  <img src={item.actor_foto_url} alt="" style={styles.avatarImg} />
+                  <img
+                    src={item.actor_foto_url}
+                    alt=""
+                    style={styles.avatarImg}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
                 ) : (
-                  <div style={styles.avatarFallback}>
-                    {item.actor_nome?.slice(0, 2).toUpperCase() || "FI"}
-                  </div>
+                  <div style={styles.avatarFallback}>{inicial}</div>
                 )}
                 {!lida && <div style={styles.dotUnread} />}
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={styles.mensagemText}>
-                  <strong>{item.actor_nome}</strong>{" "}
+                  <strong>{nomeActor}</strong>{" "}
                   {item.type === "FRIEND_REQUEST_RECEIVED" && "enviou um pedido de amizade."}
                   {item.type === "FRIEND_REQUEST_ACCEPTED" && "aceitou seu pedido de amizade."}
                   {item.type === "PRAYER_INTERACTION" && "está orando pelo seu pedido. 🙏"}
                   {item.type === "NEW_FOLLOWER" && "começou a te seguir."}
-                  {item.type === "SYSTEM" && item.entity_id}
+                  {item.type === "SYSTEM" && (item.mensagem || item.entity_id || "Notificação do sistema.")}
+                  {!["FRIEND_REQUEST_RECEIVED", "FRIEND_REQUEST_ACCEPTED", "PRAYER_INTERACTION", "NEW_FOLLOWER", "SYSTEM"].includes(item.type) && "interagiu com você."}
                 </div>
 
                 <div style={styles.tempoText}>{tempoRelativo(item.criado_em)}</div>
@@ -98,7 +111,7 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
                   <div style={styles.acoesRow}>
                     <button
                       style={styles.btnAceitar}
-                      disabled={processando[item.id]}
+                      disabled={Boolean(processando[item.id])}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAceitarPedido(item);
@@ -108,7 +121,7 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
                     </button>
                     <button
                       style={styles.btnRemover}
-                      disabled={processando[item.id]}
+                      disabled={Boolean(processando[item.id])}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRemoverPedido(item);
@@ -124,8 +137,8 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
                     style={styles.btnVerPerfil}
                     onClick={(e) => {
                       e.stopPropagation();
-                      marcarComoLida(item.id);
-                      if (aoAbrirPerfilAmigo) aoAbrirPerfilAmigo(item.actor_id);
+                      if (item.id) marcarComoLida(item.id);
+                      if (aoAbrirPerfilAmigo && item.actor_id) aoAbrirPerfilAmigo(item.actor_id);
                     }}
                   >
                     Ver Perfil
@@ -139,11 +152,12 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
     );
   }
 
+  const agrupadas = notificacoesAgrupadas || {};
   const possuiNotificacoes =
-    (notificacoesAgrupadas.hoje?.length || 0) +
-    (notificacoesAgrupadas.ontem?.length || 0) +
-    (notificacoesAgrupadas.estaSemana?.length || 0) +
-    (notificacoesAgrupadas.maisAntigas?.length || 0) > 0;
+    ((agrupadas.hoje?.length) || 0) +
+    ((agrupadas.ontem?.length) || 0) +
+    ((agrupadas.estaSemana?.length) || 0) +
+    ((agrupadas.maisAntigas?.length) || 0) > 0;
 
   return (
     <div style={styles.overlay}>
