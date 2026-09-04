@@ -652,7 +652,7 @@ const styles = {
   pedidoCard: {
     display: "flex",
     alignItems: "center",
-    justify.content: "space-between",
+    justifyContent: "space-between",
     background: "#FFFDF7",
     border: "1px solid #F0DFAF",
     borderRadius: 14,
