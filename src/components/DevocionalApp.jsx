@@ -328,7 +328,7 @@ export default function DevocionalApp({ usuario }) {
           <button
             onClick={() => setModalPerfilAberto(true)}
             style={{
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
               gap: 8,
               background: "none",
@@ -336,10 +336,12 @@ export default function DevocionalApp({ usuario }) {
               cursor: "pointer",
               padding: 0,
               textAlign: "left",
+              minWidth: 0,
+              flexShrink: 1,
             }}
             title="Editar perfil e foto"
           >
-            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={30} />
+            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={34} />
             <span style={styles.topBarUser}>Olá, {perfil.nome_exibicao}</span>
           </button>
 
@@ -837,17 +839,24 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 16,
+    gap: 8,
+    width: "100%",
   },
   topBarUser: {
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#4F6D5C",
+    fontSize: 13.5,
+    fontWeight: 700,
+    color: "#33422F",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: 150,
   },
   topBarRight: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
+    flexShrink: 0,
   },
   ofensivaChip: {
     display: "inline-flex",

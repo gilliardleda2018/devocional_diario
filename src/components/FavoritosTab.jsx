@@ -3,10 +3,10 @@
 import { useState } from "react";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
 
-export default function FavoritosTab({ favoritos, carregando, alternarFavorito }) {
+export default function FavoritosTab({ favoritos = [], carregando = false, alternarFavorito }) {
   const [filtro, setFiltro] = useState("");
   const [modalCardVersiculo, setModalCardVersiculo] = useState(null);
-  const [estiloTema, setEstiloTema] = useState("dourado"); // dourado, oceano, amanhecer, noite
+  const [estiloTema, setEstiloTema] = useState("dourado");
 
   const favoritosFiltrados = favoritos.filter(
     (f) =>
@@ -16,62 +16,57 @@ export default function FavoritosTab({ favoritos, carregando, alternarFavorito }
 
   const temas = {
     dourado: {
-      bg: "bg-gradient-to-br from-amber-600 via-amber-700 to-amber-900",
-      text: "text-amber-50",
-      accent: "border-amber-300/40",
+      bg: "linear-gradient(135deg, #7A5726 0%, #B98B4E 50%, #4A3415 100%)",
+      text: "#FFFDF7",
+      border: "1px solid rgba(255,255,255,0.2)",
       label: "✨ Dourado celestial",
     },
     oceano: {
-      bg: "bg-gradient-to-br from-blue-700 via-indigo-800 to-slate-900",
-      text: "text-blue-50",
-      accent: "border-blue-300/40",
+      bg: "linear-gradient(135deg, #1E3A8A 0%, #1E293B 100%)",
+      text: "#F0F9FF",
+      border: "1px solid rgba(255,255,255,0.2)",
       label: "🌊 Oceano de paz",
     },
     amanhecer: {
-      bg: "bg-gradient-to-br from-rose-600 via-purple-700 to-indigo-900",
-      text: "text-rose-50",
-      accent: "border-rose-300/40",
+      bg: "linear-gradient(135deg, #BE123C 0%, #4338CA 100%)",
+      text: "#FFF1F2",
+      border: "1px solid rgba(255,255,255,0.2)",
       label: "🌅 Amanhecer da graça",
     },
     noite: {
-      bg: "bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-950",
-      text: "text-emerald-50",
-      accent: "border-emerald-300/40",
+      bg: "linear-gradient(135deg, #0F172A 0%, #064E3B 100%)",
+      text: "#ECFDF5",
+      border: "1px solid rgba(255,255,255,0.2)",
       label: "🌌 Noite de oração",
     },
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div style={styles.container}>
       {/* Cabeçalho */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent p-5 rounded-2xl border border-amber-500/20 backdrop-blur-sm">
-        <div className="flex items-center space-x-3 mb-2">
-          <span className="text-3xl">⭐</span>
+      <div style={styles.headerCard}>
+        <div style={styles.headerTopo}>
+          <span style={styles.headerIcone}>⭐</span>
           <div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-              Meus Versículos Favoritos
-            </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Guarde os textos que tocaram seu coração e crie cards para compartilhar.
+            <h2 style={styles.titulo}>Meus Versículos Favoritos</h2>
+            <p style={styles.subtitulo}>
+              Guarde os textos que tocaram seu coração e crie cards inspiradores para compartilhar.
             </p>
           </div>
         </div>
 
-        {/* Barra de Busca */}
-        <div className="mt-4 relative">
+        {/* Barra de Busca com ícone embutido */}
+        <div style={styles.searchWrapper}>
+          <span style={styles.searchIcone}>🔍</span>
           <input
             type="text"
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
-            placeholder="Buscar nos favoritos por livro, capítulo ou palavra..."
-            className="w-full px-4 py-2.5 pl-10 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-800 dark:text-slate-100 placeholder-slate-400"
+            placeholder="Buscar por livro, capítulo ou palavra..."
+            style={styles.searchInput}
           />
-          <span className="absolute left-3 top-3 text-slate-400">🔍</span>
           {filtro && (
-            <button
-              onClick={() => setFiltro("")}
-              className="absolute right-3 top-2.5 text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 px-2 py-1 rounded-full text-slate-600 dark:text-slate-300"
-            >
+            <button onClick={() => setFiltro("")} style={styles.clearBtn} type="button">
               Limpar
             </button>
           )}
@@ -80,59 +75,57 @@ export default function FavoritosTab({ favoritos, carregando, alternarFavorito }
 
       {/* Lista de Favoritos */}
       {carregando ? (
-        <div className="text-center py-12 text-slate-500 dark:text-slate-400 space-y-2">
-          <div className="inline-block animate-spin text-2xl">⚡</div>
+        <div style={styles.carregandoState}>
+          <span style={{ fontSize: 24 }}>⚡</span>
           <p>Carregando versículos salvos...</p>
         </div>
       ) : favoritosFiltrados.length === 0 ? (
-        <div className="bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 p-8 rounded-2xl text-center">
-          <span className="text-4xl block mb-3">📖</span>
-          <h3 className="font-semibold text-slate-700 dark:text-slate-200 mb-1">
+        <div style={styles.vazioState}>
+          <span style={{ fontSize: 40, display: "block", marginBottom: 10 }}>📖</span>
+          <h3 style={styles.vazioTitulo}>
             {filtro ? "Nenhum versículo encontrado" : "Nenhum favorito salvo ainda"}
           </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+          <p style={styles.vazioTexto}>
             {filtro
               ? "Tente buscar com outros termos."
-              : "Toque no ícone de estrela ⭐ ao ler a Bíblia ou durante o Devocional para salvar seus versículos preferidos aqui!"}
+              : "Toque na estrela ⭐ ao ler a Bíblia ou durante o Devocional para guardar seus versículos marcantes aqui!"}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style={styles.grid}>
           {favoritosFiltrados.map((item) => (
-            <div
-              key={item.referencia}
-              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative group"
-            >
+            <div key={item.referencia} style={styles.verseCard}>
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:amber-300 border border-amber-300/30">
-                    📜 {item.referencia}
-                  </span>
+                <div style={styles.cardHeaderRow}>
+                  <span style={styles.refBadge}>📜 {item.referencia}</span>
                   <button
                     onClick={() => alternarFavorito(item.referencia, item.texto)}
-                    className="text-amber-500 hover:text-red-500 transition-colors p-1"
+                    style={styles.starBtn}
                     title="Remover dos favoritos"
+                    type="button"
                   >
                     ⭐
                   </button>
                 </div>
-                <blockquote className="text-sm text-slate-700 dark:text-slate-200 italic leading-relaxed border-l-2 border-amber-400 pl-3 my-2">
+                <blockquote style={styles.verseQuote}>
                   &ldquo;{item.texto}&rdquo;
                 </blockquote>
               </div>
 
-              {/* Ações do Card */}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-2">
+              {/* Rodapé do Card com Ações */}
+              <div style={styles.cardFooter}>
                 <button
                   onClick={() => setModalCardVersiculo(item)}
-                  className="inline-flex items-center space-x-1 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-3 py-1.5 rounded-lg transition-colors border border-amber-200/50 dark:border-amber-800/40"
+                  style={styles.cardVisualBtn}
+                  className="action-btn chunky"
+                  type="button"
                 >
-                  <span>🖼️ Criar Card Visual</span>
+                  🖼️ Criar Card Visual
                 </button>
 
                 <CompartilharBotoes
-                  titulo={`Versículo ${item.referencia}`}
                   texto={`"${item.texto}" — ${item.referencia}`}
+                  compact={true}
                 />
               </div>
             </div>
@@ -140,17 +133,16 @@ export default function FavoritosTab({ favoritos, carregando, alternarFavorito }
         </div>
       )}
 
-      {/* Modal Gerador de Card de Versículo */}
+      {/* Modal Gerador de Card Visual */}
       {modalCardVersiculo && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 border border-slate-200 dark:border-slate-800 animate-scaleUp">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                🎨 Gerador de Card para Redes Sociais
-              </h3>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitulo}>🎨 Criar Card para Redes Sociais</h3>
               <button
                 onClick={() => setModalCardVersiculo(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold p-1"
+                style={styles.closeBtn}
+                type="button"
               >
                 ✕
               </button>
@@ -158,19 +150,17 @@ export default function FavoritosTab({ favoritos, carregando, alternarFavorito }
 
             {/* Seleção de Tema */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                Escolha o Tema Visual:
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+              <label style={styles.labelSecao}>Escolha o Tema Visual:</label>
+              <div style={styles.temasGrid}>
                 {Object.entries(temas).map(([key, value]) => (
                   <button
                     key={key}
                     onClick={() => setEstiloTema(key)}
-                    className={`px-3 py-2 rounded-xl text-xs font-medium text-left border transition-all ${
-                      estiloTema === key
-                        ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200 font-bold ring-2 ring-amber-500/20"
-                        : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100"
-                    }`}
+                    style={{
+                      ...styles.temaBtn,
+                      ...(estiloTema === key ? styles.temaBtnAtivo : {}),
+                    }}
+                    type="button"
                   >
                     {value.label}
                   </button>
@@ -180,34 +170,29 @@ export default function FavoritosTab({ favoritos, carregando, alternarFavorito }
 
             {/* Preview do Card */}
             <div
-              className={`p-8 rounded-2xl shadow-xl border ${temas[estiloTema].bg} ${temas[estiloTema].text} ${temas[estiloTema].accent} flex flex-col justify-between min-h-[240px] text-center space-y-6 transition-all duration-300 relative overflow-hidden`}
+              style={{
+                ...styles.cardPreview,
+                background: temas[estiloTema].bg,
+                color: temas[estiloTema].text,
+                border: temas[estiloTema].border,
+              }}
             >
-              <div className="absolute top-2 right-3 text-white/20 text-5xl select-none font-serif">
-                ✝️
-              </div>
-              <p className="text-base font-serif italic leading-relaxed relative z-10">
-                &ldquo;{modalCardVersiculo.texto}&rdquo;
-              </p>
-
-              <div className="relative z-10 pt-2 border-t border-white/20 flex flex-col items-center">
-                <span className="font-bold text-sm tracking-wide">
-                  {modalCardVersiculo.referencia}
-                </span>
-                <span className="text-[10px] opacity-75 mt-0.5">
-                  Devocional Diário • Almeida 1911
-                </span>
+              <p style={styles.previewQuote}>&ldquo;{modalCardVersiculo.texto}&rdquo;</p>
+              <div style={styles.previewRodape}>
+                <span style={styles.previewRef}>{modalCardVersiculo.referencia}</span>
+                <span style={styles.previewSub}>Devocional Diário • Almeida 1911</span>
               </div>
             </div>
 
-            {/* Ações de Compartilhamento */}
-            <div className="space-y-3 pt-2">
+            {/* Botões do Modal */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <CompartilharBotoes
-                titulo={`Versículo ${modalCardVersiculo.referencia}`}
                 texto={`"${modalCardVersiculo.texto}" — ${modalCardVersiculo.referencia}`}
               />
               <button
                 onClick={() => setModalCardVersiculo(null)}
-                className="w-full py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                style={styles.fecharModalBtn}
+                type="button"
               >
                 Fechar
               </button>
@@ -218,3 +203,299 @@ export default function FavoritosTab({ favoritos, carregando, alternarFavorito }
     </div>
   );
 }
+
+const styles = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
+    textAlign: "left",
+  },
+  headerCard: {
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 18,
+    padding: "20px 18px",
+    boxShadow: "0 4px 16px rgba(80,70,40,0.05)",
+  },
+  headerTopo: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  headerIcone: {
+    fontSize: 28,
+    flexShrink: 0,
+  },
+  titulo: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 600,
+    fontSize: 20,
+    color: "#33422F",
+    margin: "0 0 4px",
+  },
+  subtitulo: {
+    fontSize: 13,
+    color: "#6B7A6E",
+    margin: 0,
+    lineHeight: 1.4,
+  },
+  searchWrapper: {
+    position: "relative",
+    width: "100%",
+    boxSizing: "border-box",
+  },
+  searchIcone: {
+    position: "absolute",
+    left: 14,
+    top: "50%",
+    transform: "translateY(-50%)",
+    fontSize: 15,
+    color: "#8A9184",
+    pointerEvents: "none",
+  },
+  searchInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "11px 40px 11px 38px",
+    borderRadius: 12,
+    border: "1px solid #E7E0D0",
+    background: "#FFFFFF",
+    fontSize: 13.5,
+    color: "#33422F",
+    outline: "none",
+    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.03)",
+  },
+  clearBtn: {
+    position: "absolute",
+    right: 10,
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "#EFEAD9",
+    border: "none",
+    borderRadius: 999,
+    padding: "4px 10px",
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#6B7A6E",
+    cursor: "pointer",
+  },
+  carregandoState: {
+    textAlign: "center",
+    padding: "40px 0",
+    color: "#8A9184",
+    fontSize: 13.5,
+  },
+  vazioState: {
+    background: "#FBF9F3",
+    border: "1px border-dashed #E7E0D0",
+    borderRadius: 18,
+    padding: "30px 20px",
+    textAlign: "center",
+  },
+  vazioTitulo: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#33422F",
+    margin: "0 0 6px",
+  },
+  vazioTexto: {
+    fontSize: 13,
+    color: "#7A8A7F",
+    margin: 0,
+    lineHeight: 1.4,
+  },
+  grid: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+  },
+  verseCard: {
+    background: "#FFFFFF",
+    border: "1px solid #E7E0D0",
+    borderRadius: 16,
+    padding: "16px 18px",
+    boxShadow: "0 4px 14px rgba(80,70,40,0.04)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    gap: 14,
+  },
+  cardHeaderRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  refBadge: {
+    fontSize: 12.5,
+    fontWeight: 700,
+    color: "#8A6224",
+    background: "#F1E2C4",
+    padding: "4px 10px",
+    borderRadius: 999,
+    display: "inline-block",
+  },
+  starBtn: {
+    background: "none",
+    border: "none",
+    fontSize: 18,
+    cursor: "pointer",
+    padding: 2,
+  },
+  verseQuote: {
+    fontFamily: "'Fraunces', serif",
+    fontStyle: "italic",
+    fontSize: 15.5,
+    lineHeight: 1.6,
+    color: "#2D3B33",
+    margin: 0,
+    borderLeft: "3px solid #D9A94C",
+    paddingLeft: 12,
+  },
+  cardFooter: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingTop: 12,
+    borderTop: "1px solid #F1EEE3",
+    flexWrap: "wrap",
+  },
+  cardVisualBtn: {
+    background: "linear-gradient(180deg, #F5E6C8 0%, #E8D3A7 100%)",
+    color: "#6B4C1B",
+    border: "none",
+    borderBottom: "2px solid #C8AA70",
+    borderRadius: 10,
+    padding: "7px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    background: "rgba(0,0,0,0.65)",
+    backdropFilter: "blur(4px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modalContent: {
+    background: "#FFFFFF",
+    borderRadius: 24,
+    maxWidth: 440,
+    width: "100%",
+    padding: 22,
+    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+    boxSizing: "border-box",
+  },
+  modalHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottom: "1px solid #E7E0D0",
+    paddingBottom: 10,
+  },
+  modalTitulo: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: "#33422F",
+    margin: 0,
+  },
+  closeBtn: {
+    background: "none",
+    border: "none",
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#8A9184",
+    cursor: "pointer",
+    padding: 4,
+  },
+  labelSecao: {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: "#8A9184",
+    marginBottom: 8,
+    display: "block",
+  },
+  temasGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 8,
+  },
+  temaBtn: {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid #E7E0D0",
+    background: "#FBF9F3",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#33422F",
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  temaBtnAtivo: {
+    borderColor: "#B98B4E",
+    background: "#F1E2C4",
+    fontWeight: 700,
+    color: "#6B4C1B",
+  },
+  cardPreview: {
+    borderRadius: 18,
+    padding: "24px 20px",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+    minHeight: 180,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    textAlign: "center",
+    boxSizing: "border-box",
+  },
+  previewQuote: {
+    fontFamily: "'Fraunces', serif",
+    fontStyle: "italic",
+    fontSize: 16,
+    lineHeight: 1.55,
+    margin: "0 0 16px",
+  },
+  previewRodape: {
+    borderTop: "1px solid rgba(255,255,255,0.25)",
+    paddingTop: 8,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  previewRef: {
+    fontWeight: 700,
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  previewSub: {
+    fontSize: 10,
+    opacity: 0.8,
+  },
+  fecharModalBtn: {
+    width: "100%",
+    padding: "10px 0",
+    borderRadius: 12,
+    border: "1px solid #E7E0D0",
+    background: "#FBF9F3",
+    color: "#33422F",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+};

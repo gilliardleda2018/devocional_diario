@@ -35,32 +35,78 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 32, className =
   // Se fotoUrl for um emoji/preset curto
   const eEmoji = fotoUrl && fotoUrl.length <= 4;
 
+  const containerStyle = {
+    width: tamanho,
+    height: tamanho,
+    minWidth: tamanho,
+    minHeight: tamanho,
+    maxWidth: tamanho,
+    maxHeight: tamanho,
+    borderRadius: "50%",
+    overflow: "hidden",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+    border: "2px solid #FFFFFF",
+    boxSizing: "border-box",
+    position: "relative",
+    background: "#F1EAD6",
+  };
+
+  const imgStyle = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    borderRadius: "50%",
+    display: "block",
+  };
+
   return (
-    <div
-      className={`relative inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 shadow-sm border border-amber-500/25 dark:border-amber-400/30 transition-all ${className}`}
-      style={{ width: tamanho, height: tamanho, minWidth: tamanho, minHeight: tamanho }}
-    >
+    <div className={className} style={containerStyle}>
       {fotoUrl && !eEmoji ? (
         <img
           src={fotoUrl}
           alt={nome || "Avatar do usuário"}
-          className="w-full h-full object-cover rounded-full"
+          style={imgStyle}
           onError={(e) => {
-            // Em caso de erro de carregamento da imagem, esconde a img e cai no fallback
             e.currentTarget.style.display = "none";
           }}
         />
       ) : eEmoji ? (
         <div
-          className={`w-full h-full bg-gradient-to-br ${gradiente} flex items-center justify-center text-white select-none`}
-          style={{ fontSize: tamanho * 0.46 }}
+          className={`bg-gradient-to-br ${gradiente}`}
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#FFFFFF",
+            fontSize: tamanho * 0.46,
+            borderRadius: "50%",
+            userSelect: "none",
+          }}
         >
           {fotoUrl}
         </div>
       ) : (
         <div
-          className={`w-full h-full bg-gradient-to-br ${gradiente} flex items-center justify-center text-white font-semibold tracking-wider select-none`}
-          style={{ fontSize: tamanho * 0.38 }}
+          className={`bg-gradient-to-br ${gradiente}`}
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#FFFFFF",
+            fontWeight: 700,
+            letterSpacing: 1,
+            fontSize: tamanho * 0.38,
+            borderRadius: "50%",
+            userSelect: "none",
+          }}
         >
           {iniciais}
         </div>
