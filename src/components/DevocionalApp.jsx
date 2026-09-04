@@ -497,7 +497,7 @@ export default function DevocionalApp({ usuario }) {
             style={aba === "amigos" ? styles.tabActive : styles.tabInactive}
             onClick={() => setAba("amigos")}
           >
-            Amigos
+            🤝 Conexões
           </button>
         </div>
 

@@ -10,8 +10,8 @@ import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
 
 const SUBABAS_PRINCIPAIS = [
-  { id: "feed", label: "Feed" },
   { id: "conexoes", label: "Conexões" },
+  { id: "feed", label: "Feed" },
   { id: "desafios", label: "Desafios" },
   { id: "liga", label: "Liga" },
 ];
@@ -34,7 +34,7 @@ function rotuloMood(moodId) {
 }
 
 export default function AmigosTab({ usuarioId }) {
-  const [subaba, setSubaba] = useState("feed");
+  const [subaba, setSubaba] = useState("conexoes");
   const [abaConexao, setAbaConexao] = useState("amigos");
   const [amigoSelecionado, setAmigoSelecionado] = useState(null);
 

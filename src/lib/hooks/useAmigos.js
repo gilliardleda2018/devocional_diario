@@ -199,13 +199,15 @@ export function useAmigos(usuarioId) {
       if (!termo || termo.trim().length < 2) return [];
       try {
         const supabase = criarClienteSupabase();
-        const { data, error } = await supabase.rpc("buscar_usuarios", {
-          p_termo: termo.trim(),
-          p_limite: limite,
-          p_offset: offset,
-        });
+        const { data, error } = await supabase
+          .rpc("buscar_usuarios", {
+            p_termo: termo.trim(),
+            p_limite: limite,
+            p_offset: offset,
+          })
+          .catch(() => ({ error: true }));
 
-        if (!error && data) return data;
+        if (!error && data && Array.isArray(data)) return data;
 
         // Fallback direto
         const { data: rawData } = await supabase
@@ -213,7 +215,8 @@ export function useAmigos(usuarioId) {
           .select("id, nome_exibicao, username, foto_url, cidade, igreja, codigo_amigo")
           .or(`nome_exibicao.ilike.%${termo.trim()}%,username.ilike.%${termo.trim()}%`)
           .neq("id", usuarioId)
-          .limit(limite);
+          .limit(limite)
+          .catch(() => ({ data: null }));
 
         return rawData ?? [];
       } catch (e) {
