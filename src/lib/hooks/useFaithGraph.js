@@ -71,21 +71,39 @@ export function useFaithGraph(usuarioId) {
     if (!usuarioId) return;
     try {
       const supabase = criarClienteSupabase();
-      const { data, error } = await supabase
+      const { data: rawBlocks } = await supabase
         .from("user_blocks")
-        .select(`
-          id,
-          blocked_id,
-          created_at,
-          profiles:blocked_id (id, nome_exibicao, foto_url)
-        `)
-        .eq("blocker_id", usuarioId);
+        .select("id, blocked_id, created_at")
+        .eq("blocker_id", usuarioId)
+        .catch(() => ({ data: null }));
 
-      if (!error && data) {
-        setBloqueados(data);
+      if (rawBlocks && rawBlocks.length > 0) {
+        const blockedIds = [...new Set(rawBlocks.map((b) => b.blocked_id).filter(Boolean))];
+        let profilesMap = {};
+        if (blockedIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, nome_exibicao, foto_url")
+            .in("id", blockedIds)
+            .catch(() => ({ data: null }));
+          if (profs) {
+            profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+          }
+        }
+        setBloqueados(
+          rawBlocks.map((b) => ({
+            id: b.id,
+            blocked_id: b.blocked_id,
+            created_at: b.created_at,
+            profiles: profilesMap[b.blocked_id] || { id: b.blocked_id, nome_exibicao: "Usuário Bloqueado", foto_url: null },
+          }))
+        );
+      } else {
+        setBloqueados([]);
       }
     } catch (e) {
       console.error("Erro ao carregar bloqueados:", e);
+      setBloqueados([]);
     }
   }, [usuarioId]);
 

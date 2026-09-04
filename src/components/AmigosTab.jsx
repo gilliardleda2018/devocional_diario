@@ -114,11 +114,12 @@ export default function AmigosTab({ usuarioId }) {
 // Feed dos Amigos
 // ---------------------------------------------------------------------------
 function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
-  const { feed, carregando, novoItemAlert } = useFeedAmigos(usuarioId);
+  const { feed = [], carregando, novoItemAlert } = useFeedAmigos(usuarioId);
+  const listaFeed = feed || [];
 
   if (carregando) return <p style={styles.loadingText}>Carregando o feed...</p>;
 
-  if (!feed.length) {
+  if (!listaFeed.length) {
     return (
       <div style={styles.vazio}>
         <p style={styles.vazioTitulo}>Seu feed está quieto por aqui. 🕊️</p>
@@ -137,7 +138,7 @@ function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
           ⚡ Nova atualização dos seus amigos em tempo real!
         </div>
       )}
-      {feed.map((item, indice) => (
+      {listaFeed.map((item, indice) => (
         <div key={indice} style={styles.feedCard}>
           <button
             onClick={() => onAbrirPerfil(item)}
@@ -386,17 +387,18 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
 
   // ABA 2: PEDIDOS RECEBIDOS
   if (abaAtiva === "pedidos") {
+    const listaPedidos = pedidos || [];
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h3 style={styles.sectionTitle}>Solicitações Recebidas ({pedidos.length})</h3>
-        {pedidos.length === 0 ? (
+        <h3 style={styles.sectionTitle}>Solicitações Recebidas ({listaPedidos.length})</h3>
+        {listaPedidos.length === 0 ? (
           <div style={styles.emptyCard}>
             <p style={styles.emptyTitle}>Nenhum pedido novo por aqui. 🕊️</p>
             <p style={styles.emptySub}>Quando alguém te adicionar como amigo, o pedido aparecerá nesta aba.</p>
           </div>
         ) : (
           <div style={styles.lista}>
-            {pedidos.map((p) => (
+            {listaPedidos.map((p) => (
               <div key={p.amizade_id || p.id} style={styles.itemCard}>
                 <button onClick={() => onAbrirPerfil(p)} style={styles.avatarBtn}>
                   <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
@@ -423,17 +425,18 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
 
   // ABA 3: PEDIDOS ENVIADOS
   if (abaAtiva === "enviados") {
+    const listaEnviados = pedidosEnviados || [];
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h3 style={styles.sectionTitle}>Solicitações Enviadas ({pedidosEnviados.length})</h3>
-        {pedidosEnviados.length === 0 ? (
+        <h3 style={styles.sectionTitle}>Solicitações Enviadas ({listaEnviados.length})</h3>
+        {listaEnviados.length === 0 ? (
           <div style={styles.emptyCard}>
             <p style={styles.emptyTitle}>Nenhuma solicitação pendente.</p>
             <p style={styles.emptySub}>As pessoas a quem você enviou um pedido de amizade aparecerão aqui.</p>
           </div>
         ) : (
           <div style={styles.lista}>
-            {pedidosEnviados.map((p) => (
+            {listaEnviados.map((p) => (
               <div key={p.amizade_id || p.id} style={styles.itemCard}>
                 <button onClick={() => onAbrirPerfil(p)} style={styles.avatarBtn}>
                   <AvatarUsuario nome={p.nome_exibicao} fotoUrl={p.foto_url} tamanho={36} />
