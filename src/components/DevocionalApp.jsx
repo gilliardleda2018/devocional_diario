@@ -356,6 +356,7 @@ export default function DevocionalApp({ usuario }) {
           >
             <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={26} moldura={true} />
             <span style={styles.topBarUser}>{perfil.nome_exibicao}</span>
+            <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 1 }} title="Editar Perfil">✏️</span>
           </button>
 
           <div style={styles.topBarRight}>

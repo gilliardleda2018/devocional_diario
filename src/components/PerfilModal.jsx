@@ -101,6 +101,10 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
           nome_exibicao: nomeExibicao.trim(),
           foto_url: fotoFinal,
           username: usernameLimpo,
+          nome_completo: nomeCompleto.trim() || null,
+          cidade: cidade.trim() || null,
+          igreja: igreja.trim() || null,
+          bio: bio.trim() || null,
         });
       }
 
