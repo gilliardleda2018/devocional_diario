@@ -198,10 +198,10 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
             </div>
           ) : (
             <div>
-              {renderGrupo("Hoje", notificacoesAgrupadas.hoje)}
-              {renderGrupo("Ontem", notificacoesAgrupadas.ontem)}
-              {renderGrupo("Esta Semana", notificacoesAgrupadas.estaSemana)}
-              {renderGrupo("Mais Antigas", notificacoesAgrupadas.maisAntigas)}
+              {renderGrupo("Hoje", agrupadas.hoje)}
+              {renderGrupo("Ontem", agrupadas.ontem)}
+              {renderGrupo("Esta Semana", agrupadas.estaSemana)}
+              {renderGrupo("Mais Antigas", agrupadas.maisAntigas)}
             </div>
           )}
         </div>

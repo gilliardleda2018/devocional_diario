@@ -25,7 +25,7 @@ function FormularioLogin() {
   const [erro, setErro] = useState(null);
 
   useEffect(() => {
-    const erroDaUrl = searchParams.get("erro");
+    const erroDaUrl = searchParams?.get("erro");
     if (erroDaUrl) setErro(erroDaUrl);
   }, [searchParams]);
 
