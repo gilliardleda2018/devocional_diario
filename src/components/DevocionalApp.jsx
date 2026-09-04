@@ -44,6 +44,7 @@ export default function DevocionalApp({ usuario }) {
   const rotuloData = hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 
   const [aba, setAba] = useState("inicio");
+  const [abaConexaoAmigos, setAbaConexaoAmigos] = useState("amigos");
   const [gatilhoRecarga, setGatilhoRecarga] = useState(0);
   const [modalLembreteAberto, setModalLembreteAberto] = useState(false);
   const [modalPerfilAberto, setModalPerfilAberto] = useState(false);
@@ -417,6 +418,11 @@ export default function DevocionalApp({ usuario }) {
             aoAbrirPerfilAmigo={(actorId) => {
               setModalNotificacoesAberto(false);
               setPerfilAmigoId(actorId);
+            }}
+            aoIrParaPedidos={() => {
+              setModalNotificacoesAberto(false);
+              setAba("amigos");
+              setAbaConexaoAmigos("pedidos");
             }}
           />
         )}
@@ -902,7 +908,7 @@ export default function DevocionalApp({ usuario }) {
           <ComunidadeTab usuarioId={usuario?.id} nomeUsuario={perfil?.nome_exibicao} />
         )}
 
-        {aba === "amigos" && <AmigosTab usuarioId={usuario?.id} />}
+        {aba === "amigos" && <AmigosTab usuarioId={usuario?.id} abaConexaoInicial={abaConexaoAmigos} />}
       </div>
     </div>
   );

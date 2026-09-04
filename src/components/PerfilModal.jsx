@@ -3,14 +3,11 @@
 import { useState, useEffect } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
+import { validarUsername } from "@/src/lib/constants";
 
 const AVATARES_PRESET = [
   "🕊️", "✝️", "🌿", "⚓", "🛡️", "👑",
   "💡", "🔥", "⭐", "📖", "🦁", "🌅"
-];
-
-const RESERVED_USERNAMES = [
-  "admin", "administrator", "support", "devocional", "devocionaldiario", "system", "root"
 ];
 
 export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, aoSalvar }) {
@@ -46,12 +43,16 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
     setMensagem(null);
 
     const fotoFinal = urlPersonalizada.trim() || fotoUrl;
-    const usernameLimpo = username.trim().toLowerCase().replace("@", "");
+    let usernameLimpo = null;
 
-    if (usernameLimpo && RESERVED_USERNAMES.includes(usernameLimpo)) {
-      setMensagem({ tipo: "erro", texto: "Este nome de usuário é reservado." });
-      setSalvando(false);
-      return;
+    if (username.trim()) {
+      const val = validarUsername(username);
+      if (!val.valido) {
+        setMensagem({ tipo: "erro", texto: val.erro });
+        setSalvando(false);
+        return;
+      }
+      usernameLimpo = val.usernameLimpo;
     }
 
     try {

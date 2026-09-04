@@ -30,16 +30,16 @@ export function useRanking(usuarioId, limite = 20) {
       if (!respostaRanking.error && respostaRanking.data?.length) {
         setRanking(respostaRanking.data);
       } else {
-        // Fallback direto via estatisticas_usuario / profiles
+        // Fallback direto via streaks / profiles
         const { data: topData } = await supabase
-          .from("estatisticas_usuario")
-          .select("usuario_id, xp_total")
+          .from("streaks")
+          .select("user_id, xp_total")
           .order("xp_total", { ascending: false })
           .limit(limite)
           .catch(() => ({ data: null }));
 
         if (topData && topData.length > 0) {
-          const userIds = [...new Set(topData.map((item) => item.usuario_id).filter(Boolean))];
+          const userIds = [...new Set(topData.map((item) => item.user_id).filter(Boolean))];
           let profilesMap = {};
           if (userIds.length > 0) {
             const { data: profs } = await supabase
@@ -54,14 +54,14 @@ export function useRanking(usuarioId, limite = 20) {
           }
 
           const list = topData.map((item, idx) => {
-            const prof = profilesMap[item.usuario_id] || {};
+            const prof = profilesMap[item.user_id] || {};
             return {
               posicao: idx + 1,
-              usuario_id: item.usuario_id,
+              usuario_id: item.user_id,
               nome_exibicao: prof.nome_exibicao || "Fiel",
               foto_url: prof.foto_url || null,
               xp_total: item.xp_total || 0,
-              sou_eu: item.usuario_id === usuarioId,
+              sou_eu: item.user_id === usuarioId,
             };
           });
           setRanking(list);

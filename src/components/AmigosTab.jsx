@@ -8,6 +8,8 @@ import { useRankingAmigos } from "@/src/lib/hooks/useRankingAmigos";
 import { MOODS } from "@/src/lib/devocional/versiculos";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
+import ModalImportarContatos from "@/src/components/ModalImportarContatos";
+import { copiarTextoSeguro } from "@/src/lib/util/copiarSeguro";
 
 const SUBABAS_PRINCIPAIS = [
   { id: "conexoes", label: "Conexões" },
@@ -26,10 +28,15 @@ function rotuloMood(moodId) {
   return MOODS.find((m) => m.id === moodId)?.label ?? null;
 }
 
-export default function AmigosTab({ usuarioId }) {
-  const [subaba, setSubaba] = useState("conexoes");
-  const [abaConexao, setAbaConexao] = useState("amigos");
+export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaConexaoInicial = "amigos" }) {
+  const [subaba, setSubaba] = useState(subabaInicial);
+  const [abaConexao, setAbaConexao] = useState(abaConexaoInicial);
   const [amigoSelecionado, setAmigoSelecionado] = useState(null);
+
+  useEffect(() => {
+    if (subabaInicial) setSubaba(subabaInicial);
+    if (abaConexaoInicial) setAbaConexao(abaConexaoInicial);
+  }, [subabaInicial, abaConexaoInicial]);
 
   const { amigos = [], pedidos = [], pedidosEnviados = [], enviarPedido, torcer } = useAmigos(usuarioId);
 
@@ -180,12 +187,19 @@ function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
 function CardConectarRedes({ meuCodigo }) {
   const [copiado, setCopiado] = useState(false);
   const [copiadoInstagram, setCopiadoInstagram] = useState(false);
+  const [modalContatosAberto, setModalContatosAberto] = useState(false);
+  const [urlApp, setUrlApp] = useState("https://main.d357ab4gel6chc.amplifyapp.com");
 
-  const urlApp = typeof window !== "undefined" ? window.location.origin : "https://main.d357ab4gel6chc.amplifyapp.com";
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUrlApp(window.location.origin);
+    }
+  }, []);
+
   const mensagemConvite = `Olá! Estou usando o aplicativo Devocional Diário para minhas leituras e orações bíblicas. Venha se conectar comigo e acompanhar devocionais juntos! 📖✨\n\nAcesse aqui: ${urlApp}`;
 
-  async function handleWhatsApp() {
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensagemConvite)}`, "_blank", "noopener,noreferrer");
+  function handleAbrirModalContatos() {
+    setModalContatosAberto(true);
   }
 
   async function handleInstagram() {
@@ -201,56 +215,63 @@ function CardConectarRedes({ meuCodigo }) {
         // Usuário fechou a janela de compartilhamento
       }
     }
-    try {
-      await navigator.clipboard.writeText(mensagemConvite);
+    const ok = await copiarTextoSeguro(mensagemConvite);
+    if (ok) {
       setCopiadoInstagram(true);
       setTimeout(() => setCopiadoInstagram(false), 3500);
-    } catch {
-      // ignore
     }
-    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+    if (typeof window !== "undefined") {
+      window.open("https://www.instagram.com/direct/inbox/", "_blank", "noopener,noreferrer");
+    }
   }
 
   async function handleCopiar() {
-    try {
-      await navigator.clipboard.writeText(mensagemConvite);
+    const ok = await copiarTextoSeguro(mensagemConvite);
+    if (ok) {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
-    } catch {
-      // ignore
     }
   }
 
   return (
-    <div style={styles.redesCard}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 26 }}>💬</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={styles.redesTitulo}>Conectar Amigos do WhatsApp & Instagram</h3>
-          <p style={styles.redesSubtitulo}>Convide seus contatos para acompanhar devocionais e torcerem juntos!</p>
+    <>
+      <div style={styles.redesCard}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 26 }}>💬</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={styles.redesTitulo}>Conectar Amigos do WhatsApp & Instagram</h3>
+            <p style={styles.redesSubtitulo}>Acesse sua lista de contatos ou envie convites diretos para caminhar em fé juntos!</p>
+          </div>
         </div>
+
+        <div style={styles.redesBotoesGrid}>
+          <button onClick={handleAbrirModalContatos} style={styles.btnWhatsapp} title="Acessar lista de contatos do WhatsApp e telefone">
+            📲 Contatos WhatsApp
+          </button>
+
+          <button onClick={handleInstagram} style={styles.btnInstagram} title="Compartilhar no Instagram / Redes">
+            📷 Instagram / Redes
+          </button>
+
+          <button onClick={handleCopiar} style={styles.btnCopiarLink} title="Copiar link de convite">
+            {copiado ? "✓ Link Copiado! ✨" : "📋 Copiar Convite"}
+          </button>
+        </div>
+
+        {copiadoInstagram && (
+          <p style={styles.feedbackInstagram}>
+            ✨ Convite copiado! Coloque nos Stories ou envie pelo Direct do Instagram aos seus amigos.
+          </p>
+        )}
       </div>
 
-      <div style={styles.redesBotoesGrid}>
-        <button onClick={handleWhatsApp} style={styles.btnWhatsapp} title="Convidar contatos do WhatsApp">
-          📲 Contatos WhatsApp
-        </button>
-
-        <button onClick={handleInstagram} style={styles.btnInstagram} title="Compartilhar no Instagram / Redes">
-          📷 Instagram / Redes
-        </button>
-
-        <button onClick={handleCopiar} style={styles.btnCopiarLink} title="Copiar link de convite">
-          {copiado ? "✓ Link Copiado! ✨" : "📋 Copiar Convite"}
-        </button>
-      </div>
-
-      {copiadoInstagram && (
-        <p style={styles.feedbackInstagram}>
-          ✨ Convite copiado! Abra o Direct ou Stories do Instagram para enviar aos seus amigos.
-        </p>
-      )}
-    </div>
+      {/* Modal de Importação e Gerenciamento de Contatos */}
+      <ModalImportarContatos
+        aberto={modalContatosAberto}
+        aoFechar={() => setModalContatosAberto(false)}
+        meuCodigo={meuCodigo}
+      />
+    </>
   );
 }
 

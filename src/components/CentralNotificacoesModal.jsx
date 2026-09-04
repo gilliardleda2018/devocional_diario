@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 import { useAmigos } from "@/src/lib/hooks/useAmigos";
 
-export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirPerfilAmigo }) {
+export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirPerfilAmigo, aoIrParaPedidos }) {
   const {
     notificacoesAgrupadas,
     unreadNotificationsCount,
@@ -108,27 +108,42 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
 
                 {/* Ações inline para Pedido de Amizade */}
                 {item.type === "FRIEND_REQUEST_RECEIVED" && (
-                  <div style={styles.acoesRow}>
-                    <button
-                      style={styles.btnAceitar}
-                      disabled={Boolean(processando[item.id])}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAceitarPedido(item);
-                      }}
-                    >
-                      {processando[item.id] ? "Processando..." : "ACEITAR"}
-                    </button>
-                    <button
-                      style={styles.btnRemover}
-                      disabled={Boolean(processando[item.id])}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoverPedido(item);
-                      }}
-                    >
-                      REMOVER
-                    </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                    <div style={styles.acoesRow}>
+                      <button
+                        style={styles.btnAceitar}
+                        disabled={Boolean(processando[item.id])}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAceitarPedido(item);
+                        }}
+                      >
+                        {processando[item.id] ? "Processando..." : "ACEITAR"}
+                      </button>
+                      <button
+                        style={styles.btnRemover}
+                        disabled={Boolean(processando[item.id])}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoverPedido(item);
+                        }}
+                      >
+                        REMOVER
+                      </button>
+                    </div>
+                    {aoIrParaPedidos && (
+                      <button
+                        style={styles.btnVerPerfil}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (item.id) marcarComoLida(item.id);
+                          aoFechar();
+                          aoIrParaPedidos();
+                        }}
+                      >
+                        Gerenciar em Conexões ➔
+                      </button>
+                    )}
                   </div>
                 )}
 

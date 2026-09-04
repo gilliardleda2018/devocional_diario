@@ -623,14 +623,6 @@ as $$
   order by s.xp_total desc, s.maior_ofensiva desc
   limit p_limite;
 $$;
-         row_number() over (order by s.xp_total desc, s.maior_ofensiva desc) as posicao,
-         s.user_id = auth.uid() as sou_eu
-  from public.streaks s
-  join public.profiles p on p.id = s.user_id
-  where s.user_id in (select user_id from membros)
-  order by s.xp_total desc, s.maior_ofensiva desc
-  limit p_limite;
-$$;
 
 grant execute on function public.obter_ranking_amigos(integer) to authenticated;
 

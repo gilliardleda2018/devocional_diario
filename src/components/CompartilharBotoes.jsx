@@ -1,44 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { copiarTextoSeguro } from "@/src/lib/util/copiarSeguro";
 
-/**
- * Ícones de compartilhamento (WhatsApp, X, Instagram, copiar) pra
- * versículos, missões e conquistas -- link direto, sem SDK de rede social
- * nenhuma. `compact` deixa os ícones pequenos, pra caber dentro de um card
- * de conquista.
- *
- * Instagram não tem um link web que já abra com o texto preenchido (só a
- * Meta Graph API faz isso, e exige app aprovado) -- então o botão copia o
- * texto pra área de transferência e abre o Instagram, com um aviso pra
- * colar nos Stories ou na legenda.
- */
 export default function CompartilharBotoes({ texto, compact = false }) {
   const [copiado, setCopiado] = useState(false);
   const [copiadoInstagram, setCopiadoInstagram] = useState(false);
+  const [origem, setOrigem] = useState("https://main.d357ab4gel6chc.amplifyapp.com");
 
-  const origem = typeof window !== "undefined" ? window.location.origin : "https://main.d357ab4gel6chc.amplifyapp.com";
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOrigem(window.location.origin);
+    }
+  }, []);
+
   const textoCompleto = `${texto}\n\n${origem}`;
 
   async function copiarTexto() {
-    try {
-      await navigator.clipboard.writeText(textoCompleto);
+    const ok = await copiarTextoSeguro(textoCompleto);
+    if (ok) {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 1800);
-    } catch {
-      // clipboard indisponível (ex.: contexto não seguro) -- ignora silenciosamente
     }
   }
 
   async function compartilharInstagram() {
-    try {
-      await navigator.clipboard.writeText(textoCompleto);
+    const ok = await copiarTextoSeguro(textoCompleto);
+    if (ok) {
       setCopiadoInstagram(true);
       setTimeout(() => setCopiadoInstagram(false), 2600);
-    } catch {
-      // clipboard indisponível -- ainda assim abrimos o Instagram
     }
-    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+    if (typeof window !== "undefined") {
+      window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+    }
   }
 
   const tamanho = compact ? 26 : 34;

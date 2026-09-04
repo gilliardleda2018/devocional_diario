@@ -65,7 +65,7 @@ export function useOfensiva(usuarioId) {
 
         // Fallback direto via devotional_logs + streaks
         await supabase.from("devotional_logs").insert({
-          usuario_id: usuarioId,
+          user_id: usuarioId,
           tema_oracao: temaOracao ?? null,
           referencia_versiculo: referenciaVersiculo ?? null,
           reflexao: reflexao ?? null,

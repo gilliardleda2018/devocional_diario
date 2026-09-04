@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
+import { RELATIONSHIP_STATES, validarUsername } from "@/src/lib/constants";
 
 /**
  * Hook de Amigos e Conexões com resiliência total, suporte a solicitações
@@ -196,24 +197,48 @@ export function useAmigos(usuarioId) {
     };
   }, [usuarioId, recarregar]);
 
-  // Função centralizada para estado da conexão
+  // Função centralizada para estado da conexão (Fonte única de verdade)
   const getRelationshipState = useCallback(
-    async (targetId) => {
-      if (!usuarioId || !targetId) return "NONE";
-      if (usuarioId === targetId) return "SELF";
+    (targetId) => {
+      if (!usuarioId || !targetId) return RELATIONSHIP_STATES.NONE;
+      if (usuarioId === targetId) return RELATIONSHIP_STATES.SELF;
 
       if (amigos.some((a) => a.amigo_id === targetId || a.id === targetId || a.usuario_id === targetId)) {
-        return "FRIENDS";
+        return RELATIONSHIP_STATES.FRIENDS;
       }
       if (pedidosEnviados.some((p) => p.destinatario_id === targetId)) {
-        return "REQUEST_SENT";
+        return RELATIONSHIP_STATES.REQUEST_SENT;
       }
       if (pedidos.some((p) => p.solicitante_id === targetId)) {
-        return "REQUEST_RECEIVED";
+        return RELATIONSHIP_STATES.REQUEST_RECEIVED;
       }
-      return "NONE";
+      return RELATIONSHIP_STATES.NONE;
     },
     [usuarioId, amigos, pedidosEnviados, pedidos]
+  );
+
+  // Amigos em comum entre o usuário logado e um candidato
+  const getMutualFriends = useCallback(
+    async (targetId) => {
+      if (!usuarioId || !targetId || usuarioId === targetId) return { total: 0, preview: [] };
+      try {
+        const supabase = criarClienteSupabase();
+        const { data } = await supabase.rpc("obter_amigos_em_comum", { p_target_id: targetId }).catch(() => ({ data: null }));
+        if (data && Array.isArray(data) && data.length > 0) {
+          const total = Number(data[0].total_mutuos || data.length);
+          const preview = data.filter((d) => d.amigo_id).map((d) => ({
+            id: d.amigo_id,
+            nome_exibicao: d.nome_exibicao,
+            foto_url: d.foto_url,
+          }));
+          return { total, preview };
+        }
+        return { total: 0, preview: [] };
+      } catch {
+        return { total: 0, preview: [] };
+      }
+    },
+    [usuarioId]
   );
 
   // Busca Paginada de Pessoas por Nome, Username, Cidade ou Igreja
@@ -419,10 +444,9 @@ export function useAmigos(usuarioId) {
         const supabase = criarClienteSupabase();
         const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId }).catch(() => ({ error: true }));
         if (error) {
-          await supabase.from("torcidas_amigos").insert({
+          await supabase.from("torcidas").insert({
             remetente_id: usuarioId,
             destinatario_id: amigoId,
-            criado_em: new Date().toISOString(),
           }).catch(() => {});
         }
         return { sucesso: true };
@@ -442,6 +466,7 @@ export function useAmigos(usuarioId) {
     erro,
     recarregar,
     getRelationshipState,
+    getMutualFriends,
     buscarUsuarios,
     enviarPedido,
     cancelarPedido,

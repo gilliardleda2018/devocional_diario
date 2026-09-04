@@ -22,16 +22,16 @@ export function useRankingAmigos(usuarioId, limite = 20) {
       if (!error && data && Array.isArray(data)) {
         setRanking(data);
       } else {
-        // Fallback: consulta estatísticas e perfis direto
+        // Fallback: consulta streaks e perfis direto
         const { data: stats } = await supabase
-          .from("estatisticas_usuario")
-          .select("usuario_id, xp_total, ofensiva_atual")
+          .from("streaks")
+          .select("user_id, xp_total, ofensiva_atual")
           .order("xp_total", { ascending: false })
           .limit(limite)
           .catch(() => ({ data: null }));
 
         if (stats && stats.length > 0) {
-          const userIds = [...new Set(stats.map((s) => s.usuario_id).filter(Boolean))];
+          const userIds = [...new Set(stats.map((s) => s.user_id).filter(Boolean))];
           let profilesMap = {};
           if (userIds.length > 0) {
             const { data: profs } = await supabase
@@ -46,10 +46,10 @@ export function useRankingAmigos(usuarioId, limite = 20) {
 
           setRanking(
             stats.map((s, idx) => {
-              const prof = profilesMap[s.usuario_id] || {};
+              const prof = profilesMap[s.user_id] || {};
               return {
                 posicao: idx + 1,
-                usuario_id: s.usuario_id,
+                usuario_id: s.user_id,
                 nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
                 foto_url: prof.foto_url || null,
                 xp_total: s.xp_total || 0,

@@ -4,17 +4,18 @@ import { useState, useEffect } from "react";
 import { estaSuportadoAudio, falarTexto, pararAudio } from "@/src/lib/audio/narrador";
 
 export default function AudioPlayer({ texto, rotulo = "Ouvir trecho", compacto = false }) {
+  const [mounted, setMounted] = useState(false);
   const [tocando, setTocando] = useState(false);
   const [velocidade, setVelocidade] = useState(1.0);
-  const suportado = estaSuportadoAudio();
 
   useEffect(() => {
+    setMounted(true);
     return () => {
       pararAudio();
     };
   }, []);
 
-  if (!suportado || !texto) return null;
+  if (!mounted || !estaSuportadoAudio() || !texto) return null;
 
   function alternarAudio() {
     if (tocando) {

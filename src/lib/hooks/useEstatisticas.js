@@ -27,7 +27,7 @@ export function useEstatisticas(usuarioId, gatilhoRecarga) {
       } else {
         // Fallback direto via devotional_logs + streaks
         const [{ count: totalLogs }, { data: streakData }] = await Promise.all([
-          supabase.from("devotional_logs").select("*", { count: "exact", head: true }).eq("usuario_id", usuarioId),
+          supabase.from("devotional_logs").select("*", { count: "exact", head: true }).eq("user_id", usuarioId),
           supabase.from("streaks").select("*").eq("user_id", usuarioId).maybeSingle(),
         ]);
 

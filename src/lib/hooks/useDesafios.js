@@ -25,14 +25,15 @@ export function useDesafios(usuarioId) {
 
       // Buscar estatísticas e ofensiva para computar o progresso dos desafios
       const [{ data: stats }, { data: ofensiva }, { data: rpcDesafios }] = await Promise.all([
-        supabase.from("estatisticas_usuario").select("*").eq("usuario_id", usuarioId).maybeSingle(),
-        supabase.from("ofensivas").select("*").eq("usuario_id", usuarioId).maybeSingle(),
+        supabase.rpc("obter_estatisticas_usuario").catch(() => ({ data: null })),
+        supabase.from("streaks").select("*").eq("user_id", usuarioId).maybeSingle().catch(() => ({ data: null })),
         supabase.rpc("obter_meus_desafios").catch(() => ({ data: null })),
       ]);
 
-      const devocionaisCount = stats?.devocionais_concluidos || 0;
-      const ofensivaAtual = ofensiva?.ofensiva_atual || 0;
-      const maiorOfensiva = ofensiva?.maior_ofensiva || 0;
+      const statsData = Array.isArray(stats) ? stats[0] : stats;
+      const devocionaisCount = statsData?.total_devocionais ?? statsData?.devocionais_concluidos ?? 0;
+      const ofensivaAtual = ofensiva?.ofensiva_atual ?? statsData?.ofensiva_atual ?? 0;
+      const maiorOfensiva = ofensiva?.maior_ofensiva ?? statsData?.maior_ofensiva ?? 0;
 
       // Desafios padrão de engajamento no Devocional Diário
       const desafiosPadrao = [

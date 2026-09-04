@@ -9,10 +9,15 @@ import { NextResponse } from "next/server";
 export async function middleware(request) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    return response;
+  }
+
+  try {
+    const supabase = createServerClient(url, anonKey, {
       cookies: {
         get(nome) {
           return request.cookies.get(nome)?.value;
@@ -24,10 +29,12 @@ export async function middleware(request) {
           response.cookies.set({ name: nome, value: "", ...opcoes });
         },
       },
-    }
-  );
+    });
 
-  await supabase.auth.getUser();
+    await supabase.auth.getUser();
+  } catch (e) {
+    console.warn("Aviso no middleware de autenticação:", e?.message || e);
+  }
 
   return response;
 }

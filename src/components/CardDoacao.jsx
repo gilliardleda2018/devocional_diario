@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 
+import { copiarTextoSeguro } from "@/src/lib/util/copiarSeguro";
+
 export default function CardDoacao({ compacto = false }) {
   const [copiado, setCopiado] = useState(false);
   const chavePix = "42.178.408/0001-06";
 
-  function copiarChave() {
-    navigator.clipboard.writeText("42178408000106");
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2500);
+  async function copiarChave() {
+    const ok = await copiarTextoSeguro("42178408000106");
+    if (ok) {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2500);
+    }
   }
 
   if (compacto) {

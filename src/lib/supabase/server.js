@@ -8,11 +8,10 @@ import { cookies } from "next/headers";
  */
 export function criarClienteSupabaseServidor() {
   const cookieStore = cookies();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
+  return createServerClient(url, anonKey, {
       cookies: {
         get(nome) {
           return cookieStore.get(nome)?.value;

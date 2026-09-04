@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import { obterNivel } from "@/src/lib/devocional/niveis";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
+import { RELATIONSHIP_STATES } from "@/src/lib/constants";
 
 export default function PerfilAmigoModal({
   aberto,

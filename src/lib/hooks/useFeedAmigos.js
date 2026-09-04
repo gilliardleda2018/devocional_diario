@@ -41,15 +41,15 @@ export function useFeedAmigos(usuarioId, limite = 30) {
 
         if (amigosIds.length > 0) {
           const { data: devocionais } = await supabase
-            .from("devocionais_diarios")
-            .select("id, usuario_id, criado_em, tema_oracao, referencia_versiculo")
-            .in("usuario_id", amigosIds)
+            .from("devotional_logs")
+            .select("id, user_id, criado_em, tema_oracao, referencia_versiculo")
+            .in("user_id", amigosIds)
             .order("criado_em", { ascending: false })
             .limit(limite)
             .catch(() => ({ data: null }));
 
           if (devocionais && devocionais.length > 0) {
-            const userIds = [...new Set(devocionais.map((d) => d.usuario_id).filter(Boolean))];
+            const userIds = [...new Set(devocionais.map((d) => d.user_id).filter(Boolean))];
             let profilesMap = {};
             if (userIds.length > 0) {
               const { data: profs } = await supabase
@@ -65,11 +65,11 @@ export function useFeedAmigos(usuarioId, limite = 30) {
 
             setFeed(
               devocionais.map((d) => {
-                const prof = profilesMap[d.usuario_id] || {};
+                const prof = profilesMap[d.user_id] || {};
                 return {
                   id: d.id,
                   tipo: "devocional",
-                  usuario_id: d.usuario_id,
+                  usuario_id: d.user_id,
                   nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
                   foto_url: prof.foto_url || null,
                   quando: d.criado_em,
@@ -103,7 +103,7 @@ export function useFeedAmigos(usuarioId, limite = 30) {
       .channel(`feed_realtime_${usuarioId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "devocionais_diarios" },
+        { event: "INSERT", schema: "public", table: "devotional_logs" },
         () => {
           setNovoItemAlert(true);
           recarregar();
@@ -112,7 +112,7 @@ export function useFeedAmigos(usuarioId, limite = 30) {
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "torcidas_amigos" },
+        { event: "INSERT", schema: "public", table: "torcidas" },
         () => {
           setNovoItemAlert(true);
           recarregar();
