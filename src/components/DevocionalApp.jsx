@@ -323,26 +323,15 @@ export default function DevocionalApp({ usuario }) {
       <div style={styles.horizon} />
 
       <div style={styles.container}>
-        {/* CABEÇALHO: usuário + ofensiva + sair */}
+        {/* CABEÇALHO: pílula de usuário + lembrete + ofensiva + sair */}
         <div style={styles.topBar}>
           <button
             onClick={() => setModalPerfilAberto(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              textAlign: "left",
-              minWidth: 0,
-              flexShrink: 1,
-            }}
+            style={styles.profileChipBtn}
             title="Editar perfil e foto"
           >
-            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={34} />
-            <span style={styles.topBarUser}>Olá, {perfil.nome_exibicao}</span>
+            <AvatarUsuario nome={perfil.nome_exibicao} fotoUrl={perfil.foto_url} tamanho={26} moldura={true} />
+            <span style={styles.topBarUser}>{perfil.nome_exibicao}</span>
           </button>
 
           <div style={styles.topBarRight}>
@@ -843,20 +832,45 @@ const styles = {
     gap: 8,
     width: "100%",
   },
+  profileChipBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 999,
+    padding: "3px 10px 3px 4px",
+    cursor: "pointer",
+    textAlign: "left",
+    maxWidth: "52%",
+    flexShrink: 1,
+    boxShadow: "0 2px 6px rgba(80,70,40,0.06)",
+  },
   topBarUser: {
-    fontSize: 13.5,
+    fontSize: 12.5,
     fontWeight: 700,
     color: "#33422F",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    maxWidth: 150,
+    maxWidth: 110,
   },
   topBarRight: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     flexShrink: 0,
+  },
+  iconChipBtn: {
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 999,
+    padding: "4px 8px",
+    fontSize: 14,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   ofensivaChip: {
     display: "inline-flex",

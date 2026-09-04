@@ -28,7 +28,7 @@ export function obterCorGradiente(identificador) {
   return PALETA_CORES[indice];
 }
 
-export default function AvatarUsuario({ nome, fotoUrl, tamanho = 32, className = "" }) {
+export default function AvatarUsuario({ nome, fotoUrl, tamanho = 26, moldura = true, className = "" }) {
   const iniciais = useMemo(() => obterIniciais(nome), [nome]);
   const gradiente = useMemo(() => obterCorGradiente(nome || fotoUrl), [nome, fotoUrl]);
 
@@ -48,8 +48,10 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 32, className =
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-    border: "2px solid #FFFFFF",
+    border: moldura ? "1.5px solid #C89A5E" : "1.5px solid #E7E0D0",
+    boxShadow: moldura
+      ? "0 0 0 1.5px rgba(200, 154, 94, 0.25), 0 1px 3px rgba(0,0,0,0.1)"
+      : "0 1px 3px rgba(0,0,0,0.08)",
     boxSizing: "border-box",
     position: "relative",
     background: "#F1EAD6",
