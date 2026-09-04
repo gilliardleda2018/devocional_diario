@@ -233,12 +233,15 @@ export function useAmigos(usuarioId) {
   // Busca Paginada de Pessoas por Nome, Username, Cidade ou Igreja
   const buscarUsuarios = useCallback(
     async (termo, limite = 20, offset = 0) => {
-      if (!termo || termo.trim().length < 2) return [];
+      if (!termo || typeof termo !== "string" || termo.trim().length < 2) return [];
+      const t = termo.trim();
       try {
         const supabase = criarClienteSupabase();
+        
+        // 1. Tenta RPC primeiro
         const { data, error } = await supabase
           .rpc("buscar_usuarios", {
-            p_termo: termo.trim(),
+            p_termo: t,
             p_limite: limite,
             p_offset: offset,
           })
@@ -246,17 +249,22 @@ export function useAmigos(usuarioId) {
 
         if (!error && data && Array.isArray(data)) return data;
 
-        // Fallback direto
-        const { data: rawData } = await supabase
+        // 2. Fallback direto seguro no PostgREST
+        let query = supabase
           .from("profiles")
           .select("id, nome_exibicao, username, foto_url, cidade, igreja, codigo_amigo")
-          .or(`nome_exibicao.ilike.%${termo.trim()}%,username.ilike.%${termo.trim()}%`)
-          .neq("id", usuarioId)
-          .limit(limite)
-          .catch(() => ({ data: null }));
+          .or(`nome_exibicao.ilike.%${t}%,username.ilike.%${t.replace("@", "")}%`)
+          .limit(limite);
 
-        return rawData ?? [];
+        if (usuarioId) {
+          query = query.neq("id", usuarioId);
+        }
+
+        const { data: rawData } = await query.catch(() => ({ data: null }));
+
+        return rawData && Array.isArray(rawData) ? rawData : [];
       } catch (e) {
+        console.error("Erro na busca de usuários:", e);
         return [];
       }
     },

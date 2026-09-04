@@ -495,13 +495,18 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, o
         }
 
         // 2. Fallback direto se RPC não existir ou retornar vazio
-        const { data: directProfiles } = await supabase
+        let query = supabase
           .from("profiles")
           .select("id, nome_exibicao, foto_url, username, cidade, igreja")
-          .neq("id", usuarioId)
           .limit(15);
 
-        if (vivo && directProfiles) {
+        if (usuarioId) {
+          query = query.neq("id", usuarioId);
+        }
+
+        const { data: directProfiles } = await query.catch(() => ({ data: null }));
+
+        if (vivo && directProfiles && Array.isArray(directProfiles)) {
           setSugestoes(
             directProfiles.map((p) => ({
               candidate_id: p.id,

@@ -383,6 +383,14 @@ export default function DevocionalApp({ usuario }) {
             >
               ⏰
             </button>
+            <button
+              className="action-btn"
+              style={{ ...styles.linkBtn, padding: "4px 8px", fontSize: 13, fontWeight: 700, color: "#B98B4E" }}
+              onClick={() => setModalPerfilAberto(true)}
+              title="Editar Cadastro e Perfil"
+            >
+              👤 Cadastro
+            </button>
             <span style={styles.ofensivaChip} title={`Maior sequência: ${ofensiva?.maior_ofensiva ?? 0} dias`}>
               <span className="flame-icon">🔥</span> {ofensiva?.ofensiva_atual ?? 0}
             </span>
@@ -499,6 +507,13 @@ export default function DevocionalApp({ usuario }) {
             onClick={() => setAba("amigos")}
           >
             🤝 Conexões
+          </button>
+          <button
+            className="tab-btn"
+            style={modalPerfilAberto ? styles.tabActive : styles.tabInactive}
+            onClick={() => setModalPerfilAberto(true)}
+          >
+            👤 Cadastro
           </button>
         </div>
 
