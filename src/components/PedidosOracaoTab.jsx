@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import AvatarUsuario from "./AvatarUsuario";
+import PerfilAmigoModal from "./PerfilAmigoModal";
 import { usePedidosOracao } from "@/src/lib/hooks/usePedidosOracao";
+import { useAmigos } from "@/src/lib/hooks/useAmigos";
 
 export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
   const {
@@ -13,6 +15,9 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
     alternarOracao,
     recarregar,
   } = usePedidosOracao(usuarioId);
+
+  const { amigos, enviarPedido, torcer } = useAmigos(usuarioId);
+  const [perfilSelecionado, setPerfilSelecionado] = useState(null);
 
   const [filtroVisibilidade, setFiltroVisibilidade] = useState("ALL"); // ALL, MY_REQUESTS
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
@@ -135,13 +140,39 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
             <div key={item.id} style={styles.card}>
               <div style={styles.cardHeader}>
                 <div style={styles.authorInfo}>
-                  <AvatarUsuario
-                    fotoUrl={autorFoto}
-                    nome={autorNome}
-                    tamanho={36}
-                  />
+                  <button
+                    onClick={() =>
+                      !item.is_anonimo &&
+                      setPerfilSelecionado(
+                        item.profiles
+                          ? { ...item.profiles, usuario_id: item.autor_id }
+                          : { usuario_id: item.autor_id, nome_exibicao: autorNome }
+                      )
+                    }
+                    style={{ background: "none", border: "none", padding: 0, cursor: item.is_anonimo ? "default" : "pointer" }}
+                    title={item.is_anonimo ? "Anônimo" : `Ver perfil de ${autorNome}`}
+                  >
+                    <AvatarUsuario
+                      fotoUrl={autorFoto}
+                      nome={autorNome}
+                      tamanho={36}
+                      moldura={true}
+                    />
+                  </button>
                   <div>
-                    <h4 style={styles.authorName}>{autorNome}</h4>
+                    <h4
+                      style={{ ...styles.authorName, cursor: item.is_anonimo ? "default" : "pointer" }}
+                      onClick={() =>
+                        !item.is_anonimo &&
+                        setPerfilSelecionado(
+                          item.profiles
+                            ? { ...item.profiles, usuario_id: item.autor_id }
+                            : { usuario_id: item.autor_id, nome_exibicao: autorNome }
+                        )
+                      }
+                    >
+                      {autorNome}
+                    </h4>
                     <span style={styles.cardTime}>
                       {new Date(item.created_at).toLocaleDateString("pt-BR", {
                         day: "numeric",
@@ -273,6 +304,18 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
             </form>
           </div>
         </div>
+      )}
+      {/* Modal Perfil do Autor */}
+      {perfilSelecionado && (
+        <PerfilAmigoModal
+          aberto={!!perfilSelecionado}
+          aoFechar={() => setPerfilSelecionado(null)}
+          amigo={perfilSelecionado}
+          usuarioAtualId={usuarioId}
+          meusAmigos={amigos}
+          aoAdicionar={enviarPedido}
+          aoTorcer={torcer}
+        />
       )}
     </div>
   );

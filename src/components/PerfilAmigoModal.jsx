@@ -20,9 +20,9 @@ export default function PerfilAmigoModal({
   const [torcendo, setTorcendo] = useState(false);
   const [mensagem, setMensagem] = useState(null);
 
-  const amigoId = amigo?.usuario_id || amigo?.amigo_id || amigo?.id;
+  const amigoId = amigo?.candidate_id || amigo?.usuario_id || amigo?.amigo_id || amigo?.autor_id || amigo?.id;
   const ehProprioUsuario = usuarioAtualId && amigoId === usuarioAtualId;
-  const ehAmigo = meusAmigos.some(
+  const ehAmigo = (meusAmigos || []).some(
     (a) => a.amigo_id === amigoId || a.id === amigoId || a.usuario_id === amigoId
   );
 
@@ -34,7 +34,6 @@ export default function PerfilAmigoModal({
       setMensagem(null);
       try {
         const supabase = criarClienteSupabase();
-        // Busca dados de perfil + estatísticas de ofensiva e XP
         const [{ data: profile }, { data: stats }, { data: ofensiva }] = await Promise.all([
           supabase.from("profiles").select("*").eq("id", amigoId).maybeSingle(),
           supabase.from("estatisticas_usuario").select("*").eq("usuario_id", amigoId).maybeSingle(),
@@ -42,7 +41,8 @@ export default function PerfilAmigoModal({
         ]);
 
         setDetalhes({
-          nome_exibicao: profile?.nome_exibicao || amigo?.nome_exibicao || "Usuário",
+          id: amigoId,
+          nome_exibicao: profile?.nome_exibicao || amigo?.nome_exibicao || "Irmão em Fé",
           foto_url: profile?.foto_url || amigo?.foto_url || null,
           codigo_amigo: profile?.codigo_amigo || amigo?.codigo_amigo || null,
           xp_total: stats?.xp_total || amigo?.xp_total || 0,
@@ -51,7 +51,7 @@ export default function PerfilAmigoModal({
           maior_ofensiva: ofensiva?.maior_ofensiva || amigo?.maior_ofensiva || 0,
         });
       } catch (err) {
-        console.error("Erro ao carregar perfil do amigo:", err);
+        console.error("Erro ao carregar detalhes do perfil:", err);
       } finally {
         setCarregando(false);
       }
@@ -66,18 +66,19 @@ export default function PerfilAmigoModal({
   const nivel = obterNivel(perfilExibicao?.xp_total || 0);
 
   async function handleAdicionar() {
-    if (!aoAdicionar || !perfilExibicao?.codigo_amigo) return;
+    const identificador = perfilExibicao?.codigo_amigo || amigoId || perfilExibicao?.id;
+    if (!aoAdicionar || !identificador) return;
     setAdicionando(true);
     setMensagem(null);
     try {
-      const res = await aoAdicionar(perfilExibicao.codigo_amigo);
-      if (res?.sucesso) {
-        setMensagem({ tipo: "sucesso", texto: "Amigo adicionado com sucesso! 🎉" });
+      const res = await aoAdicionar(identificador);
+      if (res?.sucesso !== false) {
+        setMensagem({ tipo: "sucesso", texto: "Solicitação enviada com sucesso! 🎉" });
       } else {
         setMensagem({ tipo: "erro", texto: res?.erro || "Não foi possível adicionar." });
       }
     } catch (e) {
-      setMensagem({ tipo: "erro", texto: "Erro ao adicionar amigo." });
+      setMensagem({ tipo: "erro", texto: "Erro ao enviar solicitação." });
     } finally {
       setAdicionando(false);
     }
@@ -89,8 +90,8 @@ export default function PerfilAmigoModal({
     setMensagem(null);
     try {
       const res = await aoTorcer(amigoId);
-      if (res?.sucesso) {
-        setMensagem({ tipo: "sucesso", texto: "Torcida enviada! 🔥" });
+      if (res?.sucesso !== false) {
+        setMensagem({ tipo: "sucesso", texto: "Torcida enviada com sucesso! 🔥" });
       } else {
         setMensagem({ tipo: "erro", texto: res?.erro || "Você já enviou uma torcida hoje!" });
       }
@@ -102,49 +103,37 @@ export default function PerfilAmigoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-200 dark:border-slate-800 animate-scaleUp text-center relative overflow-hidden">
-        {/* Botão de Fechar */}
-        <button
-          onClick={aoFechar}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold p-1"
-        >
+    <div style={styles.overlay} onClick={aoFechar}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <button style={styles.closeBtn} onClick={aoFechar} title="Fechar perfil">
           ✕
         </button>
 
         {/* Top Header Card */}
-        <div className="flex flex-col items-center pt-2 space-y-2">
+        <div style={styles.header}>
           <AvatarUsuario
             nome={perfilExibicao.nome_exibicao}
             fotoUrl={perfilExibicao.foto_url}
             tamanho={64}
-            className="ring-4 ring-amber-500/20 shadow-md"
+            moldura={true}
           />
-          <div>
-            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">
-              {perfilExibicao.nome_exibicao}
-            </h3>
-            <span className="inline-block px-3 py-0.5 mt-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-              {nivel.titulo}
-            </span>
+          <div style={{ textAlign: "center" }}>
+            <h3 style={styles.nome}>{perfilExibicao.nome_exibicao}</h3>
+            <span style={styles.tagNivel}>{nivel.titulo}</span>
           </div>
         </div>
 
         {/* Card de Estatísticas */}
-        <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
-          <div className="text-center">
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-              Ofensiva
-            </p>
-            <p className="text-base font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1 mt-0.5">
-              🔥 {perfilExibicao.ofensiva_atual ?? 0} <span className="text-xs font-normal text-slate-400">dias</span>
+        <div style={styles.statsGrid}>
+          <div style={styles.statBox}>
+            <span style={styles.statLabel}>Ofensiva</span>
+            <p style={styles.statValorAmber}>
+              🔥 {perfilExibicao.ofensiva_atual ?? 0} <span style={styles.statUnit}>dias</span>
             </p>
           </div>
-          <div className="text-center border-l border-slate-200 dark:border-slate-700">
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
-              XP Acumulado
-            </p>
-            <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+          <div style={styles.statBoxBorder}>
+            <span style={styles.statLabel}>XP Acumulado</span>
+            <p style={styles.statValorGreen}>
               ⚡ {perfilExibicao.xp_total ?? 0} XP
             </p>
           </div>
@@ -152,30 +141,27 @@ export default function PerfilAmigoModal({
 
         {/* Mensagens de Feedback */}
         {mensagem && (
-          <p
-            className={`text-xs p-2.5 rounded-xl font-medium ${
-              mensagem.tipo === "sucesso"
-                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
-            }`}
+          <div
+            style={mensagem.tipo === "sucesso" ? styles.sucessoBanner : styles.erroBanner}
           >
             {mensagem.texto}
-          </p>
+          </div>
         )}
 
         {/* Ações */}
-        <div className="space-y-2 pt-1">
+        <div style={styles.actionsBlock}>
           {ehProprioUsuario ? (
-            <p className="text-xs text-slate-400 italic">Este é o seu perfil de usuário.</p>
+            <p style={styles.proprioTexto}>Este é o seu perfil de usuário.</p>
           ) : ehAmigo ? (
-            <div className="space-y-2">
-              <div className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={styles.amigosBadge}>
                 <span>✓ Vocês são amigos</span>
               </div>
               <button
                 onClick={handleTorcer}
                 disabled={torcendo}
-                className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="action-btn chunky"
+                style={styles.torcerBtn}
               >
                 <span>🔥</span> {torcendo ? "Enviando..." : "Mandar Torcida"}
               </button>
@@ -184,9 +170,10 @@ export default function PerfilAmigoModal({
             <button
               onClick={handleAdicionar}
               disabled={adicionando}
-              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="action-btn chunky"
+              style={styles.adicionarBtn}
             >
-              <span>➕</span> {adicionando ? "Adicionando..." : "Adicionar como Amigo"}
+              <span>➕</span> {adicionando ? "Enviando..." : "Adicionar como Amigo"}
             </button>
           )}
         </div>
@@ -194,3 +181,165 @@ export default function PerfilAmigoModal({
     </div>
   );
 }
+
+const styles = {
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(30, 40, 32, 0.6)",
+    backdropFilter: "blur(4px)",
+    zIndex: 2000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modal: {
+    background: "#FFFFFF",
+    borderRadius: 24,
+    maxWidth: 400,
+    width: "100%",
+    padding: 24,
+    boxShadow: "0 20px 40px rgba(0,0,0,0.18)",
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    background: "transparent",
+    border: "none",
+    fontSize: 18,
+    color: "#7A8A7F",
+    cursor: "pointer",
+    padding: 4,
+  },
+  header: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 8,
+  },
+  nome: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#33422F",
+    margin: "0 0 2px",
+  },
+  tagNivel: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: "#8A6224",
+    background: "#F1E2C4",
+    borderRadius: 999,
+    padding: "3px 10px",
+    display: "inline-block",
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 16,
+    padding: "12px 14px",
+  },
+  statBox: {
+    textAlign: "center",
+  },
+  statBoxBorder: {
+    textAlign: "center",
+    borderLeft: "1px solid #E7E0D0",
+  },
+  statLabel: {
+    fontSize: 10.5,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    color: "#7A8A7F",
+    display: "block",
+  },
+  statValorAmber: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#B98B4E",
+    margin: "4px 0 0",
+  },
+  statValorGreen: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: "#3F7A4D",
+    margin: "4px 0 0",
+  },
+  statUnit: {
+    fontSize: 11,
+    fontWeight: 500,
+    color: "#7A8A7F",
+  },
+  sucessoBanner: {
+    background: "#DDE8DE",
+    color: "#2D4C33",
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontSize: 12.5,
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  erroBanner: {
+    background: "#FEF2F2",
+    color: "#991B1B",
+    padding: "8px 12px",
+    borderRadius: 10,
+    fontSize: 12.5,
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  actionsBlock: {
+    marginTop: 4,
+  },
+  proprioTexto: {
+    fontSize: 12,
+    color: "#7A8A7F",
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+  amigosBadge: {
+    background: "#EAF4EC",
+    color: "#3F7A4D",
+    border: "1px solid #A8D5B5",
+    borderRadius: 12,
+    padding: "8px 12px",
+    fontSize: 12.5,
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  torcerBtn: {
+    width: "100%",
+    background: "linear-gradient(180deg, #D9A94C 0%, #B98B4E 100%)",
+    color: "#FFFFFF",
+    border: "none",
+    borderBottom: "3px solid #8A6224",
+    borderRadius: 12,
+    padding: "10px",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  adicionarBtn: {
+    width: "100%",
+    background: "linear-gradient(180deg, #8FCB9A 0%, #4F9463 100%)",
+    color: "#FFFFFF",
+    border: "none",
+    borderBottom: "3px solid #35704A",
+    borderRadius: 12,
+    padding: "10px",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+};
