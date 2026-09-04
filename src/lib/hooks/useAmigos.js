@@ -37,35 +37,46 @@ export function useAmigos(usuarioId) {
 
       // 1. Amigos Aceitos
       let listaAmigos = [];
-      if (!respostaAmigos.error && respostaAmigos.data) {
+      if (!respostaAmigos.error && respostaAmigos.data && Array.isArray(respostaAmigos.data)) {
         listaAmigos = respostaAmigos.data;
       } else {
         const { data: directAmigos } = await supabase
           .from("amizades")
-          .select(`
-            id,
-            solicitante_id,
-            destinatario_id,
-            status,
-            solicitante:solicitante_id (id, nome_exibicao, foto_url, codigo_amigo, username),
-            destinatario:destinatario_id (id, nome_exibicao, foto_url, codigo_amigo, username)
-          `)
+          .select("id, solicitante_id, destinatario_id, status")
           .eq("status", "aceita")
-          .or(`solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`);
+          .or(`solicitante_id.eq.${usuarioId},destinatario_id.eq.${usuarioId}`)
+          .catch(() => ({ data: null }));
 
-        if (directAmigos) {
+        if (directAmigos && directAmigos.length > 0) {
+          const outrosIds = [...new Set(
+            directAmigos.map((item) => (item.solicitante_id === usuarioId ? item.destinatario_id : item.solicitante_id)).filter(Boolean)
+          )];
+
+          let profilesMap = {};
+          if (outrosIds.length > 0) {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, nome_exibicao, foto_url, username, codigo_amigo")
+              .in("id", outrosIds)
+              .catch(() => ({ data: null }));
+
+            if (profs) {
+              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+            }
+          }
+
           listaAmigos = directAmigos.map((item) => {
-            const isSolicitante = item.solicitante_id === usuarioId;
-            const outro = isSolicitante ? item.destinatario : item.solicitante;
+            const outroId = item.solicitante_id === usuarioId ? item.destinatario_id : item.solicitante_id;
+            const outro = profilesMap[outroId] || {};
             return {
               amizade_id: item.id,
-              amigo_id: outro?.id,
-              usuario_id: outro?.id,
-              id: outro?.id,
-              nome_exibicao: outro?.nome_exibicao || "Irmão em Fé",
-              username: outro?.username,
-              foto_url: outro?.foto_url || null,
-              codigo_amigo: outro?.codigo_amigo || null,
+              amigo_id: outroId,
+              usuario_id: outroId,
+              id: outroId,
+              nome_exibicao: outro.nome_exibicao || "Irmão em Fé",
+              username: outro.username || null,
+              foto_url: outro.foto_url || null,
+              codigo_amigo: outro.codigo_amigo || null,
             };
           });
         }
@@ -74,30 +85,42 @@ export function useAmigos(usuarioId) {
 
       // 2. Pedidos Recebidos
       let listaPedidos = [];
-      if (!respostaPedidos.error && respostaPedidos.data) {
+      if (!respostaPedidos.error && respostaPedidos.data && Array.isArray(respostaPedidos.data)) {
         listaPedidos = respostaPedidos.data;
       } else {
         const { data: directPedidos } = await supabase
           .from("amizades")
-          .select(`
-            id,
-            solicitante_id,
-            criado_em,
-            solicitante:solicitante_id (id, nome_exibicao, foto_url, username)
-          `)
+          .select("id, solicitante_id, criado_em")
           .eq("destinatario_id", usuarioId)
-          .eq("status", "pendente");
+          .eq("status", "pendente")
+          .catch(() => ({ data: null }));
 
-        if (directPedidos) {
-          listaPedidos = directPedidos.map((item) => ({
-            id: item.id,
-            amizade_id: item.id,
-            solicitante_id: item.solicitante_id,
-            nome_exibicao: item.solicitante?.nome_exibicao || "Irmão em Fé",
-            username: item.solicitante?.username,
-            foto_url: item.solicitante?.foto_url || null,
-            criado_em: item.criado_em,
-          }));
+        if (directPedidos && directPedidos.length > 0) {
+          const solicitantesIds = [...new Set(directPedidos.map((p) => p.solicitante_id).filter(Boolean))];
+          let profilesMap = {};
+          if (solicitantesIds.length > 0) {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, nome_exibicao, foto_url, username")
+              .in("id", solicitantesIds)
+              .catch(() => ({ data: null }));
+            if (profs) {
+              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+            }
+          }
+
+          listaPedidos = directPedidos.map((item) => {
+            const sol = profilesMap[item.solicitante_id] || {};
+            return {
+              id: item.id,
+              amizade_id: item.id,
+              solicitante_id: item.solicitante_id,
+              nome_exibicao: sol.nome_exibicao || "Irmão em Fé",
+              username: sol.username || null,
+              foto_url: sol.foto_url || null,
+              criado_em: item.criado_em,
+            };
+          });
         }
       }
       setPedidos(listaPedidos);
@@ -105,26 +128,40 @@ export function useAmigos(usuarioId) {
       // 3. Pedidos Enviados
       const { data: directEnviados } = await supabase
         .from("amizades")
-        .select(`
-          id,
-          destinatario_id,
-          criado_em,
-          destinatario:destinatario_id (id, nome_exibicao, foto_url, username)
-        `)
+        .select("id, destinatario_id, criado_em")
         .eq("solicitante_id", usuarioId)
-        .eq("status", "pendente");
+        .eq("status", "pendente")
+        .catch(() => ({ data: null }));
 
-      if (directEnviados) {
-        const listaEnviados = directEnviados.map((item) => ({
-          id: item.id,
-          amizade_id: item.id,
-          destinatario_id: item.destinatario_id,
-          nome_exibicao: item.destinatario?.nome_exibicao || "Irmão em Fé",
-          username: item.destinatario?.username,
-          foto_url: item.destinatario?.foto_url || null,
-          criado_em: item.criado_em,
-        }));
+      if (directEnviados && directEnviados.length > 0) {
+        const destsIds = [...new Set(directEnviados.map((p) => p.destinatario_id).filter(Boolean))];
+        let profilesMap = {};
+        if (destsIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, nome_exibicao, foto_url, username")
+            .in("id", destsIds)
+            .catch(() => ({ data: null }));
+          if (profs) {
+            profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+          }
+        }
+
+        const listaEnviados = directEnviados.map((item) => {
+          const dest = profilesMap[item.destinatario_id] || {};
+          return {
+            id: item.id,
+            amizade_id: item.id,
+            destinatario_id: item.destinatario_id,
+            nome_exibicao: dest.nome_exibicao || "Irmão em Fé",
+            username: dest.username || null,
+            foto_url: dest.foto_url || null,
+            criado_em: item.criado_em,
+          };
+        });
         setPedidosEnviados(listaEnviados);
+      } else {
+        setPedidosEnviados([]);
       }
 
       // 4. Código do Usuário

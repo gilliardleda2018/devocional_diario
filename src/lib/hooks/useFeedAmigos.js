@@ -42,30 +42,41 @@ export function useFeedAmigos(usuarioId, limite = 30) {
         if (amigosIds.length > 0) {
           const { data: devocionais } = await supabase
             .from("devocionais_diarios")
-            .select(`
-              id,
-              usuario_id,
-              criado_em,
-              tema_oracao,
-              referencia_versiculo,
-              profiles:usuario_id (nome_exibicao, foto_url)
-            `)
+            .select("id, usuario_id, criado_em, tema_oracao, referencia_versiculo")
             .in("usuario_id", amigosIds)
             .order("criado_em", { ascending: false })
-            .limit(limite);
+            .limit(limite)
+            .catch(() => ({ data: null }));
 
-          if (devocionais) {
+          if (devocionais && devocionais.length > 0) {
+            const userIds = [...new Set(devocionais.map((d) => d.usuario_id).filter(Boolean))];
+            let profilesMap = {};
+            if (userIds.length > 0) {
+              const { data: profs } = await supabase
+                .from("profiles")
+                .select("id, nome_exibicao, foto_url")
+                .in("id", userIds)
+                .catch(() => ({ data: null }));
+
+              if (profs) {
+                profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+              }
+            }
+
             setFeed(
-              devocionais.map((d) => ({
-                id: d.id,
-                tipo: "devocional",
-                usuario_id: d.usuario_id,
-                nome_exibicao: d.profiles?.nome_exibicao || "Irmão em Fé",
-                foto_url: d.profiles?.foto_url || null,
-                quando: d.criado_em,
-                tema_oracao: d.tema_oracao,
-                referencia_versiculo: d.referencia_versiculo,
-              }))
+              devocionais.map((d) => {
+                const prof = profilesMap[d.usuario_id] || {};
+                return {
+                  id: d.id,
+                  tipo: "devocional",
+                  usuario_id: d.usuario_id,
+                  nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
+                  foto_url: prof.foto_url || null,
+                  quando: d.criado_em,
+                  tema_oracao: d.tema_oracao,
+                  referencia_versiculo: d.referencia_versiculo,
+                };
+              })
             );
           } else {
             setFeed([]);

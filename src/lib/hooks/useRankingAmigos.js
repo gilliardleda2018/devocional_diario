@@ -25,25 +25,37 @@ export function useRankingAmigos(usuarioId, limite = 20) {
         // Fallback: consulta estatísticas e perfis direto
         const { data: stats } = await supabase
           .from("estatisticas_usuario")
-          .select(`
-            usuario_id,
-            xp_total,
-            ofensiva_atual,
-            profiles:usuario_id (nome_exibicao, foto_url)
-          `)
+          .select("usuario_id, xp_total, ofensiva_atual")
           .order("xp_total", { ascending: false })
-          .limit(limite);
+          .limit(limite)
+          .catch(() => ({ data: null }));
 
-        if (stats) {
+        if (stats && stats.length > 0) {
+          const userIds = [...new Set(stats.map((s) => s.usuario_id).filter(Boolean))];
+          let profilesMap = {};
+          if (userIds.length > 0) {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, nome_exibicao, foto_url")
+              .in("id", userIds)
+              .catch(() => ({ data: null }));
+            if (profs) {
+              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+            }
+          }
+
           setRanking(
-            stats.map((s, idx) => ({
-              posicao: idx + 1,
-              usuario_id: s.usuario_id,
-              nome_exibicao: s.profiles?.nome_exibicao || "Irmão em Fé",
-              foto_url: s.profiles?.foto_url || null,
-              xp_total: s.xp_total || 0,
-              ofensiva_atual: s.ofensiva_atual || 0,
-            }))
+            stats.map((s, idx) => {
+              const prof = profilesMap[s.usuario_id] || {};
+              return {
+                posicao: idx + 1,
+                usuario_id: s.usuario_id,
+                nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
+                foto_url: prof.foto_url || null,
+                xp_total: s.xp_total || 0,
+                ofensiva_atual: s.ofensiva_atual || 0,
+              };
+            })
           );
         } else {
           setRanking([]);

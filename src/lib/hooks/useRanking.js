@@ -33,23 +33,37 @@ export function useRanking(usuarioId, limite = 20) {
         // Fallback direto via estatisticas_usuario / profiles
         const { data: topData } = await supabase
           .from("estatisticas_usuario")
-          .select(`
-            usuario_id,
-            xp_total,
-            profiles:usuario_id (nome_exibicao, foto_url)
-          `)
+          .select("usuario_id, xp_total")
           .order("xp_total", { ascending: false })
-          .limit(limite);
+          .limit(limite)
+          .catch(() => ({ data: null }));
 
         if (topData && topData.length > 0) {
-          const list = topData.map((item, idx) => ({
-            posicao: idx + 1,
-            usuario_id: item.usuario_id,
-            nome_exibicao: item.profiles?.nome_exibicao || "Fiel",
-            foto_url: item.profiles?.foto_url || null,
-            xp_total: item.xp_total || 0,
-            sou_eu: item.usuario_id === usuarioId,
-          }));
+          const userIds = [...new Set(topData.map((item) => item.usuario_id).filter(Boolean))];
+          let profilesMap = {};
+          if (userIds.length > 0) {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, nome_exibicao, foto_url")
+              .in("id", userIds)
+              .catch(() => ({ data: null }));
+
+            if (profs) {
+              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+            }
+          }
+
+          const list = topData.map((item, idx) => {
+            const prof = profilesMap[item.usuario_id] || {};
+            return {
+              posicao: idx + 1,
+              usuario_id: item.usuario_id,
+              nome_exibicao: prof.nome_exibicao || "Fiel",
+              foto_url: prof.foto_url || null,
+              xp_total: item.xp_total || 0,
+              sou_eu: item.usuario_id === usuarioId,
+            };
+          });
           setRanking(list);
           const eu = list.find((i) => i.sou_eu);
           if (eu) setMinhaPosicao(eu.posicao);
