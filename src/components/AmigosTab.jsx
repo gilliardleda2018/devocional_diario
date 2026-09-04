@@ -401,39 +401,42 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
 // Desafios entre Amigos
 // ---------------------------------------------------------------------------
 function Desafios({ usuarioId }) {
-  const { desafios, concluidos, carregando } = useDesafios(usuarioId);
+  const { desafios = [], concluidos = [], carregando } = useDesafios(usuarioId);
 
   if (carregando) return <p style={styles.loadingText}>Carregando desafios...</p>;
 
+  const listaAtivos = desafios || [];
+  const listaConcluidos = concluidos || [];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h2 style={styles.sectionTitle}>Desafios ativos ({desafios.length})</h2>
-      {desafios.length === 0 ? (
-        <p style={styles.vazioTexto}>Adicione mais amigos pra desbloquear os desafios em dupla!</p>
+      <h2 style={styles.sectionTitle}>Desafios Ativos ({listaAtivos.length})</h2>
+      {listaAtivos.length === 0 ? (
+        <p style={styles.vazioTexto}>Adicione mais amigos para desbloquear desafios em grupo ou complete os devocionais do dia!</p>
       ) : (
-        desafios.map((d) => (
+        listaAtivos.map((d) => (
           <div key={d.id} style={styles.desafioCard}>
             <div style={styles.desafioTopo}>
               <strong style={{ fontSize: 14, color: "#33422F" }}>{d.titulo}</strong>
               <span style={{ fontSize: 12, fontWeight: 700, color: d.completo ? "#3F7A4D" : "#B98B4E" }}>
-                {d.completo ? "✓ Concluído!" : `+${d.xp_recompensa} XP`}
+                {d.completo ? "✓ Concluído!" : `+${d.xp_recompensa || 50} XP`}
               </span>
             </div>
             <p style={{ fontSize: 12.5, color: "#606F63", margin: "4px 0 8px" }}>{d.descricao}</p>
             <div style={styles.barraFundo}>
-              <div style={{ ...styles.barraProgresso, width: `${Math.min(100, Math.round((d.progresso / d.meta) * 100))}%` }} />
+              <div style={{ ...styles.barraProgresso, width: `${Math.min(100, Math.round(((d.progresso || 0) / (d.meta || 1)) * 100))}%` }} />
             </div>
             <p style={{ fontSize: 11, color: "#8A9184", margin: "6px 0 0", textAlign: "right" }}>
-              {d.progresso} / {d.meta}
+              {d.progresso || 0} / {d.meta || 1}
             </p>
           </div>
         ))
       )}
 
-      {concluidos.length > 0 && (
+      {listaConcluidos.length > 0 && (
         <>
-          <h2 style={{ ...styles.sectionTitle, marginTop: 12 }}>Concluídos ({concluidos.length})</h2>
-          {concluidos.map((d) => (
+          <h2 style={{ ...styles.sectionTitle, marginTop: 12 }}>Desafios Concluídos ({listaConcluidos.length})</h2>
+          {listaConcluidos.map((d) => (
             <div key={d.id} style={{ ...styles.desafioCard, opacity: 0.75 }}>
               <div style={styles.desafioTopo}>
                 <span style={{ fontSize: 14, color: "#33422F", textDecoration: "line-through" }}>{d.titulo}</span>
