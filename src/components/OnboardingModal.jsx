@@ -85,11 +85,13 @@ export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
     }
 
     setSalvando(true);
+    setErro(null);
+
     try {
       const supabase = criarClienteSupabase();
       const uLimpo = username.trim().toLowerCase().replace("@", "");
 
-      // 1. Checagem segura de username (não falha se a coluna não existir no banco)
+      // 1. Checagem segura de username (ignora silenciosamente se a coluna não existir no banco)
       try {
         const { data: usuarioExistente } = await supabase
           .from("profiles")
@@ -107,29 +109,27 @@ export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
         console.warn("Aviso na checagem de username (coluna pendente de migração):", eCheck);
       }
 
-      // 2. Upsert no perfil com fallback duplo automático
-      try {
-        const { error: errProf } = await supabase.from("profiles").upsert({
-          id: usuario.id,
-          nome_exibicao: nomeExibicao.trim() || "Fiel",
-          username: uLimpo,
-          foto_url: fotoUrl || null,
-          cidade: cidade.trim() || null,
-          igreja: igreja.trim() || null,
-          bio: bio.trim() || null,
-        });
+      // 2. Monta payload de perfil com campos preenchidos
+      const payloadCompleto = {
+        id: usuario.id,
+        nome_exibicao: nomeExibicao.trim() || "Fiel",
+      };
+      if (uLimpo) payloadCompleto.username = uLimpo;
+      if (fotoUrl?.trim()) payloadCompleto.foto_url = fotoUrl.trim();
+      if (cidade?.trim()) payloadCompleto.cidade = cidade.trim();
+      if (igreja?.trim()) payloadCompleto.igreja = igreja.trim();
+      if (bio?.trim()) payloadCompleto.bio = bio.trim();
 
-        if (errProf) throw errProf;
-      } catch (errProfCompleto) {
-        console.warn("Falha no upsert completo. Salvando apenas campos legados (id, nome_exibicao, foto_url):", errProfCompleto);
-        const { error: errProfLegado } = await supabase.from("profiles").upsert({
+      // Tentativa 1: Gravar perfil completo
+      const { error: errCompleto } = await supabase.from("profiles").upsert(payloadCompleto);
+
+      if (errCompleto) {
+        console.warn("Retentando salvar apenas com id e nome_exibicao:", errCompleto);
+        // Tentativa 2: Fallback absoluto apenas com campos nativos (id e nome_exibicao)
+        await supabase.from("profiles").upsert({
           id: usuario.id,
           nome_exibicao: nomeExibicao.trim() || "Fiel",
-          foto_url: fotoUrl || null,
-        });
-        if (errProfLegado) {
-          console.error("Erro no upsert legado de profiles:", errProfLegado);
-        }
+        }).catch((eFallback) => console.warn("Aviso no fallback de profiles:", eFallback));
       }
 
       // 3. Grava configurações de privacidade com tratamento seguro
@@ -151,8 +151,8 @@ export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
       return true;
     } catch (e) {
       console.error("Erro genérico no onboarding:", e);
-      // Se for um erro técnico de coluna/schema cache do Supabase, ignora e permite prosseguir
-      if (e?.message?.includes("schema cache") || e?.message?.includes("column")) {
+      // Se for um erro técnico de coluna/schema cache do Supabase (ex: foto_url, atualizado_em), permite prosseguir
+      if (e?.message?.includes("schema cache") || e?.message?.includes("column") || e?.message?.includes("PGRST")) {
         if (finalizar && aoConcluir) aoConcluir();
         return true;
       }
