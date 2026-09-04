@@ -315,7 +315,7 @@ export default function DevocionalApp({ usuario }) {
     router.refresh();
   }
 
-  const nomeExibicao = usuario.user_metadata?.full_name || usuario.email;
+  const nomeExibicao = usuario?.user_metadata?.full_name || usuario?.email || "Fiel";
 
   return (
     <div style={styles.page}>
