@@ -18,9 +18,7 @@ function FormularioLogin() {
   const [modo, setModo] = useState("entrar"); // "entrar" | "cadastro" | "magic"
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [nomeCompleto, setNomeCompleto] = useState("");
-  const [nomeExibicao, setNomeExibicao] = useState("");
+  const [nome, setNome] = useState("");
   
   const [enviando, setEnviando] = useState(false);
   const [mensagemSucesso, setMensagemSucesso] = useState(null);
@@ -63,11 +61,6 @@ function FormularioLogin() {
     setErro(null);
     setMensagemSucesso(null);
 
-    if (senha !== confirmarSenha) {
-      setErro("As senhas não coincidem.");
-      return;
-    }
-
     if (senha.length < 6) {
       setErro("A senha deve ter no mínimo 6 caracteres.");
       return;
@@ -75,14 +68,15 @@ function FormularioLogin() {
 
     setEnviando(true);
     const supabase = criarClienteSupabase();
+    const nomeLimpo = nome.trim() || "Fiel";
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password: senha,
       options: {
         data: {
-          full_name: nomeCompleto.trim() || nomeExibicao.trim(),
-          display_name: nomeExibicao.trim() || nomeCompleto.trim(),
+          full_name: nomeLimpo,
+          display_name: nomeLimpo,
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
@@ -95,27 +89,20 @@ function FormularioLogin() {
       return;
     }
 
-    // Tenta gravar metadados na tabela profiles com resiliência
+    // Tenta gravar em profiles com resiliência total
     if (data?.user?.id) {
       try {
-        const { error: err1 } = await supabase.from("profiles").upsert({
+        await supabase.from("profiles").upsert({
           id: data.user.id,
-          nome_exibicao: nomeExibicao.trim() || nomeCompleto.trim(),
-          nome_completo: nomeCompleto.trim(),
+          nome_exibicao: nomeLimpo,
           email: email.trim(),
-        });
-        if (err1) {
-          await supabase.from("profiles").upsert({
-            id: data.user.id,
-            nome_exibicao: nomeExibicao.trim() || nomeCompleto.trim(),
-          });
-        }
+        }).catch(() => {});
       } catch (eProf) {
         console.warn("Aviso ao criar linha em profiles:", eProf);
       }
     }
 
-    setMensagemSucesso("Conta criada com sucesso! Confira seu e-mail para confirmar a conta ou faça login.");
+    setMensagemSucesso("Conta criada com sucesso! Você já pode fazer login ou conferir seu e-mail.");
   }
 
   async function enviarMagicLink(e) {
@@ -189,17 +176,9 @@ function FormularioLogin() {
               <input
                 type="text"
                 required
-                placeholder="Nome completo"
-                value={nomeCompleto}
-                onChange={(e) => setNomeCompleto(e.target.value)}
-                style={styles.input}
-              />
-              <input
-                type="text"
-                required
-                placeholder="Nome de exibição (ex: João Silva)"
-                value={nomeExibicao}
-                onChange={(e) => setNomeExibicao(e.target.value)}
+                placeholder="Seu nome (ex: João Silva)"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
                 style={styles.input}
               />
               <input
@@ -213,22 +192,14 @@ function FormularioLogin() {
               <input
                 type="password"
                 required
-                placeholder="Crie uma senha (mínimo 6 caracteres)"
+                placeholder="Sua senha (mínimo 6 caracteres)"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
                 style={styles.input}
               />
-              <input
-                type="password"
-                required
-                placeholder="Confirme sua senha"
-                value={confirmarSenha}
-                onChange={(e) => setConfirmarSenha(e.target.value)}
-                style={styles.input}
-              />
 
               <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
-                {enviando ? "Criando conta..." : "Criar Minha Conta"}
+                {enviando ? "Criando conta..." : "Criar Minha Conta ✨"}
               </button>
             </form>
           ) : modo === "magic" ? (
@@ -287,7 +258,7 @@ function FormularioLogin() {
         </div>
 
         <p style={styles.footnote}>
-          Seguro e intuitivo — entre com sua conta Google, e-mail e senha, ou link direto por e-mail.
+          Rápido e simples — entre com Google, e-mail e senha, ou link direto.
         </p>
 
         <CardDoacao compacto={true} />
@@ -373,7 +344,7 @@ const styles = {
     background: "#FBF9F3",
     border: "1px solid #E7E0D0",
     borderRadius: 18,
-    padding: "26px 24px",
+    padding: "24px 22px",
     boxShadow: "0 8px 24px rgba(80, 70, 40, 0.06)",
     textAlign: "left",
     marginBottom: 16,
