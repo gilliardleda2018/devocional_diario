@@ -102,7 +102,7 @@ export function useFaithGraph(usuarioId) {
         const supabase = criarClienteSupabase();
         const { error } = await supabase
           .from("user_privacy_settings")
-          .upsert({ user_id: usuarioId, ...novasConfiguracoes, atualizado_em: new Date().toISOString() });
+          .upsert({ user_id: usuarioId, ...novasConfiguracoes });
 
         if (!error) {
           setPrivacidade((antigo) => ({ ...antigo, ...novasConfiguracoes }));

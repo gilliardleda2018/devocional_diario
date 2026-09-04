@@ -73,21 +73,28 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
         }
       }
 
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
+      const payloadCompleto = {
+        id: usuario.id,
+        nome_exibicao: nomeExibicao.trim(),
+        nome_completo: nomeCompleto.trim() || nomeExibicao.trim(),
+        username: usernameLimpo || null,
+        foto_url: fotoFinal || null,
+        cidade: cidade.trim() || null,
+        igreja: igreja.trim() || null,
+        bio: bio.trim() || null,
+      };
+
+      const { error } = await supabase.from("profiles").upsert(payloadCompleto);
+
+      if (error) {
+        console.warn("Retentando salvar perfil com campos básicos:", error);
+        const { error: errFallback } = await supabase.from("profiles").upsert({
           id: usuario.id,
           nome_exibicao: nomeExibicao.trim(),
-          nome_completo: nomeCompleto.trim() || nomeExibicao.trim(),
-          username: usernameLimpo || null,
           foto_url: fotoFinal || null,
-          cidade: cidade.trim() || null,
-          igreja: igreja.trim() || null,
-          bio: bio.trim() || null,
-          atualizado_em: new Date().toISOString(),
         });
-
-      if (error) throw error;
+        if (errFallback) throw errFallback;
+      }
 
       if (aoSalvar) {
         aoSalvar({

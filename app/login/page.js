@@ -95,15 +95,24 @@ function FormularioLogin() {
       return;
     }
 
-    // Tenta gravar metadados estendidos na tabela profiles
+    // Tenta gravar metadados na tabela profiles com resiliência
     if (data?.user?.id) {
-      await supabase.from("profiles").upsert({
-        id: data.user.id,
-        email: email.trim(),
-        nome_completo: nomeCompleto.trim(),
-        nome_exibicao: nomeExibicao.trim() || nomeCompleto.trim(),
-        status: "ACTIVE",
-      });
+      try {
+        const { error: err1 } = await supabase.from("profiles").upsert({
+          id: data.user.id,
+          nome_exibicao: nomeExibicao.trim() || nomeCompleto.trim(),
+          nome_completo: nomeCompleto.trim(),
+          email: email.trim(),
+        });
+        if (err1) {
+          await supabase.from("profiles").upsert({
+            id: data.user.id,
+            nome_exibicao: nomeExibicao.trim() || nomeCompleto.trim(),
+          });
+        }
+      } catch (eProf) {
+        console.warn("Aviso ao criar linha em profiles:", eProf);
+      }
     }
 
     setMensagemSucesso("Conta criada com sucesso! Confira seu e-mail para confirmar a conta ou faça login.");

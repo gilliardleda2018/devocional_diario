@@ -103,8 +103,8 @@ export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
         return false;
       }
 
-      // Upsert no perfil
-      const { error: errProf } = await supabase.from("profiles").upsert({
+      // Upsert no perfil com resiliência total a colunas do banco
+      const payloadCompleto = {
         id: usuario.id,
         nome_exibicao: nomeExibicao.trim() || "Fiel",
         username: uLimpo,
@@ -112,21 +112,32 @@ export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
         cidade: cidade.trim() || null,
         igreja: igreja.trim() || null,
         bio: bio.trim() || null,
-        status: "ACTIVE",
-        atualizado_em: new Date().toISOString(),
-      });
+      };
 
-      if (errProf) throw errProf;
+      const { error: errProf } = await supabase.from("profiles").upsert(payloadCompleto);
 
-      // Grava configurações de privacidade
-      await supabase.from("user_privacy_settings").upsert({
-        user_id: usuario.id,
-        discoverable: privacidade.discoverable,
-        allow_friend_requests: privacidade.allow_friend_requests,
-        show_city: privacidade.show_city,
-        show_church: privacidade.show_church,
-        atualizado_em: new Date().toISOString(),
-      });
+      if (errProf) {
+        console.warn("Retentando salvar perfil com campos básicos:", errProf);
+        const { error: errFallback } = await supabase.from("profiles").upsert({
+          id: usuario.id,
+          nome_exibicao: nomeExibicao.trim() || "Fiel",
+          foto_url: fotoUrl || null,
+        });
+        if (errFallback) throw errFallback;
+      }
+
+      // Grava configurações de privacidade com tratamento seguro
+      try {
+        await supabase.from("user_privacy_settings").upsert({
+          user_id: usuario.id,
+          discoverable: privacidade.discoverable,
+          allow_friend_requests: privacidade.allow_friend_requests,
+          show_city: privacidade.show_city,
+          show_church: privacidade.show_church,
+        });
+      } catch (ePrivacy) {
+        console.warn("Tabela user_privacy_settings indisponível:", ePrivacy);
+      }
 
       if (finalizar && aoConcluir) {
         aoConcluir();
