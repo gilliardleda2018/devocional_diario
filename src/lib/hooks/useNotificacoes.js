@@ -13,40 +13,92 @@ export function useNotificacoes(usuarioId) {
 
     try {
       const supabase = criarClienteSupabase();
+      let notifsList = [];
 
-      // Tenta RPC primeiro
+      // 1. Tenta RPC primeiro
       const { data: rpcData, error: rpcError } = await supabase
         .rpc("obter_notificacoes", { p_limite: 40 })
         .catch(() => ({ error: true }));
 
-      if (!rpcError && Array.isArray(rpcData)) {
-        setNotificacoes(rpcData);
-        setCarregando(false);
-        return;
+      if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+        notifsList = rpcData;
+      } else {
+        // Fallback seguro sem dependência de nome de Foreign Key no PostgREST
+        const { data: rawNotifs } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", usuarioId)
+          .order("criado_em", { ascending: false })
+          .limit(40)
+          .catch(() => ({ data: null }));
+
+        if (rawNotifs && rawNotifs.length > 0) {
+          const actorIds = [...new Set(rawNotifs.map((n) => n.actor_user_id).filter(Boolean))];
+          let profilesMap = {};
+          if (actorIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, nome_exibicao, username, foto_url")
+              .in("id", actorIds)
+              .catch(() => ({ data: null }));
+
+            if (profiles) {
+              profilesMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
+            }
+          }
+
+          notifsList = rawNotifs.map((n) => {
+            const actor = profilesMap[n.actor_user_id] || {};
+            return {
+              id: n.id,
+              type: n.type,
+              entity_id: n.entity_id,
+              is_read: n.is_read,
+              criado_em: n.criado_em,
+              actor_id: n.actor_user_id,
+              actor_nome: actor.nome_exibicao || "Um irmão em fé",
+              actor_username: actor.username || null,
+              actor_foto_url: actor.foto_url || null,
+            };
+          });
+        }
       }
 
-      // Fallback: consulta direta na tabela notifications + profiles
-      const { data: rawNotifs } = await supabase
-        .from("notifications")
-        .select("*, actor:profiles!notifications_actor_user_id_fkey(id, nome_exibicao, username, foto_url)")
-        .eq("user_id", usuarioId)
-        .order("criado_em", { ascending: false })
-        .limit(40);
+      // 2. Mescla também solicitações de amizade pendentes recebidas para garantir visibilidade total
+      const { data: pedidosPendentes } = await supabase
+        .from("amizades")
+        .select(`
+          id,
+          solicitante_id,
+          criado_em,
+          solicitante:solicitante_id (id, nome_exibicao, username, foto_url)
+        `)
+        .eq("destinatario_id", usuarioId)
+        .eq("status", "pendente")
+        .catch(() => ({ data: null }));
 
-      if (rawNotifs) {
-        const formatadas = rawNotifs.map((n) => ({
-          id: n.id,
-          type: n.type,
-          entity_id: n.entity_id,
-          is_read: n.is_read,
-          criado_em: n.criado_em,
-          actor_id: n.actor?.id || n.actor_user_id,
-          actor_nome: n.actor?.nome_exibicao || "Um fiel",
-          actor_username: n.actor?.username,
-          actor_foto_url: n.actor?.foto_url,
-        }));
-        setNotificacoes(formatadas);
+      if (pedidosPendentes && pedidosPendentes.length > 0) {
+        pedidosPendentes.forEach((p) => {
+          const jaExiste = notifsList.some(
+            (n) => n.type === "FRIEND_REQUEST_RECEIVED" && (n.entity_id === p.id || n.actor_id === p.solicitante_id)
+          );
+          if (!jaExiste) {
+            notifsList.unshift({
+              id: `pendente_${p.id}`,
+              type: "FRIEND_REQUEST_RECEIVED",
+              entity_id: p.id,
+              is_read: false,
+              criado_em: p.criado_em || new Date().toISOString(),
+              actor_id: p.solicitante_id,
+              actor_nome: p.solicitante?.nome_exibicao || "Um irmão em fé",
+              actor_username: p.solicitante?.username || null,
+              actor_foto_url: p.solicitante?.foto_url || null,
+            });
+          }
+        });
       }
+
+      setNotificacoes(notifsList);
     } catch (e) {
       console.error("Erro ao carregar notificações:", e);
       setErro(e.message);
@@ -55,7 +107,7 @@ export function useNotificacoes(usuarioId) {
     }
   }, [usuarioId]);
 
-  // Efeito principal + Supabase Realtime Listener
+  // Efeito principal + Supabase Realtime Listener (notifications + amizades)
   useEffect(() => {
     carregarNotificacoes();
 
@@ -76,6 +128,18 @@ export function useNotificacoes(usuarioId) {
           carregarNotificacoes();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "amizades",
+          filter: `destinatario_id=eq.${usuarioId}`,
+        },
+        () => {
+          carregarNotificacoes();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -91,6 +155,7 @@ export function useNotificacoes(usuarioId) {
       );
 
       try {
+        if (typeof id === "string" && id.startsWith("pendente_")) return;
         const supabase = criarClienteSupabase();
         await supabase.rpc("marcar_notificacao_lida", { p_id: id }).catch(async () => {
           await supabase.from("notifications").update({ is_read: true, lido_em: new Date().toISOString() }).eq("id", id);
