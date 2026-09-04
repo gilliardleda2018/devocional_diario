@@ -174,6 +174,86 @@ function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
 }
 
 // ---------------------------------------------------------------------------
+// Card para Conectar com Contatos do WhatsApp & Instagram
+// ---------------------------------------------------------------------------
+function CardConectarRedes({ meuCodigo }) {
+  const [copiado, setCopiado] = useState(false);
+  const [copiadoInstagram, setCopiadoInstagram] = useState(false);
+
+  const urlApp = typeof window !== "undefined" ? window.location.origin : "https://main.d357ab4gel6chc.amplifyapp.com";
+  const mensagemConvite = `Olá! Estou usando o aplicativo Devocional Diário para minhas leituras e orações bíblicas. Venha se conectar comigo e acompanhar devocionais juntos! 📖✨\n\nAcesse aqui: ${urlApp}`;
+
+  async function handleWhatsApp() {
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensagemConvite)}`, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleInstagram() {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: "Devocional Diário",
+          text: mensagemConvite,
+          url: urlApp,
+        });
+        return;
+      } catch (err) {
+        // Usuário fechou a janela de compartilhamento
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(mensagemConvite);
+      setCopiadoInstagram(true);
+      setTimeout(() => setCopiadoInstagram(false), 3500);
+    } catch {
+      // ignore
+    }
+    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+  }
+
+  async function handleCopiar() {
+    try {
+      await navigator.clipboard.writeText(mensagemConvite);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div style={styles.redesCard}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 26 }}>💬</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={styles.redesTitulo}>Conectar Amigos do WhatsApp & Instagram</h3>
+          <p style={styles.redesSubtitulo}>Convide seus contatos para acompanhar devocionais e torcerem juntos!</p>
+        </div>
+      </div>
+
+      <div style={styles.redesBotoesGrid}>
+        <button onClick={handleWhatsApp} style={styles.btnWhatsapp} title="Convidar contatos do WhatsApp">
+          📲 Contatos WhatsApp
+        </button>
+
+        <button onClick={handleInstagram} style={styles.btnInstagram} title="Compartilhar no Instagram / Redes">
+          📷 Instagram / Redes
+        </button>
+
+        <button onClick={handleCopiar} style={styles.btnCopiarLink} title="Copiar link de convite">
+          {copiado ? "✓ Link Copiado! ✨" : "📋 Copiar Convite"}
+        </button>
+      </div>
+
+      {copiadoInstagram && (
+        <p style={styles.feedbackInstagram}>
+          ✨ Convite copiado! Abra o Direct ou Stories do Instagram para enviar aos seus amigos.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Central de Conexões (Amigos, Pedidos, Enviados, Sugestões)
 // ---------------------------------------------------------------------------
 function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
@@ -184,18 +264,17 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
     meuCodigo,
     carregando,
     recarregar,
-    buscarUsuarios,
-    enviarPedido,
-    cancelarPedido,
-    responderPedido,
     removerAmigo,
-    bloquearUsuario,
+    enviarPedido,
+    responderPedido,
+    cancelarPedido,
+    buscarUsuarios,
     torcer,
   } = useAmigos(usuarioId);
 
   const [buscaTermo, setBuscaTermo] = useState("");
-  const [resultadosBusca, setResultadosBusca] = useState([]);
   const [buscando, setBuscando] = useState(false);
+  const [resultadosBusca, setResultadosBusca] = useState([]);
   const [torcidaEnviada, setTorcidaEnviada] = useState({});
   const [confirmandoRemocao, setConfirmandoRemocao] = useState(null);
   const [sugestoesIgnoradas, setSugestoesIgnoradas] = useState({});
@@ -221,8 +300,6 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
     await torcer(amigoId);
   }
 
-  const mensagemWhatsapp = `Olá! Baixei o app Devocional Diário para minhas leituras e orações bíblicas. Venha acompanhar meus devocionais e torcer comigo! 📖✨ Acesse aqui: https://main.d357ab4gel6chc.amplifyapp.com (Meu código: ${meuCodigo || ""})`;
-
   if (carregando) return <p style={styles.loadingText}>Carregando conexões...</p>;
 
   // ABA 1: AMIGOS
@@ -230,24 +307,8 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
     const listaAmigosExibida = buscaTermo.trim().length >= 2 ? resultadosBusca : amigos;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Card WhatsApp */}
-        <div style={styles.whatsappCard}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 28 }}>💬</span>
-            <div>
-              <h3 style={styles.whatsappTitulo}>Conectar Amigos do WhatsApp</h3>
-              <p style={styles.whatsappSubtitulo}>Envie um convite direto e conecte-se com seus contatos!</p>
-            </div>
-          </div>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent(mensagemWhatsapp)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.whatsappBtn}
-          >
-            <span>📲 Abrir WhatsApp e Convidar Contatos</span>
-          </a>
-        </div>
+        {/* Banner Redes Sociais */}
+        <CardConectarRedes meuCodigo={meuCodigo} />
 
         {/* Input de Busca de Amigos */}
         <div style={{ position: "relative" }}>
@@ -435,15 +496,19 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas, onIgnorar, onAdicionar, o
 
   if (listaFiltrada.length === 0) {
     return (
-      <div style={styles.emptyCard}>
-        <p style={styles.emptyTitle}>Sem sugestões no momento. 🌿</p>
-        <p style={styles.emptySub}>Convide amigos pelo WhatsApp ou pesquise pelo nome na aba Amigos.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <CardConectarRedes meuCodigo={null} />
+        <div style={styles.emptyCard}>
+          <p style={styles.emptyTitle}>Sem mais sugestões no momento. 🌿</p>
+          <p style={styles.emptySub}>Convide seus amigos do WhatsApp e Instagram para se juntarem a você!</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <CardConectarRedes meuCodigo={null} />
       <h3 style={styles.sectionTitle}>Pessoas que Você Pode Conhecer</h3>
       <div style={styles.lista}>
         {listaFiltrada.map((item) => (
@@ -602,29 +667,72 @@ const styles = {
     textAlign: "center",
     cursor: "pointer",
   },
-  whatsappCard: {
-    background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
-    color: "#FFFFFF",
+  redesCard: {
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
     borderRadius: 16,
-    padding: "16px",
-    boxShadow: "0 6px 18px rgba(37, 211, 102, 0.22)",
+    padding: "14px 16px",
+    boxShadow: "0 4px 12px rgba(80,70,40,0.05)",
   },
-  whatsappTitulo: { fontSize: 15, fontWeight: 700, margin: "0 0 2px", color: "#FFFFFF" },
-  whatsappSubtitulo: { fontSize: 12, opacity: 0.92, margin: 0, lineHeight: 1.3 },
-  whatsappBtn: {
+  redesTitulo: { fontSize: 14.5, fontWeight: 700, margin: "0 0 2px", color: "#33422F" },
+  redesSubtitulo: { fontSize: 12, color: "#7A8A7F", margin: 0, lineHeight: 1.3 },
+  redesBotoesGrid: {
     display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  btnWhatsapp: {
+    flex: "1 1 130px",
+    display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "100%",
-    padding: "10px",
+    padding: "9px 12px",
+    borderRadius: 10,
+    background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+    color: "#FFFFFF",
+    fontWeight: 700,
+    fontSize: 12.5,
+    border: "none",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(37, 211, 102, 0.25)",
+  },
+  btnInstagram: {
+    flex: "1 1 130px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "9px 12px",
+    borderRadius: 10,
+    background: "linear-gradient(45deg, #F9CE34, #EE2A7B 55%, #6228D7)",
+    color: "#FFFFFF",
+    fontWeight: 700,
+    fontSize: 12.5,
+    border: "none",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(238, 42, 123, 0.25)",
+  },
+  btnCopiarLink: {
+    flex: "1 1 120px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "9px 12px",
     borderRadius: 10,
     background: "#FFFFFF",
-    color: "#075E54",
-    fontWeight: 800,
-    fontSize: 13,
-    textDecoration: "none",
-    marginTop: 10,
-    boxSizing: "border-box",
+    color: "#B98B4E",
+    fontWeight: 700,
+    fontSize: 12.5,
+    border: "1px solid #E7E0D0",
+    borderBottom: "2px solid #D8CFB8",
+    cursor: "pointer",
+  },
+  feedbackInstagram: {
+    fontSize: 11.5,
+    color: "#B98B4E",
+    fontWeight: 600,
+    margin: "8px 0 0",
+    textAlign: "center",
   },
   inputBusca: {
     width: "100%",
