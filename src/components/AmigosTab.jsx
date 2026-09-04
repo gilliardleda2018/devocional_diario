@@ -163,6 +163,7 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
     meuCodigo,
     carregando,
     erro,
+    recarregar,
     buscarPessoasPorNome,
     enviarPedido,
     responderPedido,
@@ -338,7 +339,16 @@ function ListaAmigos({ usuarioId, onAbrirPerfil }) {
 
       {/* Lista de Amigos Conectados */}
       <div>
-        <h2 style={styles.sectionTitle}>Seus amigos ({amigos.length})</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <h2 style={styles.sectionTitle}>Seus amigos ({amigos.length})</h2>
+          <button
+            onClick={recarregar}
+            style={styles.refreshBtn}
+            title="Atualizar lista de amigos"
+          >
+            🔄 Atualizar
+          </button>
+        </div>
         {amigos.length === 0 ? (
           <p style={styles.vazioTexto}>Você ainda não tem amigos conectados. Convide seus contatos do WhatsApp!</p>
         ) : (
@@ -712,6 +722,16 @@ const styles = {
     fontSize: 12,
     cursor: "pointer",
     padding: "6px 8px",
+  },
+  refreshBtn: {
+    background: "#FBF9F3",
+    color: "#8A6224",
+    border: "1px solid #E7E0D0",
+    borderRadius: 10,
+    padding: "4px 10px",
+    fontSize: 11.5,
+    fontWeight: 700,
+    cursor: "pointer",
   },
   desafioCard: {
     background: "#FBF9F3",

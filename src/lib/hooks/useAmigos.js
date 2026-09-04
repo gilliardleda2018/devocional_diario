@@ -5,7 +5,7 @@ import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 /**
  * Hook de Amigos com resiliência total a fallbacks de tabela (amizades + profiles)
- * para garantir funcionamento 100% independente do ambiente RPC.
+ * e atualizações em tempo real (Supabase Realtime).
  */
 export function useAmigos(usuarioId) {
   const [amigos, setAmigos] = useState([]);
@@ -57,6 +57,7 @@ export function useAmigos(usuarioId) {
             return {
               amizade_id: item.id,
               amigo_id: outro?.id,
+              usuario_id: outro?.id,
               id: outro?.id,
               nome_exibicao: outro?.nome_exibicao || "Irmão em Fé",
               foto_url: outro?.foto_url || null,
@@ -112,7 +113,25 @@ export function useAmigos(usuarioId) {
 
   useEffect(() => {
     recarregar();
-  }, [recarregar]);
+
+    if (!usuarioId) return;
+
+    const supabase = criarClienteSupabase();
+    const canal = supabase
+      .channel(`amizades_realtime_${usuarioId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "amizades" },
+        () => {
+          recarregar();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [usuarioId, recarregar]);
 
   const buscarPessoasPorNome = useCallback(
     async (termo) => {
@@ -142,7 +161,7 @@ export function useAmigos(usuarioId) {
       try {
         const supabase = criarClienteSupabase();
         // Tenta via RPC primeiro
-        const { error: rpcError } = await supabase.rpc("enviar_pedido_amizade", { p_codigo_amigo: codigoOuId });
+        const { error: rpcError } = await supabase.rpc("enviar_pedido_amizade", { p_codigo_amigo: codigoOuId }).catch(() => ({ error: true }));
         if (!rpcError) {
           await recarregar();
           return { sucesso: true };
@@ -188,7 +207,7 @@ export function useAmigos(usuarioId) {
         const { error: rpcError } = await supabase.rpc("responder_pedido_amizade", {
           p_amizade_id: amizadeId,
           p_aceitar: aceitar,
-        });
+        }).catch(() => ({ error: true }));
 
         if (rpcError) {
           // Fallback direto
@@ -227,7 +246,7 @@ export function useAmigos(usuarioId) {
       if (!usuarioId || !amigoId) return { sucesso: false };
       try {
         const supabase = criarClienteSupabase();
-        const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId });
+        const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId }).catch(() => ({ error: true }));
         if (error) {
           // Fallback direto em torcidas
           await supabase.from("torcidas_amigos").insert({
