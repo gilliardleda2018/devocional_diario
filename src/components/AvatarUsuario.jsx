@@ -68,51 +68,40 @@ export default function AvatarUsuario({ nome, fotoUrl, tamanho = 26, moldura = t
 
   return (
     <div className={className} style={containerStyle}>
-      {fotoUrl && !eEmoji ? (
+      {/* Base Fallback Container (Iniciais ou Emoji Preset) */}
+      <div
+        className={`bg-gradient-to-br ${gradiente}`}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#FFFFFF",
+          fontSize: eEmoji ? tamanho * 0.46 : tamanho * 0.38,
+          fontWeight: 700,
+          borderRadius: "50%",
+          userSelect: "none",
+        }}
+      >
+        {eEmoji ? fotoUrl : iniciais}
+      </div>
+
+      {/* Imagem de Foto sobreposta caso fotoUrl seja uma imagem */}
+      {fotoUrl && !eEmoji && (
         <img
           src={fotoUrl}
           alt={nome || "Avatar do usuário"}
-          style={imgStyle}
+          style={{
+            ...imgStyle,
+            position: "absolute",
+            top: 0,
+            left: 0,
+          }}
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
         />
-      ) : eEmoji ? (
-        <div
-          className={`bg-gradient-to-br ${gradiente}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#FFFFFF",
-            fontSize: tamanho * 0.46,
-            borderRadius: "50%",
-            userSelect: "none",
-          }}
-        >
-          {fotoUrl}
-        </div>
-      ) : (
-        <div
-          className={`bg-gradient-to-br ${gradiente}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#FFFFFF",
-            fontWeight: 700,
-            letterSpacing: 1,
-            fontSize: tamanho * 0.38,
-            borderRadius: "50%",
-            userSelect: "none",
-          }}
-        >
-          {iniciais}
-        </div>
       )}
     </div>
   );

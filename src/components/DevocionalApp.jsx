@@ -93,13 +93,13 @@ export default function DevocionalApp({ usuario }) {
     return () => { vivo = false; };
   }, [usuario]);
 
-  const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario.id);
-  const { favoritos, carregando: carregandoFavoritos, eFavorito, alternarFavorito } = useFavoritos(usuario.id);
+  const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario?.id);
+  const { favoritos = [], carregando: carregandoFavoritos, eFavorito, alternarFavorito } = useFavoritos(usuario?.id);
   const [tamanhoFonte, setTamanhoFonte] = useState(16);
   const estadoMascote = jaFezHoje ? "feliz" : (ofensiva?.ofensiva_atual ?? 0) === 0 && (ofensiva?.maior_ofensiva ?? 0) > 0 ? "triste" : "neutro";
 
   // --- Missões (metas curtas, estilo quest de jogo) ----------------------
-  const { progresso: progressoSemana } = useProgressoSemana(usuario.id, gatilhoRecarga);
+  const { progresso: progressoSemana } = useProgressoSemana(usuario?.id, gatilhoRecarga);
   const [quizRespondidas, setQuizRespondidas] = useState(0);
   const missoes = useMemo(
     () => calcularMissoes({ jaFezHoje, progresso: progressoSemana, quizRespondidas }),
@@ -404,7 +404,7 @@ export default function DevocionalApp({ usuario }) {
 
         {modalNotificacoesAberto && (
           <CentralNotificacoesModal
-            usuarioId={usuario.id}
+            usuarioId={usuario?.id}
             aoFechar={() => setModalNotificacoesAberto(false)}
             aoAbrirPerfilAmigo={(actorId) => {
               setModalNotificacoesAberto(false);
@@ -419,16 +419,17 @@ export default function DevocionalApp({ usuario }) {
             perfilAtual={perfil}
             aoConcluir={() => {
               setModalOnboardingAberto(false);
-              localStorage.setItem(`onboarding_concluido_${usuario.id}`, "true");
-              // Recarrega o perfil local
-              criarClienteSupabase()
-                .from("profiles")
-                .select("*")
-                .eq("id", usuario.id)
-                .maybeSingle()
-                .then(({ data }) => {
-                  if (data) setPerfil((p) => ({ ...p, ...data }));
-                });
+              if (usuario?.id) {
+                localStorage.setItem(`onboarding_concluido_${usuario.id}`, "true");
+                criarClienteSupabase()
+                  .from("profiles")
+                  .select("*")
+                  .eq("id", usuario.id)
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    if (data) setPerfil((p) => ({ ...p, ...data }));
+                  });
+              }
             }}
           />
         )}
@@ -438,7 +439,7 @@ export default function DevocionalApp({ usuario }) {
             aberto={!!perfilAmigoId}
             aoFechar={() => setPerfilAmigoId(null)}
             amigo={{ id: perfilAmigoId }}
-            usuarioAtualId={usuario.id}
+            usuarioAtualId={usuario?.id}
           />
         )}
 
