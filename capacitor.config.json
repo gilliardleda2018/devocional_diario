@@ -3,7 +3,7 @@
   "appName": "Devocional Diário",
   "webDir": "public",
   "server": {
-    "url": "https://main.d357ab4gel6chc.amplifyapp.com",
+    "url": "https://devocional-diario-kappa.vercel.app",
     "cleartext": false
   },
   "android": {
