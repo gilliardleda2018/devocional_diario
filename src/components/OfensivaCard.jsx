@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 /**
  * Card de ofensiva (streak) em destaque na tela inicial -- reforça a
  * "chama" da oração diária e cria um empurrãozinho pra não perder a
@@ -28,6 +30,8 @@ export default function OfensivaCard({ ofensiva, jaFezHoje, congelamentos = 0 })
     variante = "inicio";
   }
 
+  const contagemRegressiva = useContagemRegressivaMeiaNoite(variante === "risco");
+
   return (
     <div style={{ ...estilos.card, ...(variante === "risco" ? estilos.cardRisco : {}) }}>
       <div style={estilos.linha}>
@@ -39,6 +43,9 @@ export default function OfensivaCard({ ofensiva, jaFezHoje, congelamentos = 0 })
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={estilos.titulo}>{titulo}</p>
           <p style={estilos.mensagem}>{mensagem}</p>
+          {variante === "risco" && contagemRegressiva && (
+            <p style={estilos.contagem}>⏳ Faltam {contagemRegressiva} para virar o dia</p>
+          )}
           {recorde > 0 && <p style={estilos.recorde}>Seu recorde: {recorde} {recorde === 1 ? "dia" : "dias"}</p>}
           {congelamentos > 0 && (
             <p style={estilos.congelamento}>🧊 {congelamentos} {congelamentos === 1 ? "congelamento" : "congelamentos"} em estoque</p>
@@ -47,6 +54,36 @@ export default function OfensivaCard({ ofensiva, jaFezHoje, congelamentos = 0 })
       </div>
     </div>
   );
+}
+
+// Aversão à perda em tempo real: quanto mais concreto o prazo, maior o
+// empurrão pra não perder a sequência -- atualiza a cada minuto, não
+// precisa de mais precisão que isso.
+function useContagemRegressivaMeiaNoite(ativo) {
+  const [texto, setTexto] = useState(null);
+
+  useEffect(() => {
+    if (!ativo) {
+      setTexto(null);
+      return;
+    }
+
+    function atualizar() {
+      const agora = new Date();
+      const meiaNoite = new Date(agora);
+      meiaNoite.setHours(24, 0, 0, 0);
+      const diffMs = meiaNoite - agora;
+      const horas = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      setTexto(horas > 0 ? `${horas}h${String(minutos).padStart(2, "0")}` : `${minutos} min`);
+    }
+
+    atualizar();
+    const intervalo = setInterval(atualizar, 60 * 1000);
+    return () => clearInterval(intervalo);
+  }, [ativo]);
+
+  return texto;
 }
 
 const estilos = {
@@ -79,6 +116,7 @@ const estilos = {
   chamaApagada: { filter: "grayscale(1)", opacity: 0.5 },
   titulo: { fontSize: 15, fontWeight: 800, color: "#33422F", margin: "0 0 2px" },
   mensagem: { fontSize: 12.5, color: "#5C6B5F", margin: 0, lineHeight: 1.4 },
+  contagem: { fontSize: 11.5, color: "#B15A2A", fontWeight: 700, margin: "6px 0 0" },
   recorde: { fontSize: 11, color: "#9AA79C", fontWeight: 600, margin: "4px 0 0" },
   congelamento: { fontSize: 11, color: "#4A7FA6", fontWeight: 600, margin: "2px 0 0" },
 };

@@ -6,6 +6,7 @@ import { criarClienteSupabase } from "@/src/lib/supabase/client";
 const TITULOS_ORIGEM = {
   guia_completo: "Você completou um guia de leitura! 📖",
   marco_ofensiva: "Novo marco de ofensiva! 🔥",
+  surpresa_diaria: "Baú surpresa de hoje! 🎉",
 };
 
 /**

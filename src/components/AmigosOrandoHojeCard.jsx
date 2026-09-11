@@ -8,7 +8,7 @@ import AvatarUsuario from "@/src/components/AvatarUsuario";
  * (obter_amigos_orando_hoje), que dá a mesma sensação de comunhão sem
  * depender de todo mundo estar com o app aberto no mesmo minuto.
  */
-export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = false }) {
+export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = false, aoTorcer }) {
   if (carregando || amigosOrando.length === 0) return null;
 
   return (
@@ -30,7 +30,21 @@ export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = f
       <div style={estilos.lista} className="no-scrollbar">
         {amigosOrando.map((amigo) => (
           <div key={`${amigo.usuario_id}-${amigo.criado_em}`} style={estilos.item}>
-            <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={38} />
+            <div style={{ position: "relative" }}>
+              <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={38} />
+              <button
+                type="button"
+                onClick={() => aoTorcer?.(amigo.usuario_id)}
+                disabled={amigo.ja_torci}
+                title={amigo.ja_torci ? "Você já torceu hoje" : "Torcer por essa pessoa"}
+                style={{
+                  ...estilos.botaoTorcer,
+                  ...(amigo.ja_torci ? estilos.botaoTorcerFeito : {}),
+                }}
+              >
+                {amigo.ja_torci ? "💪" : "🙌"}
+              </button>
+            </div>
             <span style={estilos.nome}>{primeiroNome(amigo.nome_exibicao)}</span>
             {amigo.tema_oracao && <span style={estilos.tema}>{amigo.tema_oracao}</span>}
           </div>
@@ -88,6 +102,28 @@ const estilos = {
     alignItems: "center",
     gap: 4,
     width: 64,
+  },
+  botaoTorcer: {
+    position: "absolute",
+    bottom: -4,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: "50%",
+    background: "#FFFFFF",
+    border: "1px solid #D9E7DB",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
+    fontSize: 11,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 0,
+  },
+  botaoTorcerFeito: {
+    background: "#DCEFE0",
+    borderColor: "#9CC9A6",
+    cursor: "default",
   },
   nome: {
     fontSize: 11,

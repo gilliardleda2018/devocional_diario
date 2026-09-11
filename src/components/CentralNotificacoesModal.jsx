@@ -108,9 +108,10 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
                   {item.type === "FRIEND_REQUEST_RECEIVED" && "enviou um pedido de amizade."}
                   {item.type === "FRIEND_REQUEST_ACCEPTED" && "aceitou seu pedido de amizade."}
                   {item.type === "PRAYER_INTERACTION" && "está orando pelo seu pedido. 🙏"}
+                  {item.type === "TORCIDA_RECEBIDA" && "torceu por você hoje! 💪"}
                   {item.type === "NEW_FOLLOWER" && "começou a te seguir."}
                   {item.type === "SYSTEM" && (item.mensagem || item.entity_id || "Notificação do sistema.")}
-                  {!["FRIEND_REQUEST_RECEIVED", "FRIEND_REQUEST_ACCEPTED", "PRAYER_INTERACTION", "NEW_FOLLOWER", "SYSTEM"].includes(item.type) && "interagiu com você."}
+                  {!["FRIEND_REQUEST_RECEIVED", "FRIEND_REQUEST_ACCEPTED", "PRAYER_INTERACTION", "TORCIDA_RECEBIDA", "NEW_FOLLOWER", "SYSTEM"].includes(item.type) && "interagiu com você."}
                 </div>
 
                 <div style={styles.tempoText}>{tempoRelativo(item.criado_em)}</div>

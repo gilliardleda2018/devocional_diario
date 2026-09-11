@@ -104,7 +104,7 @@ export default function DevocionalApp({ usuario }) {
   }, [usuario]);
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario?.id);
-  const { amigosOrando, carregando: carregandoAmigosOrando } = useAmigosOrandoHoje(usuario?.id);
+  const { amigosOrando, carregando: carregandoAmigosOrando, torcerPorAmigo } = useAmigosOrandoHoje(usuario?.id);
   const { saldo: saldoSementes, congelamentos, recarregar: recarregarSementes } = useSementes(usuario?.id);
   const [lojaSementesAberta, setLojaSementesAberta] = useState(false);
   const [bauPendenteId, setBauPendenteId] = useState(null);
@@ -593,7 +593,7 @@ export default function DevocionalApp({ usuario }) {
             <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} congelamentos={congelamentos} />
 
             {/* AMIGOS ORANDO HOJE: sensação de comunhão, sem depender de presença ao vivo */}
-            <AmigosOrandoHojeCard amigosOrando={amigosOrando} carregando={carregandoAmigosOrando} />
+            <AmigosOrandoHojeCard amigosOrando={amigosOrando} carregando={carregandoAmigosOrando} aoTorcer={torcerPorAmigo} />
 
             {/* VERSÍCULO DO DIA */}
             <div style={styles.card}>

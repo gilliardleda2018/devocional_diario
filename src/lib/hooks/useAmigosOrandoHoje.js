@@ -30,5 +30,29 @@ export function useAmigosOrandoHoje(usuarioId) {
     recarregar();
   }, [recarregar]);
 
-  return { amigosOrando, carregando, recarregar };
+  const torcerPorAmigo = useCallback(async (amigoId) => {
+    // Otimista: marca como torcido na hora, sem esperar a rede -- se der
+    // erro (ex. já torceu em outra aba), desfaz e mostra o motivo.
+    setAmigosOrando((prev) =>
+      prev.map((a) => (a.usuario_id === amigoId ? { ...a, ja_torci: true } : a))
+    );
+    try {
+      const supabase = criarClienteSupabase();
+      const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId });
+      if (error) {
+        setAmigosOrando((prev) =>
+          prev.map((a) => (a.usuario_id === amigoId ? { ...a, ja_torci: false } : a))
+        );
+        return { sucesso: false, erro: error.message };
+      }
+      return { sucesso: true };
+    } catch (e) {
+      setAmigosOrando((prev) =>
+        prev.map((a) => (a.usuario_id === amigoId ? { ...a, ja_torci: false } : a))
+      );
+      return { sucesso: false, erro: e.message };
+    }
+  }, []);
+
+  return { amigosOrando, carregando, recarregar, torcerPorAmigo };
 }
