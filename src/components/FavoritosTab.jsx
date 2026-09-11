@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
+import { gerarImagemCardVersiculo, baixarImagem, compartilharImagem } from "@/src/lib/util/gerarImagemCard";
 
 export default function FavoritosTab({ favoritos = [], carregando = false, alternarFavorito }) {
   const [filtro, setFiltro] = useState("");
   const [modalCardVersiculo, setModalCardVersiculo] = useState(null);
   const [estiloTema, setEstiloTema] = useState("dourado");
+  const [gerandoImagem, setGerandoImagem] = useState(false);
+  const [statusImagem, setStatusImagem] = useState(null);
 
   const favoritosFiltrados = favoritos.filter(
     (f) =>
@@ -17,29 +20,96 @@ export default function FavoritosTab({ favoritos = [], carregando = false, alter
   const temas = {
     dourado: {
       bg: "linear-gradient(135deg, #7A5726 0%, #B98B4E 50%, #4A3415 100%)",
+      stops: [
+        [0, "#7A5726"],
+        [0.5, "#B98B4E"],
+        [1, "#4A3415"],
+      ],
       text: "#FFFDF7",
       border: "1px solid rgba(255,255,255,0.2)",
       label: "✨ Dourado celestial",
     },
     oceano: {
       bg: "linear-gradient(135deg, #1E3A8A 0%, #1E293B 100%)",
+      stops: [
+        [0, "#1E3A8A"],
+        [1, "#1E293B"],
+      ],
       text: "#F0F9FF",
       border: "1px solid rgba(255,255,255,0.2)",
       label: "🌊 Oceano de paz",
     },
     amanhecer: {
       bg: "linear-gradient(135deg, #BE123C 0%, #4338CA 100%)",
+      stops: [
+        [0, "#BE123C"],
+        [1, "#4338CA"],
+      ],
       text: "#FFF1F2",
       border: "1px solid rgba(255,255,255,0.2)",
       label: "🌅 Amanhecer da graça",
     },
     noite: {
       bg: "linear-gradient(135deg, #0F172A 0%, #064E3B 100%)",
+      stops: [
+        [0, "#0F172A"],
+        [1, "#064E3B"],
+      ],
       text: "#ECFDF5",
       border: "1px solid rgba(255,255,255,0.2)",
       label: "🌌 Noite de oração",
     },
   };
+
+  async function gerarBlobCardAtual() {
+    const tema = temas[estiloTema];
+    return gerarImagemCardVersiculo({
+      texto: modalCardVersiculo.texto,
+      referencia: modalCardVersiculo.referencia,
+      stops: tema.stops,
+      textColor: tema.text,
+    });
+  }
+
+  async function handleBaixarImagem() {
+    setGerandoImagem(true);
+    setStatusImagem(null);
+    try {
+      const blob = await gerarBlobCardAtual();
+      if (blob) {
+        baixarImagem(blob, `versiculo-${modalCardVersiculo.referencia.replace(/\s+/g, "-")}.png`);
+        setStatusImagem("Imagem baixada!");
+      }
+    } catch (e) {
+      setStatusImagem("Não foi possível gerar a imagem.");
+    } finally {
+      setGerandoImagem(false);
+      setTimeout(() => setStatusImagem(null), 2600);
+    }
+  }
+
+  async function handleCompartilharImagem() {
+    setGerandoImagem(true);
+    setStatusImagem(null);
+    try {
+      const blob = await gerarBlobCardAtual();
+      if (blob) {
+        const resultado = await compartilharImagem(
+          blob,
+          `versiculo-${modalCardVersiculo.referencia.replace(/\s+/g, "-")}.png`,
+          { title: "Devocional Diário", text: modalCardVersiculo.referencia }
+        );
+        setStatusImagem(resultado === "compartilhado" ? "Compartilhado!" : "Imagem baixada!");
+      }
+    } catch (e) {
+      if (e?.name !== "AbortError") {
+        setStatusImagem("Não foi possível compartilhar a imagem.");
+      }
+    } finally {
+      setGerandoImagem(false);
+      setTimeout(() => setStatusImagem(null), 2600);
+    }
+  }
 
   return (
     <div style={styles.container}>
@@ -186,6 +256,32 @@ export default function FavoritosTab({ favoritos = [], carregando = false, alter
 
             {/* Botões do Modal */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={handleCompartilharImagem}
+                  disabled={gerandoImagem}
+                  style={styles.compartilharImagemBtn}
+                  className="action-btn chunky"
+                  type="button"
+                >
+                  {gerandoImagem ? "Gerando..." : "📤 Compartilhar Imagem"}
+                </button>
+                <button
+                  onClick={handleBaixarImagem}
+                  disabled={gerandoImagem}
+                  style={styles.baixarImagemBtn}
+                  className="action-btn chunky"
+                  type="button"
+                  title="Baixar imagem"
+                >
+                  📥
+                </button>
+              </div>
+              {statusImagem && <p style={styles.statusImagemTexto}>{statusImagem}</p>}
+
+              <div style={styles.divisorOu}>
+                <span>ou compartilhar só o texto</span>
+              </div>
               <CompartilharBotoes
                 texto={`"${modalCardVersiculo.texto}" — ${modalCardVersiculo.referencia}`}
               />
@@ -486,6 +582,43 @@ const styles = {
   previewSub: {
     fontSize: 10,
     opacity: 0.8,
+  },
+  compartilharImagemBtn: {
+    flex: 1,
+    padding: "12px 0",
+    borderRadius: 12,
+    border: "none",
+    borderBottom: "2px solid #6B4C1B",
+    background: "linear-gradient(180deg, #D9A94C 0%, #B98B4E 100%)",
+    color: "#FFFDF7",
+    fontWeight: 700,
+    fontSize: 13.5,
+    cursor: "pointer",
+  },
+  baixarImagemBtn: {
+    width: 46,
+    borderRadius: 12,
+    border: "1px solid #E7E0D0",
+    background: "#FBF9F3",
+    fontSize: 18,
+    cursor: "pointer",
+  },
+  statusImagemTexto: {
+    margin: 0,
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#6B7A6E",
+  },
+  divisorOu: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 11,
+    color: "#8A9184",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    fontWeight: 700,
   },
   fecharModalBtn: {
     width: "100%",

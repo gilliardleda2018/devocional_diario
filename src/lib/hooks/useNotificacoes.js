@@ -1,7 +1,20 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
+let proximoIdInstancia = 0;
+
 export function useNotificacoes(usuarioId) {
+  // O hook é montado em mais de um lugar ao mesmo tempo (badge do cabeçalho
+  // + modal de notificações). O cliente Supabase é um singleton (createBrowserClient
+  // reaproveita a mesma conexão Realtime), então duas instâncias criando um canal
+  // com o MESMO nome colidem: a segunda tenta `.on()` num canal que a primeira já
+  // deixou em `subscribe()`, e isso lança uma exceção não capturada que derruba o
+  // app inteiro. Cada instância do hook precisa do seu próprio canal.
+  const idInstanciaRef = useRef(null);
+  if (idInstanciaRef.current === null) {
+    idInstanciaRef.current = proximoIdInstancia++;
+  }
+
   const [notificacoes, setNotificacoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -125,7 +138,7 @@ export function useNotificacoes(usuarioId) {
 
     const supabase = criarClienteSupabase();
     const canal = supabase
-      .channel(`notificacoes_user_${usuarioId}`)
+      .channel(`notificacoes_user_${usuarioId}_${idInstanciaRef.current}`)
       .on(
         "postgres_changes",
         {
