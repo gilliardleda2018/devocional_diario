@@ -73,7 +73,7 @@ export function useFaithGraph(usuarioId) {
       const supabase = criarClienteSupabase();
       const { data: rawBlocks } = await supabase
         .from("user_blocks")
-        .select("id, blocked_id, created_at")
+        .select("id, blocked_id, criado_em")
         .eq("blocker_id", usuarioId)
         .catch(() => ({ data: null }));
 
@@ -94,7 +94,7 @@ export function useFaithGraph(usuarioId) {
           rawBlocks.map((b) => ({
             id: b.id,
             blocked_id: b.blocked_id,
-            created_at: b.created_at,
+            created_at: b.criado_em,
             profiles: profilesMap[b.blocked_id] || { id: b.blocked_id, nome_exibicao: "Usuário Bloqueado", foto_url: null },
           }))
         );

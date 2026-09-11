@@ -33,12 +33,13 @@ export default function PerfilAmigoModal({
       setMensagem(null);
       try {
         const supabase = criarClienteSupabase();
-        const [{ data: profile }, { data: stats }, { data: relState }, { data: mutuos }] = await Promise.all([
+        const [{ data: profile }, { data: statsLista }, { data: relState }, { data: mutuos }] = await Promise.all([
           supabase.from("profiles").select("*").eq("id", amigoId).maybeSingle(),
-          supabase.from("estatisticas_usuario").select("*").eq("usuario_id", amigoId).maybeSingle(),
+          supabase.rpc("obter_estatisticas_publicas", { p_usuario_id: amigoId }).catch(() => ({ data: null })),
           supabase.rpc("get_relationship_state", { p_target_id: amigoId }).catch(() => ({ data: null })),
           supabase.rpc("obter_amigos_em_comum", { p_target_id: amigoId }).catch(() => ({ data: null })),
         ]);
+        const stats = Array.isArray(statsLista) ? statsLista[0] : statsLista;
 
         if (vivo) {
           setDetalhes({
@@ -51,7 +52,7 @@ export default function PerfilAmigoModal({
             igreja: profile?.igreja || null,
             bio: profile?.bio || null,
             xp_total: stats?.xp_total || amigo?.xp_total || 0,
-            ofensiva_atual: amigo?.ofensiva_atual || 0,
+            ofensiva_atual: stats?.ofensiva_atual || amigo?.ofensiva_atual || 0,
           });
 
           if (relState) {
