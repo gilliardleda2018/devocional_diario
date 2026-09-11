@@ -1010,6 +1010,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
     marginBottom: 16,
     gap: 8,
     width: "100%",
@@ -1040,6 +1041,8 @@ const styles = {
   topBarRight: {
     display: "flex",
     alignItems: "center",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
     gap: 6,
     flexShrink: 0,
   },
