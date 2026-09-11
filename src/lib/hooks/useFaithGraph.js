@@ -202,6 +202,7 @@ export function useFaithGraph(usuarioId) {
         if (error) {
           return { sucesso: false, erro: error.message || "Não foi possível enviar a solicitação." };
         }
+        setRecomendacoes((prev) => prev.filter((r) => r.candidate_id !== destinatarioId));
         return { sucesso: true };
       } catch (e) {
         return { sucesso: false, erro: e.message };
