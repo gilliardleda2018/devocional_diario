@@ -52,8 +52,31 @@ function FormularioLogin() {
     });
     setEnviando(false);
     if (error) {
-      setErro(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message);
+      if (error.message === "Invalid login credentials") {
+        setErro("E-mail ou senha incorretos.");
+      } else if (error.message === "Email not confirmed") {
+        setErro("Você ainda não confirmou seu e-mail. Confira sua caixa de entrada (e o spam) ou toque em \"reenviar confirmação\" abaixo.");
+      } else {
+        setErro(error.message);
+      }
     }
+  }
+
+  async function reenviarConfirmacao() {
+    if (!email) {
+      setErro("Digite seu e-mail acima antes de reenviar a confirmação.");
+      return;
+    }
+    setErro(null);
+    setEnviando(true);
+    const supabase = criarClienteSupabase();
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    setEnviando(false);
+    if (error) {
+      setErro(error.message);
+      return;
+    }
+    setMensagemSucesso(`E-mail de confirmação reenviado para ${email}. Confira sua caixa de entrada.`);
   }
 
   async function cadastrarNovoUsuario(e) {
@@ -85,7 +108,7 @@ function FormularioLogin() {
     setEnviando(false);
 
     if (error) {
-      setErro(error.message);
+      setErro(error.message === "User already registered" ? "Esse e-mail já tem uma conta. Tente entrar." : error.message);
       return;
     }
 
@@ -102,7 +125,15 @@ function FormularioLogin() {
       }
     }
 
-    setMensagemSucesso("Conta criada com sucesso! Você já pode fazer login ou conferir seu e-mail.");
+    // Só existe sessão aqui se a confirmação de e-mail estiver desativada no
+    // projeto -- nesse caso a conta já está pronta pra uso e dá pra entrar
+    // direto. Caso contrário, a pessoa PRECISA confirmar o e-mail antes de
+    // conseguir entrar, então não faz sentido dizer que ela "já pode logar".
+    if (data?.session) {
+      window.location.href = "/";
+      return;
+    }
+    setMensagemSucesso("Conta criada! Confira seu e-mail (inclusive a caixa de spam) e confirme antes de entrar.");
   }
 
   async function enviarMagicLink(e) {
@@ -254,7 +285,21 @@ function FormularioLogin() {
             </form>
           )}
 
-          {erro && <p style={styles.errorText}>{erro}</p>}
+          {erro && (
+            <div>
+              <p style={styles.errorText}>{erro}</p>
+              {erro.includes("confirmou seu e-mail") && (
+                <button
+                  type="button"
+                  style={styles.linkToggleBtn}
+                  onClick={reenviarConfirmacao}
+                  disabled={enviando}
+                >
+                  {enviando ? "Reenviando..." : "Reenviar e-mail de confirmação"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <p style={styles.footnote}>
