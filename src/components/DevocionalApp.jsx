@@ -81,6 +81,8 @@ export default function DevocionalApp({ usuario }) {
             nome_completo: data.nome_completo || null,
             cidade: data.cidade || null,
             igreja: data.igreja || null,
+            telefone: data.telefone || null,
+            instagram: data.instagram || null,
             bio: data.bio || null,
           });
 

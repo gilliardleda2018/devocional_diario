@@ -16,6 +16,8 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
   const [username, setUsername] = useState("");
   const [cidade, setCidade] = useState("");
   const [igreja, setIgreja] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [instagram, setInstagram] = useState("");
   const [bio, setBio] = useState("");
   const [fotoUrl, setFotoUrl] = useState("");
   const [urlPersonalizada, setUrlPersonalizada] = useState("");
@@ -30,6 +32,8 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
       setUsername(perfilAtual?.username || "");
       setCidade(perfilAtual?.cidade || "");
       setIgreja(perfilAtual?.igreja || "");
+      setTelefone(perfilAtual?.telefone || "");
+      setInstagram(perfilAtual?.instagram || "");
       setBio(perfilAtual?.bio || "");
       setFotoUrl(perfilAtual?.foto_url || usuario?.user_metadata?.avatar_url || "");
     }
@@ -82,6 +86,8 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
         foto_url: fotoFinal || null,
         cidade: cidade.trim() || null,
         igreja: igreja.trim() || null,
+        telefone: telefone.trim() || null,
+        instagram: instagram.trim().replace("@", "").toLowerCase() || null,
         bio: bio.trim() || null,
       };
 
@@ -105,6 +111,8 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
           nome_completo: nomeCompleto.trim() || null,
           cidade: cidade.trim() || null,
           igreja: igreja.trim() || null,
+          telefone: telefone.trim() || null,
+          instagram: instagram.trim().replace("@", "").toLowerCase() || null,
           bio: bio.trim() || null,
         });
       }
@@ -195,6 +203,32 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
               />
             </div>
           </div>
+
+          <div style={styles.rowGrid}>
+            <div>
+              <label style={styles.label}>Telefone</label>
+              <input
+                type="tel"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(11) 99999-8888"
+                style={styles.input}
+              />
+            </div>
+            <div>
+              <label style={styles.label}>Instagram</label>
+              <input
+                type="text"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="seu_instagram"
+                style={styles.input}
+              />
+            </div>
+          </div>
+          <p style={styles.ajudaTexto}>
+            Telefone e e-mail só encontram alguém com o valor completo e exato — nunca aparecem nos resultados de busca de outras pessoas.
+          </p>
 
           <label style={styles.label}>Bio / Frase Pessoal</label>
           <textarea
@@ -344,6 +378,13 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+  ajudaTexto: {
+    fontSize: 10.5,
+    color: "#9AA79C",
+    fontStyle: "italic",
+    margin: "0 0 2px",
+    lineHeight: 1.3,
   },
   mensagem: {
     fontSize: 12.5,

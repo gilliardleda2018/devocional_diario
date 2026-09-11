@@ -326,6 +326,15 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
     return () => clearTimeout(timer);
   }, [buscaTermo, buscarUsuarios]);
 
+  async function handleBuscarAgora() {
+    const termo = buscaTermo.trim();
+    if (!termo) return;
+    setBuscando(true);
+    const res = await buscarUsuarios(termo);
+    setResultadosBusca(res || []);
+    setBuscando(false);
+  }
+
   async function handleTorcer(amigoId) {
     setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: "enviando" }));
     const res = await torcer(amigoId);
@@ -383,24 +392,34 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
         <CardConectarRedes meuCodigo={meuCodigo} />
 
         {/* Input de Busca de Amigos / Pessoas */}
-        <div style={{ position: "relative" }}>
-          <input
-            type="text"
-            placeholder="Buscar por nome, @username, cidade ou igreja..."
-            value={buscaTermo}
-            onChange={(e) => setBuscaTermo(e.target.value)}
-            style={styles.inputBusca}
-          />
-          {temBusca && (
-            <button
-              onClick={() => setBuscaTermo("")}
-              style={styles.btnClearBusca}
-              title="Limpar busca"
-            >
-              ✕
-            </button>
-          )}
-          {buscando && <span style={styles.spinnerBusca}>🔍...</span>}
+        <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+            <input
+              type="text"
+              placeholder="Nome, @username, telefone, e-mail, @instagram, cidade..."
+              value={buscaTermo}
+              onChange={(e) => setBuscaTermo(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleBuscarAgora()}
+              style={styles.inputBusca}
+            />
+            {temBusca && (
+              <button
+                onClick={() => setBuscaTermo("")}
+                style={styles.btnClearBusca}
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <button
+            onClick={handleBuscarAgora}
+            disabled={!temBusca || buscando}
+            style={styles.btnBuscar}
+            title="Buscar"
+          >
+            {buscando ? "..." : "🔍 Buscar"}
+          </button>
         </div>
 
         {temBusca ? (
@@ -999,6 +1018,19 @@ const styles = {
     color: "#33422F",
     outline: "none",
     boxSizing: "border-box",
+  },
+  btnBuscar: {
+    flexShrink: 0,
+    background: "linear-gradient(180deg, #C89A5E 0%, #B98B4E 100%)",
+    color: "#FFFFFF",
+    border: "none",
+    borderBottom: "3px solid #8A6224",
+    borderRadius: 12,
+    padding: "0 16px",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   btnClearBusca: {
     position: "absolute",
