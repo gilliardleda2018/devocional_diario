@@ -5,8 +5,9 @@ import AvatarUsuario from "./AvatarUsuario";
 import PerfilAmigoModal from "./PerfilAmigoModal";
 import { usePedidosOracao } from "@/src/lib/hooks/usePedidosOracao";
 import { useAmigos } from "@/src/lib/hooks/useAmigos";
+import { useComunidades } from "@/src/lib/hooks/useComunidades";
 
-export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
+export default function PedidosOracaoTab({ usuarioId, nomeUsuario, comunidadeId = null, comunidadeNome = null }) {
   const {
     pedidos,
     carregando,
@@ -14,18 +15,20 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
     criarPedido,
     alternarOracao,
     recarregar,
-  } = usePedidosOracao(usuarioId);
+  } = usePedidosOracao(usuarioId, comunidadeId);
 
   const { amigos, enviarPedido, torcer } = useAmigos(usuarioId);
+  const { minhasComunidades } = useComunidades(comunidadeId ? null : usuarioId); // só precisa da lista fora do mural de uma comunidade específica
   const [perfilSelecionado, setPerfilSelecionado] = useState(null);
 
   const [filtroVisibilidade, setFiltroVisibilidade] = useState("ALL"); // ALL, MY_REQUESTS
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
-  
+
   // Form state
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [visibilidade, setVisibilidade] = useState("PUBLIC");
+  const [visibilidade, setVisibilidade] = useState(comunidadeId ? "COMMUNITY" : "PUBLIC");
+  const [comunidadeEscolhidaId, setComunidadeEscolhidaId] = useState(comunidadeId || "");
   const [anonimo, setAnonimo] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState(null);
@@ -33,6 +36,11 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
   const handleCriar = async (e) => {
     e.preventDefault();
     if (!titulo.trim() || !descricao.trim()) return;
+
+    if (visibilidade === "COMMUNITY" && !comunidadeId && !comunidadeEscolhidaId) {
+      setErroEnvio("Escolha em qual comunidade publicar.");
+      return;
+    }
 
     setEnviando(true);
     setErroEnvio(null);
@@ -42,16 +50,18 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
       descricao: descricao.trim(),
       visibilidade,
       isAnonimo: anonimo,
+      communityId: comunidadeId || comunidadeEscolhidaId || null,
     });
 
     setEnviando(false);
 
     if (error) {
-      setErroEnvio("Não foi possível publicar o pedido. Tente novamente.");
+      setErroEnvio(typeof error === "string" ? error : "Não foi possível publicar o pedido. Tente novamente.");
     } else {
       setTitulo("");
       setDescricao("");
-      setVisibilidade("PUBLIC");
+      setVisibilidade(comunidadeId ? "COMMUNITY" : "PUBLIC");
+      setComunidadeEscolhidaId(comunidadeId || "");
       setAnonimo(false);
       setModalNovoAberto(false);
     }
@@ -68,7 +78,7 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h2 style={styles.title}>Mural de Oração</h2>
+          <h2 style={styles.title}>{comunidadeNome ? `Mural de ${comunidadeNome}` : "Mural de Oração"}</h2>
           <p style={styles.subtitle}>
             &ldquo;Orai uns pelos outros, para que sereis curados.&rdquo; — Tiago 5:16
           </p>
@@ -261,21 +271,49 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario }) {
                 required
               />
 
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 160 }}>
-                  <label style={styles.label}>Quem pode ver este pedido?</label>
-                  <select
-                    style={styles.select}
-                    value={visibilidade}
-                    onChange={(e) => setVisibilidade(e.target.value)}
-                  >
-                    <option value="PUBLIC">🌐 Público (Toda a comunidade)</option>
-                    <option value="FRIENDS">👥 Apenas Meus Amigos</option>
-                    <option value="COMMUNITY">🏛️ Apenas Minha Igreja</option>
-                    <option value="PRIVATE">🔒 Privado (Apenas eu)</option>
-                  </select>
+              {comunidadeId ? (
+                <p style={styles.avisoComunidade}>
+                  🏛️ Este pedido será visível só para os membros de <strong>{comunidadeNome}</strong>.
+                </p>
+              ) : (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <label style={styles.label}>Quem pode ver este pedido?</label>
+                    <select
+                      style={styles.select}
+                      value={visibilidade}
+                      onChange={(e) => setVisibilidade(e.target.value)}
+                    >
+                      <option value="PUBLIC">🌐 Público (Toda a comunidade)</option>
+                      <option value="FRIENDS">👥 Apenas Meus Amigos</option>
+                      <option value="COMMUNITY">🏛️ Apenas Minha Comunidade</option>
+                      <option value="PRIVATE">🔒 Privado (Apenas eu)</option>
+                    </select>
+                  </div>
+
+                  {visibilidade === "COMMUNITY" && (
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <label style={styles.label}>Qual comunidade?</label>
+                      {minhasComunidades.length === 0 ? (
+                        <p style={styles.avisoSemComunidade}>
+                          Você ainda não participa de nenhuma comunidade. Entre em uma na aba 🏛️ Comunidades.
+                        </p>
+                      ) : (
+                        <select
+                          style={styles.select}
+                          value={comunidadeEscolhidaId}
+                          onChange={(e) => setComunidadeEscolhidaId(e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {minhasComunidades.map((c) => (
+                            <option key={c.id} value={c.id}>{c.nome}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               <div style={styles.checkboxRow}>
                 <input
@@ -649,6 +687,20 @@ const styles = {
     fontFamily: "'Karla', sans-serif",
     fontSize: 13.5,
     color: "#2D3B33",
+  },
+  avisoComunidade: {
+    fontSize: 12.5,
+    color: "#8A6224",
+    background: "#F6EFE1",
+    borderRadius: 10,
+    padding: "10px 12px",
+    margin: 0,
+  },
+  avisoSemComunidade: {
+    fontSize: 11.5,
+    color: "#B15A4A",
+    margin: 0,
+    lineHeight: 1.3,
   },
   checkboxRow: {
     display: "flex",

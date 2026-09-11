@@ -5,8 +5,10 @@ import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 /**
  * Hook para gerenciar Pedidos de Oração com resiliência total a esquemas Supabase.
+ * Passe `communityId` para ver/postar só no mural de uma comunidade específica
+ * (RLS já garante que só membros leem pedidos COMMUNITY dessa comunidade).
  */
-export function usePedidosOracao(usuarioId) {
+export function usePedidosOracao(usuarioId, communityId = null) {
   const [pedidos, setPedidos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -23,11 +25,17 @@ export function usePedidosOracao(usuarioId) {
       const supabase = criarClienteSupabase();
 
       // 1. Buscar pedidos de oração principais
-      const { data: rawRequests, error: reqError } = await supabase
+      let query = supabase
         .from("prayer_requests")
-        .select("id, autor_id, titulo, conteudo, visibilidade, status, criado_em")
+        .select("id, autor_id, titulo, conteudo, visibilidade, status, community_id, criado_em")
         .order("criado_em", { ascending: false })
         .limit(40);
+
+      if (communityId) {
+        query = query.eq("community_id", communityId);
+      }
+
+      const { data: rawRequests, error: reqError } = await query;
 
       if (reqError) {
         console.error("Erro na busca de prayer_requests:", reqError);
@@ -77,6 +85,7 @@ export function usePedidosOracao(usuarioId) {
           conteudo: item.conteudo,
           descricao: item.conteudo,
           visibilidade: item.visibilidade || "PUBLIC",
+          community_id: item.community_id || null,
           is_anonimo: false,
           status: item.status || "ACTIVE",
           criado_em: item.criado_em || new Date().toISOString(),
@@ -97,17 +106,23 @@ export function usePedidosOracao(usuarioId) {
     } finally {
       setCarregando(false);
     }
-  }, [usuarioId]);
+  }, [usuarioId, communityId]);
 
   useEffect(() => {
     recarregar();
   }, [recarregar]);
 
   const criarPedido = useCallback(
-    async ({ titulo, descricao, conteudo, visibilidade = "PUBLIC", isAnonimo = false, communityId = null }) => {
+    async ({ titulo, descricao, conteudo, visibilidade = "PUBLIC", isAnonimo = false, communityId: communityIdParam }) => {
       const textoFinal = descricao || conteudo;
       if (!usuarioId || !titulo?.trim() || !textoFinal?.trim()) {
         return { error: "Preencha o título e o conteúdo do pedido." };
+      }
+      // Se chamado a partir do mural de uma comunidade específica (hook já
+      // aberto com communityId), usa esse -- senão, o que foi passado na hora.
+      const communityIdFinal = communityIdParam ?? communityId ?? null;
+      if (visibilidade === "COMMUNITY" && !communityIdFinal) {
+        return { error: "Escolha uma comunidade para publicar este pedido." };
       }
       try {
         const supabase = criarClienteSupabase();
@@ -118,6 +133,7 @@ export function usePedidosOracao(usuarioId) {
             titulo: titulo.trim(),
             conteudo: textoFinal.trim(),
             visibilidade,
+            community_id: visibilidade === "COMMUNITY" ? communityIdFinal : null,
           })
           .select()
           .single();
@@ -132,7 +148,7 @@ export function usePedidosOracao(usuarioId) {
         return { error: e.message };
       }
     },
-    [usuarioId, recarregar]
+    [usuarioId, communityId, recarregar]
   );
 
   const alternarOracao = useCallback(

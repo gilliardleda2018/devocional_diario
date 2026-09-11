@@ -4,13 +4,14 @@ import { useState } from "react";
 import DescobrirPessoasCard from "./DescobrirPessoasCard";
 import AmigosTab from "./AmigosTab";
 import PedidosOracaoTab from "./PedidosOracaoTab";
+import ComunidadesTab from "./ComunidadesTab";
 import PrivacidadeModal from "./PrivacidadeModal";
 import PerfilAmigoModal from "./PerfilAmigoModal";
 import { useFaithGraph } from "@/src/lib/hooks/useFaithGraph";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
-  const [subAba, setSubAba] = useState("descobrir"); // descobrir, oracoes, amigos
+  const [subAba, setSubAba] = useState("descobrir"); // descobrir, oracoes, comunidades, amigos
   const [modalPrivacidadeAberto, setModalPrivacidadeAberto] = useState(false);
   const [perfilAmigoSelecionado, setPerfilAmigoSelecionado] = useState(null);
 
@@ -72,6 +73,12 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
           🙏 Orações
         </button>
         <button
+          style={subAba === "comunidades" ? styles.subTabActive : styles.subTabInactive}
+          onClick={() => setSubAba("comunidades")}
+        >
+          🏛️ Comunidades
+        </button>
+        <button
           style={subAba === "amigos" ? styles.subTabActive : styles.subTabInactive}
           onClick={() => setSubAba("amigos")}
         >
@@ -120,6 +127,10 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
 
       {subAba === "oracoes" && (
         <PedidosOracaoTab usuarioId={usuarioId} nomeUsuario={nomeUsuario} />
+      )}
+
+      {subAba === "comunidades" && (
+        <ComunidadesTab usuarioId={usuarioId} />
       )}
 
       {subAba === "amigos" && (
