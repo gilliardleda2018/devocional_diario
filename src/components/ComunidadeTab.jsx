@@ -7,6 +7,7 @@ import PedidosOracaoTab from "./PedidosOracaoTab";
 import PrivacidadeModal from "./PrivacidadeModal";
 import PerfilAmigoModal from "./PerfilAmigoModal";
 import { useFaithGraph } from "@/src/lib/hooks/useFaithGraph";
+import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
 export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
   const [subAba, setSubAba] = useState("descobrir"); // descobrir, oracoes, amigos
@@ -20,6 +21,22 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
     enviarPedidoAmizade,
     bloquearUsuario,
   } = useFaithGraph(usuarioId);
+
+  // Ação leve de torcida (não precisa carregar a lista inteira de amigos só
+  // pra isso) -- usada quando o perfil aberto na aba Descobrir já é amigo.
+  async function torcer(amigoId) {
+    if (!usuarioId || !amigoId) return { sucesso: false };
+    try {
+      const supabase = criarClienteSupabase();
+      const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId });
+      if (error) {
+        return { sucesso: false, erro: error.message || "Você já torceu hoje!" };
+      }
+      return { sucesso: true };
+    } catch (e) {
+      return { sucesso: false, erro: e.message };
+    }
+  }
 
   return (
     <div style={styles.container}>
@@ -123,6 +140,8 @@ export default function ComunidadeTab({ usuarioId, nomeUsuario }) {
           aoFechar={() => setPerfilAmigoSelecionado(null)}
           amigo={perfilAmigoSelecionado}
           usuarioAtualId={usuarioId}
+          aoAdicionar={enviarPedidoAmizade}
+          aoTorcer={torcer}
         />
       )}
     </div>

@@ -241,13 +241,25 @@ export function useAmigos(usuarioId) {
     [usuarioId]
   );
 
-  // Busca Paginada de Pessoas por Nome, Username, Cidade ou Igreja
+  // Busca Paginada de Pessoas por Nome, Username, Cidade ou Igreja.
+  // A RPC é a fonte de verdade (aplica privacidade granular: discoverable,
+  // show_city, show_church e bloqueios); a query direta é só um fallback de
+  // resiliência caso a função ainda não exista no banco, e por isso só entra
+  // em ação quando a RPC falhar de verdade — nunca quando ela vier vazia.
   const buscarUsuarios = useCallback(
     async (termo, limite = 30, offset = 0) => {
       if (!termo || typeof termo !== "string" || termo.trim().length < 1) return [];
       const t = termo.trim();
       try {
         const supabase = criarClienteSupabase();
+
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc("buscar_usuarios", { p_termo: t, p_limite: limite, p_offset: offset })
+          .catch(() => ({ data: null, error: true }));
+
+        if (!rpcError && Array.isArray(rpcData)) {
+          return rpcData;
+        }
 
         let query = supabase
           .from("profiles")
@@ -260,19 +272,7 @@ export function useAmigos(usuarioId) {
         }
 
         const { data: rawData } = await query.catch(() => ({ data: null }));
-        if (rawData && Array.isArray(rawData) && rawData.length > 0) {
-          return rawData;
-        }
-
-        const { data: rpcData } = await supabase
-          .rpc("buscar_usuarios", {
-            p_termo: t,
-            p_limite: limite,
-            p_offset: offset,
-          })
-          .catch(() => ({ data: null }));
-
-        return rpcData && Array.isArray(rpcData) ? rpcData : [];
+        return Array.isArray(rawData) ? rawData : [];
       } catch (e) {
         console.error("Erro na busca de usuários:", e);
         return [];
@@ -281,6 +281,13 @@ export function useAmigos(usuarioId) {
     [usuarioId]
   );
 
+  // Todas as mutações de amizade passam pela função security definer
+  // correspondente no banco (única fonte de verdade das regras de negócio:
+  // bloqueios, privacidade, duplicidade, aceite cruzado). A tabela `amizades`
+  // não expõe policy de insert/update direta, então tentar escrever nela pela
+  // API do cliente sempre falha por RLS -- por isso não há mais fallback de
+  // escrita direta aqui: se a RPC falhar, o erro real é devolvido, em vez de
+  // mascarado como sucesso.
   const enviarPedido = useCallback(
     async (identificador) => {
       if (!usuarioId || !identificador) return { sucesso: false, erro: "Código ou usuário inválido." };
@@ -288,53 +295,20 @@ export function useAmigos(usuarioId) {
 
       try {
         const supabase = criarClienteSupabase();
-
-        // 1. Resolve ID do destinatário se foi passado username ou código
-        let targetId = identificador;
-        if (identificador.length !== 36) {
-          const { data: targetProfile } = await supabase
-            .from("profiles")
-            .select("id")
-            .or(`codigo_amigo.eq.${identificador},username.eq.${identificador.replace("@", "")}`)
-            .maybeSingle()
-            .catch(() => ({ data: null }));
-
-          if (!targetProfile) {
-            return { sucesso: false, erro: "Usuário não encontrado." };
-          }
-          targetId = targetProfile.id;
-        }
-
-        if (targetId === usuarioId) {
-          return { sucesso: false, erro: "Você não pode enviar convite para você mesmo." };
-        }
-
-        // 2. Tenta inserção direta na tabela amizades
-        const { error: insertError } = await supabase.from("amizades").insert({
-          solicitante_id: usuarioId,
-          destinatario_id: targetId,
-          status: "pendente",
+        const { error } = await supabase.rpc("enviar_pedido_amizade_v2", {
+          p_identificador: String(identificador).trim(),
         });
 
-        if (!insertError) {
-          await recarregar();
-          return { sucesso: true };
-        }
-
-        // 3. Se a RPC v2 existir, tenta via RPC
-        const { error: rpcError } = await supabase
-          .rpc("enviar_pedido_amizade_v2", { p_identificador: identificador })
-          .catch(() => ({ error: true }));
-
-        if (!rpcError) {
-          await recarregar();
-          return { sucesso: true };
+        if (error) {
+          const mensagem = error.message || "Não foi possível enviar a solicitação.";
+          setErro(mensagem);
+          return { sucesso: false, erro: mensagem };
         }
 
         await recarregar();
         return { sucesso: true };
       } catch (e) {
-        return { sucesso: false, erro: e.message };
+        return { sucesso: false, erro: e.message || "Não foi possível enviar a solicitação." };
       }
     },
     [usuarioId, recarregar]
@@ -344,9 +318,10 @@ export function useAmigos(usuarioId) {
     async (amizadeId) => {
       try {
         const supabase = criarClienteSupabase();
-        await supabase.rpc("cancelar_pedido_amizade", { p_amizade_id: amizadeId }).catch(async () => {
-          await supabase.from("amizades").delete().eq("id", amizadeId);
-        });
+        const { error } = await supabase.rpc("cancelar_pedido_amizade", { p_amizade_id: amizadeId });
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível cancelar a solicitação." };
+        }
         await recarregar();
         return { sucesso: true };
       } catch (e) {
@@ -360,17 +335,13 @@ export function useAmigos(usuarioId) {
     async (amizadeId, aceitar) => {
       try {
         const supabase = criarClienteSupabase();
-        const { error: rpcError } = await supabase.rpc("responder_pedido_amizade_v2", {
+        const { error } = await supabase.rpc("responder_pedido_amizade_v2", {
           p_amizade_id: amizadeId,
           p_aceitar: aceitar,
-        }).catch(() => ({ error: true }));
+        });
 
-        if (rpcError) {
-          if (aceitar) {
-            await supabase.from("amizades").update({ status: "aceita" }).eq("id", amizadeId);
-          } else {
-            await supabase.from("amizades").delete().eq("id", amizadeId);
-          }
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível responder à solicitação." };
         }
 
         await recarregar();
@@ -386,11 +357,10 @@ export function useAmigos(usuarioId) {
     async (amigoIdOuAmizadeId) => {
       try {
         const supabase = criarClienteSupabase();
-        // Tenta RPC remover_amizade
-        await supabase.rpc("remover_amizade", { p_amigo_id: amigoIdOuAmizadeId }).catch(async () => {
-          await supabase.from("amizades").delete().or(`id.eq.${amigoIdOuAmizadeId},solicitante_id.eq.${amigoIdOuAmizadeId},destinatario_id.eq.${amigoIdOuAmizadeId}`);
-        });
-
+        const { error } = await supabase.rpc("remover_amizade", { p_amigo_id: amigoIdOuAmizadeId });
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível remover a amizade." };
+        }
         await recarregar();
         return { sucesso: true };
       } catch (e) {
@@ -405,11 +375,10 @@ export function useAmigos(usuarioId) {
       if (!usuarioId || !targetId) return { sucesso: false };
       try {
         const supabase = criarClienteSupabase();
-        await supabase.rpc("bloquear_usuario", { p_target_id: targetId }).catch(async () => {
-          await supabase.from("user_blocks").insert({ blocker_id: usuarioId, blocked_id: targetId });
-          await supabase.from("amizades").delete().or(`solicitante_id.eq.${targetId},destinatario_id.eq.${targetId}`);
-        });
-
+        const { error } = await supabase.rpc("bloquear_usuario", { p_target_id: targetId });
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível bloquear este usuário." };
+        }
         await recarregar();
         return { sucesso: true };
       } catch (e) {
@@ -424,10 +393,10 @@ export function useAmigos(usuarioId) {
       if (!usuarioId || !targetId) return { sucesso: false };
       try {
         const supabase = criarClienteSupabase();
-        await supabase.rpc("desbloquear_usuario", { p_target_id: targetId }).catch(async () => {
-          await supabase.from("user_blocks").delete().eq("blocker_id", usuarioId).eq("blocked_id", targetId);
-        });
-
+        const { error } = await supabase.rpc("desbloquear_usuario", { p_target_id: targetId });
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível desbloquear este usuário." };
+        }
         await recarregar();
         return { sucesso: true };
       } catch (e) {
@@ -442,12 +411,9 @@ export function useAmigos(usuarioId) {
       if (!usuarioId || !amigoId) return { sucesso: false };
       try {
         const supabase = criarClienteSupabase();
-        const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId }).catch(() => ({ error: true }));
+        const { error } = await supabase.rpc("enviar_torcida", { p_destinatario_id: amigoId });
         if (error) {
-          await supabase.from("torcidas").insert({
-            remetente_id: usuarioId,
-            destinatario_id: amigoId,
-          }).catch(() => {});
+          return { sucesso: false, erro: error.message || "Você já torceu hoje!" };
         }
         return { sucesso: true };
       } catch (e) {

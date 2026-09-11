@@ -35,7 +35,11 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
     if (!notif?.entity_id) return;
     setProcessando((prev) => ({ ...prev, [notif.id]: true }));
     try {
-      await responderPedido(notif.entity_id, true);
+      const res = await responderPedido(notif.entity_id, true);
+      if (res?.sucesso === false) {
+        alert(res?.erro || "Não foi possível aceitar o pedido.");
+        return;
+      }
       await marcarComoLida(notif.id);
     } catch (e) {
       console.error("Erro ao aceitar pedido:", e);
@@ -48,7 +52,11 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
     if (!notif?.entity_id) return;
     setProcessando((prev) => ({ ...prev, [notif.id]: true }));
     try {
-      await responderPedido(notif.entity_id, false);
+      const res = await responderPedido(notif.entity_id, false);
+      if (res?.sucesso === false) {
+        alert(res?.erro || "Não foi possível remover o pedido.");
+        return;
+      }
       await marcarComoLida(notif.id);
     } catch (e) {
       console.error("Erro ao remover pedido:", e);

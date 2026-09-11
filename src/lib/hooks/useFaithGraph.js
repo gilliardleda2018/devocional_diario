@@ -186,17 +186,23 @@ export function useFaithGraph(usuarioId) {
     [usuarioId]
   );
 
+  // A tabela `amizades` não tem policy de insert direta -- toda solicitação
+  // precisa passar pela RPC enviar_pedido_amizade_v2, que também aplica as
+  // regras de negócio (bloqueios, privacidade do destinatário, aceite
+  // automático em caso de pedido cruzado). Um insert direto aqui sempre
+  // falhava silenciosamente por RLS.
   const enviarPedidoAmizade = useCallback(
     async (destinatarioId) => {
       if (!usuarioId || !destinatarioId) return { sucesso: false };
       try {
         const supabase = criarClienteSupabase();
-        const { error } = await supabase.from("amizades").insert({
-          solicitante_id: usuarioId,
-          destinatario_id: destinatarioId,
-          status: "pendente",
+        const { error } = await supabase.rpc("enviar_pedido_amizade_v2", {
+          p_identificador: String(destinatarioId).trim(),
         });
-        return { sucesso: !error, erro: error?.message };
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível enviar a solicitação." };
+        }
+        return { sucesso: true };
       } catch (e) {
         return { sucesso: false, erro: e.message };
       }

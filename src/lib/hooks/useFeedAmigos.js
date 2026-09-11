@@ -26,9 +26,21 @@ export function useFeedAmigos(usuarioId, limite = 30) {
       const { data, error } = await supabase.rpc("obter_feed_amigos", { p_limite: limite }).catch(() => ({ error: true }));
 
       if (!error && data && Array.isArray(data)) {
-        setFeed(data);
+        // A RPC devolve o id da pessoa em `pessoa_id`. O PerfilAmigoModal (e
+        // outras telas) reconhece `usuario_id`/`amigo_id`/`id` -- sem esse
+        // apelido, clicar em alguém no feed abria o modal com id undefined.
+        setFeed(
+          data.map((item) => ({
+            ...item,
+            usuario_id: item.pessoa_id,
+            amigo_id: item.pessoa_id,
+            id: item.pessoa_id,
+          }))
+        );
       } else {
-        // Fallback direto via Supabase se RPC não estiver presente
+        // Fallback direto via Supabase se a RPC não estiver disponível. Busca
+        // devocionais e torcidas dos amigos separadamente e mescla, para se
+        // comportar como a RPC (mesmos tipos de item, mesmos nomes de campo).
         const { data: directAmigos } = await supabase
           .from("amizades")
           .select("solicitante_id, destinatario_id")
@@ -39,50 +51,78 @@ export function useFeedAmigos(usuarioId, limite = 30) {
           ? directAmigos.map((a) => (a.solicitante_id === usuarioId ? a.destinatario_id : a.solicitante_id))
           : [];
 
-        if (amigosIds.length > 0) {
-          const { data: devocionais } = await supabase
-            .from("devotional_logs")
-            .select("id, user_id, criado_em, tema_oracao, referencia_versiculo")
-            .in("user_id", amigosIds)
-            .order("criado_em", { ascending: false })
-            .limit(limite)
-            .catch(() => ({ data: null }));
-
-          if (devocionais && devocionais.length > 0) {
-            const userIds = [...new Set(devocionais.map((d) => d.user_id).filter(Boolean))];
-            let profilesMap = {};
-            if (userIds.length > 0) {
-              const { data: profs } = await supabase
-                .from("profiles")
-                .select("id, nome_exibicao, foto_url")
-                .in("id", userIds)
-                .catch(() => ({ data: null }));
-
-              if (profs) {
-                profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
-              }
-            }
-
-            setFeed(
-              devocionais.map((d) => {
-                const prof = profilesMap[d.user_id] || {};
-                return {
-                  id: d.id,
-                  tipo: "devocional",
-                  usuario_id: d.user_id,
-                  nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
-                  foto_url: prof.foto_url || null,
-                  quando: d.criado_em,
-                  tema_oracao: d.tema_oracao,
-                  referencia_versiculo: d.referencia_versiculo,
-                };
-              })
-            );
-          } else {
-            setFeed([]);
-          }
-        } else {
+        if (amigosIds.length === 0) {
           setFeed([]);
+        } else {
+          const [{ data: devocionais }, { data: torcidasRecebidas }] = await Promise.all([
+            supabase
+              .from("devotional_logs")
+              .select("id, user_id, criado_em, tema_oracao, referencia_versiculo")
+              .in("user_id", amigosIds)
+              .order("criado_em", { ascending: false })
+              .limit(limite)
+              .catch(() => ({ data: null })),
+            supabase
+              .from("torcidas")
+              .select("id, remetente_id, criado_em")
+              .eq("destinatario_id", usuarioId)
+              .order("criado_em", { ascending: false })
+              .limit(limite)
+              .catch(() => ({ data: null })),
+          ]);
+
+          const pessoaIds = [
+            ...new Set([
+              ...(devocionais || []).map((d) => d.user_id),
+              ...(torcidasRecebidas || []).map((t) => t.remetente_id),
+            ].filter(Boolean)),
+          ];
+
+          let profilesMap = {};
+          if (pessoaIds.length > 0) {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, nome_exibicao, foto_url")
+              .in("id", pessoaIds)
+              .catch(() => ({ data: null }));
+            if (profs) {
+              profilesMap = Object.fromEntries(profs.map((p) => [p.id, p]));
+            }
+          }
+
+          const itensDevocional = (devocionais || []).map((d) => {
+            const prof = profilesMap[d.user_id] || {};
+            return {
+              id: d.user_id,
+              tipo: "devocional",
+              usuario_id: d.user_id,
+              amigo_id: d.user_id,
+              nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
+              foto_url: prof.foto_url || null,
+              quando: d.criado_em,
+              tema_oracao: d.tema_oracao,
+              referencia_versiculo: d.referencia_versiculo,
+            };
+          });
+
+          const itensTorcida = (torcidasRecebidas || []).map((t) => {
+            const prof = profilesMap[t.remetente_id] || {};
+            return {
+              id: t.remetente_id,
+              tipo: "torcida",
+              usuario_id: t.remetente_id,
+              amigo_id: t.remetente_id,
+              nome_exibicao: prof.nome_exibicao || "Irmão em Fé",
+              foto_url: prof.foto_url || null,
+              quando: t.criado_em,
+            };
+          });
+
+          setFeed(
+            [...itensDevocional, ...itensTorcida]
+              .sort((a, b) => new Date(b.quando) - new Date(a.quando))
+              .slice(0, limite)
+          );
         }
       }
     } catch (e) {

@@ -108,6 +108,7 @@ export default function PerfilAmigoModal({
 
   async function handleAceitar() {
     setProcessando(true);
+    setMensagem(null);
     try {
       const supabase = criarClienteSupabase();
       const { data: pendente } = await supabase
@@ -118,11 +119,18 @@ export default function PerfilAmigoModal({
         .eq("status", "pendente")
         .maybeSingle();
 
-      if (pendente?.id) {
-        await supabase.rpc("responder_pedido_amizade_v2", { p_amizade_id: pendente.id, p_aceitar: true });
-        setEstadoRelacionamento("FRIENDS");
-        setMensagem({ tipo: "sucesso", texto: "Vocês agora são amigos! 🤝" });
+      if (!pendente?.id) {
+        setMensagem({ tipo: "erro", texto: "Este pedido não existe mais." });
+        return;
       }
+
+      const { error } = await supabase.rpc("responder_pedido_amizade_v2", { p_amizade_id: pendente.id, p_aceitar: true });
+      if (error) {
+        setMensagem({ tipo: "erro", texto: error.message || "Erro ao aceitar pedido." });
+        return;
+      }
+      setEstadoRelacionamento("FRIENDS");
+      setMensagem({ tipo: "sucesso", texto: "Vocês agora são amigos! 🤝" });
     } catch (e) {
       setMensagem({ tipo: "erro", texto: "Erro ao aceitar pedido." });
     } finally {
@@ -132,9 +140,14 @@ export default function PerfilAmigoModal({
 
   async function handleCancelarOuRemover() {
     setProcessando(true);
+    setMensagem(null);
     try {
       const supabase = criarClienteSupabase();
-      await supabase.rpc("remover_amizade", { p_amigo_id: amigoId });
+      const { error } = await supabase.rpc("remover_amizade", { p_amigo_id: amigoId });
+      if (error) {
+        setMensagem({ tipo: "erro", texto: error.message || "Erro ao remover." });
+        return;
+      }
       setEstadoRelacionamento("NONE");
       setMensagem({ tipo: "sucesso", texto: "Amizade removida." });
     } catch (e) {
@@ -147,9 +160,14 @@ export default function PerfilAmigoModal({
   async function handleBloquear() {
     if (!confirm("Tem certeza que deseja bloquear este usuário? Todas as amizades e solicitações serão desfeitas.")) return;
     setProcessando(true);
+    setMensagem(null);
     try {
       const supabase = criarClienteSupabase();
-      await supabase.rpc("bloquear_usuario", { p_target_id: amigoId });
+      const { error } = await supabase.rpc("bloquear_usuario", { p_target_id: amigoId });
+      if (error) {
+        setMensagem({ tipo: "erro", texto: error.message || "Erro ao bloquear." });
+        return;
+      }
       setEstadoRelacionamento("BLOCKED_BY_ME");
       setMensagem({ tipo: "sucesso", texto: "Usuário bloqueado." });
     } catch (e) {
@@ -161,9 +179,14 @@ export default function PerfilAmigoModal({
 
   async function handleDesbloquear() {
     setProcessando(true);
+    setMensagem(null);
     try {
       const supabase = criarClienteSupabase();
-      await supabase.rpc("desbloquear_usuario", { p_target_id: amigoId });
+      const { error } = await supabase.rpc("desbloquear_usuario", { p_target_id: amigoId });
+      if (error) {
+        setMensagem({ tipo: "erro", texto: error.message || "Erro ao desbloquear." });
+        return;
+      }
       setEstadoRelacionamento("NONE");
       setMensagem({ tipo: "sucesso", texto: "Usuário desbloqueado." });
     } catch (e) {

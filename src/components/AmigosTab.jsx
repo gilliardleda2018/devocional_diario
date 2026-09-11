@@ -38,7 +38,12 @@ export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaCo
     if (abaConexaoInicial) setAbaConexao(abaConexaoInicial);
   }, [subabaInicial, abaConexaoInicial]);
 
-  const { amigos = [], pedidos = [], pedidosEnviados = [], enviarPedido, torcer } = useAmigos(usuarioId);
+  // Única instância do hook para toda a aba: antes, CentralConexoes chamava
+  // useAmigos de novo por conta própria, duplicando fetch/realtime e podendo
+  // exibir contadores diferentes (ex.: "Amigos (N)" aqui vs. na lista) até as
+  // duas instâncias convergirem de forma independente.
+  const amigosApi = useAmigos(usuarioId);
+  const { amigos = [], pedidos = [], pedidosEnviados = [], enviarPedido, torcer } = amigosApi;
 
   const subabasConexoes = [
     { id: "amigos", label: `Amigos (${amigos.length})` },
@@ -90,6 +95,7 @@ export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaCo
             usuarioId={usuarioId}
             abaAtiva={abaConexao}
             onAbrirPerfil={(item) => setAmigoSelecionado(item)}
+            amigosApi={amigosApi}
           />
         </div>
       )}
@@ -278,7 +284,7 @@ function CardConectarRedes({ meuCodigo }) {
 // ---------------------------------------------------------------------------
 // Central de Conexões (Amigos, Pedidos, Enviados, Sugestões)
 // ---------------------------------------------------------------------------
-function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
+function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
   const {
     amigos = [],
     pedidos = [],
@@ -292,7 +298,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
     cancelarPedido,
     buscarUsuarios,
     torcer,
-  } = useAmigos(usuarioId);
+  } = amigosApi;
 
   const [buscaTermo, setBuscaTermo] = useState("");
   const [buscando, setBuscando] = useState(false);
@@ -319,8 +325,36 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
   }, [buscaTermo, buscarUsuarios]);
 
   async function handleTorcer(amigoId) {
-    setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: true }));
-    await torcer(amigoId);
+    setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: "enviando" }));
+    const res = await torcer(amigoId);
+    if (res?.sucesso !== false) {
+      setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: true }));
+    } else {
+      setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: false }));
+      alert(res?.erro || "Você já torceu hoje!");
+    }
+  }
+
+  async function handleResponderPedido(amizadeId, aceitar) {
+    const res = await responderPedido(amizadeId, aceitar);
+    if (res?.sucesso === false) {
+      alert(res?.erro || "Não foi possível responder à solicitação.");
+    }
+  }
+
+  async function handleCancelarPedido(amizadeId) {
+    const res = await cancelarPedido(amizadeId);
+    if (res?.sucesso === false) {
+      alert(res?.erro || "Não foi possível cancelar a solicitação.");
+    }
+  }
+
+  async function handleRemoverAmigo(amigoId) {
+    const res = await removerAmigo(amigoId);
+    if (res?.sucesso === false) {
+      alert(res?.erro || "Não foi possível remover a amizade.");
+    }
+    setConfirmandoRemocao(null);
   }
 
   async function handleEnviarPedido(targetId) {
@@ -415,7 +449,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
                               disabled={!!torcidaEnviada[targetId]}
                               onClick={() => handleTorcer(targetId)}
                             >
-                              {torcidaEnviada[targetId] ? "🔥 Torceu!" : "🔥 Torcer"}
+                              {torcidaEnviada[targetId] === "enviando" ? "Enviando..." : torcidaEnviada[targetId] ? "🔥 Torceu!" : "🔥 Torcer"}
                             </button>
                           </>
                         ) : jaEnviado ? (
@@ -425,7 +459,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
                             style={styles.btnAceitar}
                             onClick={async () => {
                               const ped = pedidos.find((p) => p.solicitante_id === targetId);
-                              if (ped) await responderPedido(ped.amizade_id || ped.id, true);
+                              if (ped) await handleResponderPedido(ped.amizade_id || ped.id, true);
                             }}
                           >
                             ✅ Aceitar
@@ -496,15 +530,12 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
                         disabled={!!torcidaEnviada[friendId]}
                         onClick={() => handleTorcer(friendId)}
                       >
-                        {torcidaEnviada[friendId] ? "🔥 Torceu!" : "🔥 Torcer"}
+                        {torcidaEnviada[friendId] === "enviando" ? "Enviando..." : torcidaEnviada[friendId] ? "🔥 Torceu!" : "🔥 Torcer"}
                       </button>
                       {confirmandoRemocao === (amigo.amizade_id || amigo.id) ? (
                         <button
                           style={styles.btnConfirmarRemocao}
-                          onClick={async () => {
-                            await removerAmigo(friendId);
-                            setConfirmandoRemocao(null);
-                          }}
+                          onClick={() => handleRemoverAmigo(friendId)}
                         >
                           Confirmar?
                         </button>
@@ -551,10 +582,10 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
                   <p style={styles.itemSub}>{p.username ? `@${p.username}` : "Quer se conectar com você"}</p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button style={styles.btnAceitar} onClick={() => responderPedido(p.amizade_id || p.id, true)}>
+                  <button style={styles.btnAceitar} onClick={() => handleResponderPedido(p.amizade_id || p.id, true)}>
                     ACEITAR
                   </button>
-                  <button style={styles.btnRemover} onClick={() => responderPedido(p.amizade_id || p.id, false)}>
+                  <button style={styles.btnRemover} onClick={() => handleResponderPedido(p.amizade_id || p.id, false)}>
                     REMOVER
                   </button>
                 </div>
@@ -588,7 +619,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil }) {
                   <p style={styles.itemNome}>{p.nome_exibicao}</p>
                   <p style={styles.itemSub}>Aguardando resposta...</p>
                 </div>
-                <button style={styles.btnCancelar} onClick={() => cancelarPedido(p.amizade_id || p.id)}>
+                <button style={styles.btnCancelar} onClick={() => handleCancelarPedido(p.amizade_id || p.id)}>
                   Cancelar pedido
                 </button>
               </div>

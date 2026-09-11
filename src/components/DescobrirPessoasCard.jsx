@@ -13,14 +13,18 @@ export default function DescobrirPessoasCard({
   const [adicionado, setAdicionado] = useState(false);
   const [seguindo, setSeguindo] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState(null);
 
   async function handleAdicionar() {
     if (processando || adicionado) return;
     setProcessando(true);
+    setErro(null);
     try {
       const res = await onAdicionar(candidato.candidate_id);
       if (res?.sucesso !== false) {
         setAdicionado(true);
+      } else {
+        setErro(res?.erro || "Não foi possível enviar a solicitação.");
       }
     } finally {
       setProcessando(false);
@@ -30,10 +34,13 @@ export default function DescobrirPessoasCard({
   async function handleSeguir() {
     if (processando || seguindo) return;
     setProcessando(true);
+    setErro(null);
     try {
       const res = await onSeguir(candidato.candidate_id);
       if (res?.sucesso !== false) {
         setSeguindo(true);
+      } else {
+        setErro(res?.erro || "Não foi possível seguir este usuário.");
       }
     } finally {
       setProcessando(false);
@@ -105,6 +112,8 @@ export default function DescobrirPessoasCard({
           🚫
         </button>
       </div>
+
+      {erro && <p style={styles.erroTexto}>{erro}</p>}
     </div>
   );
 }
@@ -193,6 +202,13 @@ const styles = {
     background: "#EAF4EC",
     borderRadius: 10,
     padding: "6px 0",
+  },
+  erroTexto: {
+    fontSize: 11.5,
+    color: "#B15A4A",
+    fontWeight: 600,
+    margin: 0,
+    textAlign: "center",
   },
   seguindoBadge: {
     flex: 1,
