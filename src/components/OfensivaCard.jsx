@@ -6,7 +6,7 @@
  * sequência, no mesmo espírito do Duolingo. Reaproveita os dados que já
  * vêm do useOfensiva (não faz nenhuma chamada nova).
  */
-export default function OfensivaCard({ ofensiva, jaFezHoje }) {
+export default function OfensivaCard({ ofensiva, jaFezHoje, congelamentos = 0 }) {
   const atual = ofensiva?.ofensiva_atual ?? 0;
   const recorde = ofensiva?.maior_ofensiva ?? 0;
 
@@ -40,6 +40,9 @@ export default function OfensivaCard({ ofensiva, jaFezHoje }) {
           <p style={estilos.titulo}>{titulo}</p>
           <p style={estilos.mensagem}>{mensagem}</p>
           {recorde > 0 && <p style={estilos.recorde}>Seu recorde: {recorde} {recorde === 1 ? "dia" : "dias"}</p>}
+          {congelamentos > 0 && (
+            <p style={estilos.congelamento}>🧊 {congelamentos} {congelamentos === 1 ? "congelamento" : "congelamentos"} em estoque</p>
+          )}
         </div>
       </div>
     </div>
@@ -77,4 +80,5 @@ const estilos = {
   titulo: { fontSize: 15, fontWeight: 800, color: "#33422F", margin: "0 0 2px" },
   mensagem: { fontSize: 12.5, color: "#5C6B5F", margin: 0, lineHeight: 1.4 },
   recorde: { fontSize: 11, color: "#9AA79C", fontWeight: 600, margin: "4px 0 0" },
+  congelamento: { fontSize: 11, color: "#4A7FA6", fontWeight: 600, margin: "2px 0 0" },
 };

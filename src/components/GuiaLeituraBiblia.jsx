@@ -4,19 +4,40 @@ import { useState } from "react";
 import { BOOKS_PT } from "@/src/lib/biblia/getBibleApi";
 import { MOODS } from "@/src/lib/devocional/versiculos";
 import { GUIAS_LEITURA } from "@/src/lib/devocional/guiasLeitura";
+import { useGuiaProgresso } from "@/src/lib/hooks/useGuiaProgresso";
+import { showToast } from "@/src/lib/ui/toast";
+import TrilhaFases from "@/src/components/TrilhaFases";
+import BauModal from "@/src/components/BauModal";
 
 /**
  * "Sistema de recomendação" de leitura: a pessoa escolhe o que está
  * sentindo/enfrentando (mesmos temas do devocional guiado) e recebe um
- * guia com 2-3 livros/capítulos por onde começar, com o motivo da
- * indicação -- incentivo pra ler a Bíblia completa, não só o versículo
- * avulso do dia.
+ * guia com 3 livros/capítulos por onde começar, agora como uma mini-trilha
+ * (estilo Duolingo): cada capítulo só libera depois do anterior confirmado
+ * como lido, com XP + Sementes por capítulo e um Baú ao concluir os 3.
  */
-export default function GuiaLeituraBiblia({ onAbrirLivro }) {
+export default function GuiaLeituraBiblia({ usuarioId, onAbrirLivro }) {
   const [aberto, setAberto] = useState(false);
   const [moodId, setMoodId] = useState(null);
+  const [marcando, setMarcando] = useState(false);
+  const { indiceAtual, totalCapitulos, avancarGuia, bauRecebido, limparBauRecebido } = useGuiaProgresso(usuarioId);
 
   const guia = moodId ? GUIAS_LEITURA[moodId] : null;
+  const progresso = moodId ? indiceAtual(moodId) : 0;
+
+  async function handleMarcarLido() {
+    if (!moodId || marcando) return;
+    setMarcando(true);
+    const res = await avancarGuia(moodId);
+    setMarcando(false);
+    if (res?.sucesso) {
+      if (!res.bauId) {
+        showToast(`+${res.xpGanho} XP · +${res.sementesGanhas} 🌱`, "sucesso");
+      }
+    } else {
+      showToast(res?.erro || "Não foi possível registrar a leitura.");
+    }
+  }
 
   if (!aberto) {
     return (
@@ -62,31 +83,60 @@ export default function GuiaLeituraBiblia({ onAbrirLivro }) {
           </div>
           <p style={estilos.tituloGuia}>{guia.titulo}</p>
           <p style={estilos.subtitulo}>{guia.descricao}</p>
-          <div style={estilos.listaLivros}>
-            {guia.livros.map((l) => {
-              const numero = BOOKS_PT.indexOf(l.nome) + 1;
-              return (
-                <div key={`${l.nome}-${l.capitulo}`} style={estilos.livroCard}>
-                  <div style={estilos.livroTextos}>
-                    <p style={estilos.livroTitulo}>
-                      {l.nome} {l.capitulo}
-                    </p>
-                    <p style={estilos.livroMotivo}>{l.motivo}</p>
+
+          <TrilhaFases
+            orientation="horizontal"
+            fases={guia.livros.map((l, i) => ({
+              id: `${l.nome}-${l.capitulo}`,
+              label: `${l.nome} ${l.capitulo}`,
+              icone: "📖",
+              descricao: l.motivo,
+              status: i < progresso ? "completo" : i === progresso ? "atual" : "bloqueado",
+            }))}
+          />
+
+          {progresso >= totalCapitulos ? (
+            <p style={estilos.concluidoTexto}>✓ Guia concluído! Escolha outro tema quando quiser.</p>
+          ) : (
+            <div style={estilos.listaLivros}>
+              {guia.livros.map((l, i) => {
+                if (i !== progresso) return null;
+                const numero = BOOKS_PT.indexOf(l.nome) + 1;
+                return (
+                  <div key={`${l.nome}-${l.capitulo}`} style={estilos.livroCard}>
+                    <div style={estilos.livroTextos}>
+                      <p style={estilos.livroTitulo}>
+                        {l.nome} {l.capitulo}
+                      </p>
+                      <p style={estilos.livroMotivo}>{l.motivo}</p>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                      <button
+                        className="action-btn chunky"
+                        style={estilos.lerBtn}
+                        onClick={() => numero > 0 && onAbrirLivro(numero, l.capitulo)}
+                        disabled={numero <= 0}
+                      >
+                        Ler →
+                      </button>
+                      <button
+                        className="action-btn"
+                        style={estilos.marcarBtn}
+                        onClick={handleMarcarLido}
+                        disabled={marcando}
+                      >
+                        {marcando ? "..." : "Marcar como lido ✓"}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    className="action-btn chunky"
-                    style={estilos.lerBtn}
-                    onClick={() => numero > 0 && onAbrirLivro(numero, l.capitulo)}
-                    disabled={numero <= 0}
-                  >
-                    Ler →
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
+
+      <BauModal bauId={bauRecebido} aoFechar={limparBauRecebido} />
     </div>
   );
 }
@@ -186,5 +236,26 @@ const estilos = {
     fontWeight: 700,
     fontSize: 12.5,
     cursor: "pointer",
+  },
+  marcarBtn: {
+    flexShrink: 0,
+    background: "#EAF4EC",
+    color: "#3F7A4D",
+    border: "1px solid #A8D5B5",
+    borderRadius: 10,
+    padding: "7px 10px",
+    fontWeight: 700,
+    fontSize: 11.5,
+    cursor: "pointer",
+  },
+  concluidoTexto: {
+    textAlign: "center",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#3F7A4D",
+    background: "#EAF4EC",
+    borderRadius: 12,
+    padding: "12px",
+    margin: 0,
   },
 };

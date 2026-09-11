@@ -7,10 +7,11 @@ import { montarQuizDoDia } from "@/src/lib/devocional/quiz";
  * Quiz rápido (múltipla escolha, lacunas e ordenação de blocos) sobre o
  * versículo do dia -- reforça o aprendizado com feedback imediato.
  */
-export default function QuizVersiculo({ entrada, texto, onProgresso }) {
+export default function QuizVersiculo({ entrada, texto, onProgresso, onConcluido }) {
   const perguntas = useMemo(() => montarQuizDoDia(entrada, texto), [entrada, texto]);
   const [respostas, setRespostas] = useState({});
   const [selecoesOrdenacao, setSelecoesOrdenacao] = useState({});
+  const [jaNotificouConclusao, setJaNotificouConclusao] = useState(false);
 
   const totalRespondidas = Object.keys(respostas).length;
 
@@ -22,20 +23,33 @@ export default function QuizVersiculo({ entrada, texto, onProgresso }) {
   useEffect(() => {
     setRespostas({});
     setSelecoesOrdenacao({});
+    setJaNotificouConclusao(false);
   }, [entrada?.ref]);
+
+  const acertosAteAgora = useMemo(
+    () =>
+      perguntas.filter((p) => {
+        if (p.id === "ordenacao") {
+          const selecao = selecoesOrdenacao[p.id] || [];
+          if (selecao.length !== p.respostaCorreta.length) return false;
+          return selecao.every((bloco, idx) => bloco === p.respostaCorreta[idx]);
+        }
+        return respostas[p.id] === p.respostaCorreta;
+      }).length,
+    [perguntas, respostas, selecoesOrdenacao]
+  );
+
+  useEffect(() => {
+    if (perguntas.length > 0 && totalRespondidas === perguntas.length && !jaNotificouConclusao) {
+      setJaNotificouConclusao(true);
+      onConcluido?.({ acertos: acertosAteAgora, total: perguntas.length });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalRespondidas, perguntas.length, jaNotificouConclusao, acertosAteAgora]);
 
   if (!perguntas.length) return null;
 
-  function verificarAcerto(p) {
-    if (p.id === "ordenacao") {
-      const selecao = selecoesOrdenacao[p.id] || [];
-      if (selecao.length !== p.respostaCorreta.length) return false;
-      return selecao.every((bloco, idx) => bloco === p.respostaCorreta[idx]);
-    }
-    return respostas[p.id] === p.respostaCorreta;
-  }
-
-  const acertos = perguntas.filter((p) => verificarAcerto(p)).length;
+  const acertos = acertosAteAgora;
 
   function handleCliqueBloco(p, bloco) {
     if (respostas[p.id] !== undefined) return;

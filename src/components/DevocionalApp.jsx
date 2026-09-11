@@ -37,6 +37,10 @@ import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
 import CentralNotificacoesModal from "@/src/components/CentralNotificacoesModal";
 import OnboardingModal from "@/src/components/OnboardingModal";
 import ToastHost from "@/src/components/ToastHost";
+import { showToast } from "@/src/lib/ui/toast";
+import BauModal from "@/src/components/BauModal";
+import LojaSementes from "@/src/components/LojaSementes";
+import { useSementes } from "@/src/lib/hooks/useSementes";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 
 export default function DevocionalApp({ usuario }) {
@@ -96,6 +100,9 @@ export default function DevocionalApp({ usuario }) {
   }, [usuario]);
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario?.id);
+  const { saldo: saldoSementes, congelamentos, recarregar: recarregarSementes } = useSementes(usuario?.id);
+  const [lojaSementesAberta, setLojaSementesAberta] = useState(false);
+  const [bauPendenteId, setBauPendenteId] = useState(null);
   const { favoritos = [], carregando: carregandoFavoritos, eFavorito, alternarFavorito } = useFavoritos(usuario?.id);
   const [tamanhoFonte, setTamanhoFonte] = useState(16);
   const estadoMascote = jaFezHoje ? "feliz" : (ofensiva?.ofensiva_atual ?? 0) === 0 && (ofensiva?.maior_ofensiva ?? 0) > 0 ? "triste" : "neutro";
@@ -171,6 +178,34 @@ export default function DevocionalApp({ usuario }) {
       reflexao: diario || null,
     });
     setGatilhoRecarga((n) => n + 1);
+    recarregarSementes();
+
+    // Marco de ofensiva (7/30/100 dias) concede um Baú -- checa se apareceu um novo.
+    try {
+      const supabase = criarClienteSupabase();
+      const { data } = await supabase.rpc("obter_meus_bauis_pendentes").catch(() => ({ data: null }));
+      if (Array.isArray(data) && data.length > 0) {
+        setBauPendenteId(data[0].id);
+      }
+    } catch (e) {
+      console.error("Erro ao checar baús pendentes:", e);
+    }
+  }
+
+  async function handleQuizConcluido({ acertos, total }) {
+    try {
+      const supabase = criarClienteSupabase();
+      const { data, error } = await supabase.rpc("concluir_quiz_hoje", { p_acertos: acertos, p_total: total });
+      if (error) return;
+      const linha = Array.isArray(data) ? data[0] : data;
+      if (linha && !linha.ja_concluido) {
+        showToast(`Quiz concluído! +${linha.xp_ganho} XP · +${linha.sementes_ganhas} 🌱`, "sucesso");
+        setGatilhoRecarga((n) => n + 1);
+        recarregarSementes();
+      }
+    } catch (e) {
+      console.error("Erro ao concluir quiz:", e);
+    }
   }
 
   const moodInfo = encontrarMood(moodSelecionado);
@@ -396,6 +431,14 @@ export default function DevocionalApp({ usuario }) {
             <span style={styles.ofensivaChip} title={`Maior sequência: ${ofensiva?.maior_ofensiva ?? 0} dias`}>
               <span className="flame-icon">🔥</span> {ofensiva?.ofensiva_atual ?? 0}
             </span>
+            <button
+              className="action-btn"
+              style={styles.sementesChip}
+              onClick={() => setLojaSementesAberta(true)}
+              title="Loja de Sementes de Fé"
+            >
+              🌱 {saldoSementes}
+            </button>
             <button className="action-btn" style={styles.linkBtn} onClick={sair}>
               Sair
             </button>
@@ -403,6 +446,21 @@ export default function DevocionalApp({ usuario }) {
         </div>
 
         <LembreteModal aberto={modalLembreteAberto} aoFechar={() => setModalLembreteAberto(false)} />
+
+        <BauModal
+          bauId={bauPendenteId}
+          aoFechar={() => setBauPendenteId(null)}
+          aoAbrir={() => recarregarSementes()}
+        />
+
+        <LojaSementes
+          usuarioId={usuario?.id}
+          aberto={lojaSementesAberta}
+          aoFechar={() => {
+            setLojaSementesAberta(false);
+            recarregarSementes();
+          }}
+        />
         
         <PerfilModal
           usuario={usuario}
@@ -527,7 +585,7 @@ export default function DevocionalApp({ usuario }) {
         {aba === "inicio" && (
           <>
             {/* OFENSIVA: reforça a chama da oração diária, incentiva a não perder a sequência */}
-            <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} />
+            <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} congelamentos={congelamentos} />
 
             {/* VERSÍCULO DO DIA */}
             <div style={styles.card}>
@@ -575,7 +633,12 @@ export default function DevocionalApp({ usuario }) {
 
             {textoDoDia && (
               <div style={{ marginTop: 20 }}>
-                <QuizVersiculo entrada={versiculoDoDia} texto={textoDoDia} onProgresso={setQuizRespondidas} />
+                <QuizVersiculo
+                  entrada={versiculoDoDia}
+                  texto={textoDoDia}
+                  onProgresso={setQuizRespondidas}
+                  onConcluido={handleQuizConcluido}
+                />
               </div>
             )}
 
@@ -584,7 +647,7 @@ export default function DevocionalApp({ usuario }) {
             </div>
 
             <div style={{ marginTop: 20 }}>
-              <GuiaLeituraBiblia onAbrirLivro={abrirLivroDoGuiaNaInicio} />
+              <GuiaLeituraBiblia usuarioId={usuario?.id} onAbrirLivro={abrirLivroDoGuiaNaInicio} />
             </div>
 
             {!devocional && (
@@ -732,7 +795,7 @@ export default function DevocionalApp({ usuario }) {
 
             {!numeroLivroSelecionado && (
               <>
-                <GuiaLeituraBiblia onAbrirLivro={abrirLivro} />
+                <GuiaLeituraBiblia usuarioId={usuario?.id} onAbrirLivro={abrirLivro} />
 
                 <h2 style={styles.sectionTitle}>Escolha um livro</h2>
                 <p style={styles.sectionSubtitle}>
@@ -1000,6 +1063,19 @@ const styles = {
     fontSize: 13,
     fontWeight: 700,
     color: "#8A6224",
+  },
+  sementesChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    background: "#EAF4EC",
+    border: "1px solid #A8D5B5",
+    borderRadius: 999,
+    padding: "4px 10px",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#3F7A4D",
+    cursor: "pointer",
   },
   linkBtn: {
     background: "transparent",

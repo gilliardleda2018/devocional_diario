@@ -5,6 +5,7 @@ import { useAmigos } from "@/src/lib/hooks/useAmigos";
 import { useFeedAmigos } from "@/src/lib/hooks/useFeedAmigos";
 import { useDesafios } from "@/src/lib/hooks/useDesafios";
 import { useRankingAmigos } from "@/src/lib/hooks/useRankingAmigos";
+import { useLigaSemanal, TIER_INFO } from "@/src/lib/hooks/useLigaSemanal";
 import { MOODS } from "@/src/lib/devocional/versiculos";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
@@ -773,7 +774,7 @@ function Desafios({ usuarioId }) {
             <div style={styles.desafioTopo}>
               <strong style={{ fontSize: 14, color: "#33422F" }}>{d.titulo}</strong>
               <span style={{ fontSize: 12, fontWeight: 700, color: d.completo ? "#3F7A4D" : "#B98B4E" }}>
-                {d.completo ? "✓ Concluído!" : `+${d.xp_recompensa || 50} XP`}
+                {d.completo ? "✓ Concluído!" : `${d.progresso || 0}/${d.meta || 1}`}
               </span>
             </div>
             <p style={{ fontSize: 12.5, color: "#606F63", margin: "4px 0 8px" }}>{d.descricao}</p>
@@ -791,26 +792,68 @@ function Desafios({ usuarioId }) {
 // Liga / Ranking
 // ---------------------------------------------------------------------------
 function LigaAmigos({ usuarioId, onAbrirPerfil }) {
-  const { ranking = [], carregando } = useRankingAmigos(usuarioId);
+  const [visao, setVisao] = useState("semana");
+  const { ranking = [], carregando: carregandoTotal } = useRankingAmigos(usuarioId);
+  const { liga = [], carregando: carregandoSemana, proximoReset } = useLigaSemanal(usuarioId);
 
-  if (carregando) return <p style={styles.loadingText}>Carregando liga de amigos...</p>;
-
-  if (ranking.length <= 1) {
-    return <p style={styles.vazioTexto}>Adicione amigos pra formar sua liga e comparar devocionais.</p>;
-  }
+  const carregando = visao === "semana" ? carregandoSemana : carregandoTotal;
+  const lista = visao === "semana" ? liga : ranking;
 
   return (
-    <div style={styles.rankingCard}>
-      {ranking.map((r) => (
-        <div key={`${r.posicao}-${r.nome_exibicao}`} style={{ ...styles.rankingRow, ...(r.sou_eu ? styles.rankingRowEu : {}) }}>
-          <span style={styles.rankingPosicao}>#{r.posicao}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => onAbrirPerfil(r)}>
-            <AvatarUsuario nome={r.nome_exibicao} fotoUrl={r.foto_url} tamanho={28} />
-            <span style={styles.rankingNome}>{r.nome_exibicao}</span>
-          </div>
-          <span style={styles.rankingXp}>{r.xp_total} XP</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={styles.conexoesTabRow}>
+        <button
+          style={visao === "semana" ? styles.conexaoAtiva : styles.conexaoInativa}
+          onClick={() => setVisao("semana")}
+        >
+          Esta semana
+        </button>
+        <button
+          style={visao === "total" ? styles.conexaoAtiva : styles.conexaoInativa}
+          onClick={() => setVisao("total")}
+        >
+          Todo o tempo
+        </button>
+      </div>
+
+      {visao === "semana" && (
+        <p style={styles.ligaResetTexto}>
+          Reseta {proximoReset.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" })}
+        </p>
+      )}
+
+      {carregando ? (
+        <p style={styles.loadingText}>Carregando liga de amigos...</p>
+      ) : lista.length <= 1 ? (
+        <p style={styles.vazioTexto}>Adicione amigos pra formar sua liga e comparar devocionais.</p>
+      ) : (
+        <div style={styles.rankingCard}>
+          {lista.map((r) => {
+            const tier = visao === "semana" ? TIER_INFO[r.tier] : null;
+            return (
+              <div
+                key={`${r.posicao}-${r.usuario_id || r.nome_exibicao}`}
+                style={{ ...styles.rankingRow, ...(r.sou_eu ? styles.rankingRowEu : {}) }}
+              >
+                <span style={styles.rankingPosicao}>#{r.posicao}</span>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }}
+                  onClick={() => onAbrirPerfil(r)}
+                >
+                  <AvatarUsuario nome={r.nome_exibicao} fotoUrl={r.foto_url} tamanho={28} />
+                  <span style={styles.rankingNome}>{r.nome_exibicao}</span>
+                  {tier && (
+                    <span style={{ ...styles.tierBadge, color: tier.cor, borderColor: tier.cor }}>
+                      {tier.icone} {tier.label}
+                    </span>
+                  )}
+                </div>
+                <span style={styles.rankingXp}>{visao === "semana" ? r.xp_semana : r.xp_total} XP</span>
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -1021,4 +1064,14 @@ const styles = {
   rankingPosicao: { width: 32, color: "#B98B4E", fontWeight: 700 },
   rankingNome: { flex: 1, color: "#2D3B33", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   rankingXp: { color: "#7A8A7F", fontWeight: 700 },
+  ligaResetTexto: { fontSize: 11.5, color: "#9AA79C", fontStyle: "italic", textAlign: "center", margin: 0, textTransform: "capitalize" },
+  tierBadge: {
+    flexShrink: 0,
+    fontSize: 10.5,
+    fontWeight: 700,
+    padding: "2px 7px",
+    borderRadius: 999,
+    border: "1px solid",
+    background: "#FFFFFF",
+  },
 };

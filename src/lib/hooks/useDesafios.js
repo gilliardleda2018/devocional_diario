@@ -35,7 +35,11 @@ export function useDesafios(usuarioId) {
       const ofensivaAtual = ofensiva?.ofensiva_atual ?? statsData?.ofensiva_atual ?? 0;
       const maiorOfensiva = ofensiva?.maior_ofensiva ?? statsData?.maior_ofensiva ?? 0;
 
-      // Desafios padrão de engajamento no Devocional Diário
+      // Desafios padrão de engajamento no Devocional Diário. Sem xp_recompensa:
+      // são marcos informativos, não pagam XP/sementes (só o devocional, o
+      // quiz e os guias de leitura concedem recompensa de verdade). Mostrar
+      // um valor de XP aqui que nunca é creditado seria prometer o que não
+      // se cumpre.
       const desafiosPadrao = [
         {
           id: "def-chama-3",
@@ -43,7 +47,6 @@ export function useDesafios(usuarioId) {
           descricao: "Complete 3 dias seguidos de devocional e oração.",
           progresso: Math.min(3, Math.max(ofensivaAtual, maiorOfensiva)),
           meta: 3,
-          xp_recompensa: 50,
           completo: Math.max(ofensivaAtual, maiorOfensiva) >= 3,
         },
         {
@@ -52,7 +55,6 @@ export function useDesafios(usuarioId) {
           descricao: "Conclua 7 devocionais diários com reflexão espiritual.",
           progresso: Math.min(7, devocionaisCount),
           meta: 7,
-          xp_recompensa: 100,
           completo: devocionaisCount >= 7,
         },
         {
@@ -61,7 +63,6 @@ export function useDesafios(usuarioId) {
           descricao: "Interceda por 5 pedidos de oração de irmãos da comunidade.",
           progresso: Math.min(5, stats?.oracoes_realizadas || 2),
           meta: 5,
-          xp_recompensa: 75,
           completo: (stats?.oracoes_realizadas || 2) >= 5,
         },
         {
@@ -70,7 +71,6 @@ export function useDesafios(usuarioId) {
           descricao: "Alcance uma sequência impressionante de 14 dias de oração.",
           progresso: Math.min(14, Math.max(ofensivaAtual, maiorOfensiva)),
           meta: 14,
-          xp_recompensa: 200,
           completo: Math.max(ofensivaAtual, maiorOfensiva) >= 14,
         },
       ];
@@ -96,7 +96,6 @@ export function useDesafios(usuarioId) {
           descricao: "Complete 3 dias seguidos de devocional e oração.",
           progresso: 1,
           meta: 3,
-          xp_recompensa: 50,
           completo: false,
         },
       ]);
