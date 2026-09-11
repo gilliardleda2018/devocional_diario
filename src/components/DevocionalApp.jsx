@@ -36,6 +36,7 @@ import PerfilModal from "@/src/components/PerfilModal";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
 import CentralNotificacoesModal from "@/src/components/CentralNotificacoesModal";
 import OnboardingModal from "@/src/components/OnboardingModal";
+import ToastHost from "@/src/components/ToastHost";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 
 export default function DevocionalApp({ usuario }) {
@@ -910,6 +911,7 @@ export default function DevocionalApp({ usuario }) {
 
         {aba === "amigos" && <AmigosTab usuarioId={usuario?.id} abaConexaoInicial={abaConexaoAmigos} />}
       </div>
+      <ToastHost />
     </div>
   );
 }

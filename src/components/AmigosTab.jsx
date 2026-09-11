@@ -10,6 +10,7 @@ import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
 import ModalImportarContatos from "@/src/components/ModalImportarContatos";
 import { copiarTextoSeguro } from "@/src/lib/util/copiarSeguro";
+import { showToast } from "@/src/lib/ui/toast";
 
 const SUBABAS_PRINCIPAIS = [
   { id: "conexoes", label: "Conexões" },
@@ -331,28 +332,28 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
       setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: true }));
     } else {
       setTorcidaEnviada((prev) => ({ ...prev, [amigoId]: false }));
-      alert(res?.erro || "Você já torceu hoje!");
+      showToast(res?.erro || "Você já torceu hoje!");
     }
   }
 
   async function handleResponderPedido(amizadeId, aceitar) {
     const res = await responderPedido(amizadeId, aceitar);
     if (res?.sucesso === false) {
-      alert(res?.erro || "Não foi possível responder à solicitação.");
+      showToast(res?.erro || "Não foi possível responder à solicitação.");
     }
   }
 
   async function handleCancelarPedido(amizadeId) {
     const res = await cancelarPedido(amizadeId);
     if (res?.sucesso === false) {
-      alert(res?.erro || "Não foi possível cancelar a solicitação.");
+      showToast(res?.erro || "Não foi possível cancelar a solicitação.");
     }
   }
 
   async function handleRemoverAmigo(amigoId) {
     const res = await removerAmigo(amigoId);
     if (res?.sucesso === false) {
-      alert(res?.erro || "Não foi possível remover a amizade.");
+      showToast(res?.erro || "Não foi possível remover a amizade.");
     }
     setConfirmandoRemocao(null);
   }
@@ -364,7 +365,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
       setPedidoEnviadoEstado((prev) => ({ ...prev, [targetId]: "enviado" }));
     } else {
       setPedidoEnviadoEstado((prev) => ({ ...prev, [targetId]: "erro" }));
-      alert(res?.erro || "Não foi possível enviar a solicitação.");
+      showToast(res?.erro || "Não foi possível enviar a solicitação.");
     }
   }
 

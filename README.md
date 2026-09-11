@@ -92,8 +92,9 @@ Para habilitar todas as funcionalidades de Conexões, Notificações e Gamifica�
 
 1. `supabase/schema.sql` (Estrutura base, tabelas de perfis, devocionais, estatísticas e orações).
 2. `supabase/atualizacao_gamificacao.sql` (Tabelas de ofensivas, missões e conquistas).
-3. `supabase/schema_faith_graph.sql` (Relacionamentos de amizade, blocos de usuários e torcidas).
-4. `supabase/schema_v2_social_notifications.sql` (Tabela de notificações, RPCs `get_relationship_state`, `enviar_pedido_amizade_v2`, `obter_notificacoes`, `obter_recomendacoes_pessoas`, `buscar_usuarios` e `obter_amigos_em_comum`).
+3. `supabase/schema_faith_graph.sql` (Relacionamentos de amizade, blocos de usuários, torcidas e RPC `obter_recomendacoes_pessoas`).
+4. `supabase/schema_v2_social_notifications.sql` (Tabela de notificações, RPCs `get_relationship_state`, `enviar_pedido_amizade_v2`, `obter_notificacoes`, `buscar_usuarios` e `obter_amigos_em_comum`).
+5. `supabase/schema_v3_fixes.sql` (**obrigatório** — corrige um erro de sintaxe em `buscar_usuarios()` que travava a criação dela e de tudo que vinha depois no arquivo anterior, remove a função antiga e insegura de amizade v1, e implementa as RPCs de Comunidades).
 
 ---
 

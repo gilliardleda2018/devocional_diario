@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 import { useAmigos } from "@/src/lib/hooks/useAmigos";
+import { showToast } from "@/src/lib/ui/toast";
 
 export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirPerfilAmigo, aoIrParaPedidos }) {
   const {
@@ -37,7 +38,7 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
     try {
       const res = await responderPedido(notif.entity_id, true);
       if (res?.sucesso === false) {
-        alert(res?.erro || "Não foi possível aceitar o pedido.");
+        showToast(res?.erro || "Não foi possível aceitar o pedido.");
         return;
       }
       await marcarComoLida(notif.id);
@@ -54,7 +55,7 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
     try {
       const res = await responderPedido(notif.entity_id, false);
       if (res?.sucesso === false) {
-        alert(res?.erro || "Não foi possível remover o pedido.");
+        showToast(res?.erro || "Não foi possível remover o pedido.");
         return;
       }
       await marcarComoLida(notif.id);
