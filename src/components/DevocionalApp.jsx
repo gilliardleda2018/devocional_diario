@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
+import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
 import { useProgressoSemana } from "@/src/lib/hooks/useProgressoSemana";
 import {
   BOOKS_PT,
@@ -23,6 +24,7 @@ import ComunidadeTab from "@/src/components/ComunidadeTab";
 import TrilhaFases from "@/src/components/TrilhaFases";
 import MissoesCard from "@/src/components/MissoesCard";
 import OfensivaCard from "@/src/components/OfensivaCard";
+import AmigosOrandoHojeCard from "@/src/components/AmigosOrandoHojeCard";
 import QuizVersiculo from "@/src/components/QuizVersiculo";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
 import GuiaLeituraBiblia from "@/src/components/GuiaLeituraBiblia";
@@ -102,6 +104,7 @@ export default function DevocionalApp({ usuario }) {
   }, [usuario]);
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario?.id);
+  const { amigosOrando, carregando: carregandoAmigosOrando } = useAmigosOrandoHoje(usuario?.id);
   const { saldo: saldoSementes, congelamentos, recarregar: recarregarSementes } = useSementes(usuario?.id);
   const [lojaSementesAberta, setLojaSementesAberta] = useState(false);
   const [bauPendenteId, setBauPendenteId] = useState(null);
@@ -588,6 +591,9 @@ export default function DevocionalApp({ usuario }) {
           <>
             {/* OFENSIVA: reforça a chama da oração diária, incentiva a não perder a sequência */}
             <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} congelamentos={congelamentos} />
+
+            {/* AMIGOS ORANDO HOJE: sensação de comunhão, sem depender de presença ao vivo */}
+            <AmigosOrandoHojeCard amigosOrando={amigosOrando} carregando={carregandoAmigosOrando} />
 
             {/* VERSÍCULO DO DIA */}
             <div style={styles.card}>
