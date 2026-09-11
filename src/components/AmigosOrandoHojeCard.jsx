@@ -8,7 +8,7 @@ import AvatarUsuario from "@/src/components/AvatarUsuario";
  * (obter_amigos_orando_hoje), que dá a mesma sensação de comunhão sem
  * depender de todo mundo estar com o app aberto no mesmo minuto.
  */
-export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = false, aoTorcer }) {
+export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = false, aoTorcer, aoAbrirPerfil }) {
   if (carregando || amigosOrando.length === 0) return null;
 
   return (
@@ -31,7 +31,14 @@ export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = f
         {amigosOrando.map((amigo) => (
           <div key={`${amigo.usuario_id}-${amigo.criado_em}`} style={estilos.item}>
             <div style={{ position: "relative" }}>
-              <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={38} />
+              <button
+                type="button"
+                onClick={() => aoAbrirPerfil?.(amigo.usuario_id)}
+                title={amigo.username ? `Ver perfil de @${amigo.username}` : `Ver perfil de ${amigo.nome_exibicao}`}
+                style={estilos.avatarBtn}
+              >
+                <AvatarUsuario nome={amigo.nome_exibicao} fotoUrl={amigo.foto_url} tamanho={38} />
+              </button>
               <button
                 type="button"
                 onClick={() => aoTorcer?.(amigo.usuario_id)}
@@ -45,7 +52,14 @@ export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = f
                 {amigo.ja_torci ? "💪" : "🙌"}
               </button>
             </div>
-            <span style={estilos.nome}>{primeiroNome(amigo.nome_exibicao)}</span>
+            <button
+              type="button"
+              onClick={() => aoAbrirPerfil?.(amigo.usuario_id)}
+              style={estilos.nomeBtn}
+              title={amigo.username ? `@${amigo.username}` : undefined}
+            >
+              <span style={estilos.nome}>{primeiroNome(amigo.nome_exibicao)}</span>
+            </button>
             {amigo.tema_oracao && <span style={estilos.tema}>{amigo.tema_oracao}</span>}
           </div>
         ))}
@@ -102,6 +116,21 @@ const estilos = {
     alignItems: "center",
     gap: 4,
     width: 64,
+  },
+  avatarBtn: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
+    display: "block",
+    borderRadius: "50%",
+  },
+  nomeBtn: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
+    width: "100%",
   },
   botaoTorcer: {
     position: "absolute",

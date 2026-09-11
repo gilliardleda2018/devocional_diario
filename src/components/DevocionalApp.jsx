@@ -593,7 +593,12 @@ export default function DevocionalApp({ usuario }) {
             <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} congelamentos={congelamentos} />
 
             {/* AMIGOS ORANDO HOJE: sensação de comunhão, sem depender de presença ao vivo */}
-            <AmigosOrandoHojeCard amigosOrando={amigosOrando} carregando={carregandoAmigosOrando} aoTorcer={torcerPorAmigo} />
+            <AmigosOrandoHojeCard
+              amigosOrando={amigosOrando}
+              carregando={carregandoAmigosOrando}
+              aoTorcer={torcerPorAmigo}
+              aoAbrirPerfil={setPerfilAmigoId}
+            />
 
             {/* VERSÍCULO DO DIA */}
             <div style={styles.card}>
