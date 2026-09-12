@@ -705,10 +705,15 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicion
         const { criarClienteSupabase } = await import("@/src/lib/supabase/client");
         const supabase = criarClienteSupabase();
         
-        // 1. Tenta via RPC
+        // 1. Tenta via RPC -- ela já exclui amigos, pendentes e bloqueados no
+        // banco, então uma lista VAZIA é uma resposta válida (esgotou
+        // recomendações de verdade), não motivo pra cair no fallback. Só o
+        // fallback quando a RPC falha de verdade (schema ausente etc.) --
+        // senão pessoas já adicionadas/aceitas voltavam a aparecer aqui toda
+        // vez que a RPC não tinha mais ninguém novo pra sugerir.
         const { data, error } = await supabase.rpc("obter_recomendacoes_pessoas", { p_limite: 15 }).catch(() => ({ error: true }));
-        
-        if (vivo && !error && data && Array.isArray(data) && data.length > 0) {
+
+        if (vivo && !error && Array.isArray(data)) {
           setSugestoes(data);
           return;
         }
@@ -748,7 +753,7 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicion
 
   if (carregando) return <p style={styles.loadingText}>Buscando pessoas recomendadas...</p>;
 
-  const listaFiltrada = sugestoes.filter((s) => !sugestoesIgnoradas[s.candidate_id]);
+  const listaFiltrada = sugestoes.filter((s) => !sugestoesIgnoradas[s.candidate_id] && !adicionados[s.candidate_id]);
 
   if (listaFiltrada.length === 0) {
     return (
