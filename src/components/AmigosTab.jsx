@@ -75,6 +75,7 @@ export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaCo
           usuarioId={usuarioId}
           irParaConexoes={() => { setSubaba("conexoes"); setAbaConexao("sugestoes"); }}
           onAbrirPerfil={(item) => setAmigoSelecionado(item)}
+          torcer={torcer}
         />
       )}
 
@@ -128,9 +129,21 @@ export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaCo
 // ---------------------------------------------------------------------------
 // Feed dos Amigos
 // ---------------------------------------------------------------------------
-function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
+function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil, torcer }) {
   const { feed = [], carregando, novoItemAlert } = useFeedAmigos(usuarioId);
   const listaFeed = feed || [];
+  const [torcidaEnviada, setTorcidaEnviada] = useState({});
+
+  async function handleTorcer(pessoaId) {
+    setTorcidaEnviada((prev) => ({ ...prev, [pessoaId]: "enviando" }));
+    const res = await torcer(pessoaId);
+    if (res?.sucesso !== false) {
+      setTorcidaEnviada((prev) => ({ ...prev, [pessoaId]: true }));
+    } else {
+      setTorcidaEnviada((prev) => ({ ...prev, [pessoaId]: false }));
+      showToast(res?.erro || "Você já torceu por essa pessoa hoje!");
+    }
+  }
 
   if (carregando) return <p style={styles.loadingText}>Carregando o feed...</p>;
 
@@ -183,6 +196,17 @@ function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil }) {
             )}
             <p style={styles.feedQuando}>{formatarQuando(item.quando)}</p>
           </div>
+          {item.tipo !== "torcida" && (
+            <button
+              className="action-btn"
+              style={torcidaEnviada[item.usuario_id] ? styles.feedTorcerBtnAtivo : styles.feedTorcerBtn}
+              disabled={torcidaEnviada[item.usuario_id] === "enviando" || torcidaEnviada[item.usuario_id] === true}
+              onClick={() => handleTorcer(item.usuario_id)}
+              title="Mandar torcida"
+            >
+              {torcidaEnviada[item.usuario_id] ? "🔥 Torceu!" : "🔥 Torcer"}
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -1085,6 +1109,36 @@ const styles = {
   nomeClicavel: { cursor: "pointer", color: "#2D3B33", textDecoration: "underline text-decoration-color: #B98B4E" },
   feedTexto: { fontSize: 13, color: "#3C4A3F", margin: 0, lineHeight: 1.4 },
   feedQuando: { fontSize: 11, color: "#9AA79C", fontWeight: 600, margin: "4px 0 0" },
+  feedTorcerBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    background: "#FFFFFF",
+    color: "#B98B4E",
+    border: "1px solid #E7E0D0",
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontSize: 11.5,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  },
+  feedTorcerBtnAtivo: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    background: "#FEF3C7",
+    color: "#92400E",
+    border: "1px solid #F59E0B",
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontSize: 11.5,
+    fontWeight: 700,
+    cursor: "default",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  },
   primaryBtnPequeno: { background: "#B98B4E", color: "#FFFFFF", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer" },
   desafioCard: { background: "#FBF9F3", border: "1px solid #E7E0D0", borderRadius: 14, padding: "12px 14px" },
   desafioTopo: { display: "flex", alignItems: "center", justifyContent: "space-between" },
