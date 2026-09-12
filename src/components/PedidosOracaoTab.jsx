@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AvatarUsuario from "./AvatarUsuario";
 import PerfilAmigoModal from "./PerfilAmigoModal";
+import CompartilharBotoes from "./CompartilharBotoes";
 import { usePedidosOracao } from "@/src/lib/hooks/usePedidosOracao";
 import { useAmigos } from "@/src/lib/hooks/useAmigos";
 import { useComunidades } from "@/src/lib/hooks/useComunidades";
@@ -14,8 +15,43 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario, comunidadeId 
     erro,
     criarPedido,
     alternarOracao,
+    alternarCurtida,
+    comentarios,
+    carregarComentarios,
+    adicionarComentario,
+    removerComentario,
     recarregar,
   } = usePedidosOracao(usuarioId, comunidadeId);
+
+  const [pedidosComComentariosAbertos, setPedidosComComentariosAbertos] = useState(new Set());
+  const [rascunhosComentario, setRascunhosComentario] = useState({});
+  const [enviandoComentario, setEnviandoComentario] = useState(null);
+
+  const alternarComentarios = (prayerRequestId) => {
+    setPedidosComComentariosAbertos((prev) => {
+      const novo = new Set(prev);
+      if (novo.has(prayerRequestId)) {
+        novo.delete(prayerRequestId);
+      } else {
+        novo.add(prayerRequestId);
+        if (!comentarios[prayerRequestId]?.carregado) {
+          carregarComentarios(prayerRequestId);
+        }
+      }
+      return novo;
+    });
+  };
+
+  const handleEnviarComentario = async (prayerRequestId) => {
+    const texto = (rascunhosComentario[prayerRequestId] || "").trim();
+    if (!texto) return;
+    setEnviandoComentario(prayerRequestId);
+    const res = await adicionarComentario(prayerRequestId, texto);
+    setEnviandoComentario(null);
+    if (!res?.error) {
+      setRascunhosComentario((prev) => ({ ...prev, [prayerRequestId]: "" }));
+    }
+  };
 
   const { amigos, enviarPedido, torcer } = useAmigos(usuarioId);
   const { minhasComunidades } = useComunidades(comunidadeId ? null : usuarioId); // só precisa da lista fora do mural de uma comunidade específica
@@ -211,7 +247,7 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario, comunidadeId 
               <h3 style={styles.prayerTitle}>{item.titulo}</h3>
               <p style={styles.prayerContent}>{item.descricao}</p>
 
-              {/* Botão de Reação & Intercessores */}
+              {/* Botões de Reação */}
               <div style={styles.cardFooter}>
                 <button
                   className="action-btn"
@@ -219,18 +255,96 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario, comunidadeId 
                   onClick={() => alternarOracao(item.id)}
                 >
                   <span style={{ fontSize: 16 }}>🙏</span>
-                  <span>{jaOra ? "Estou Orando" : "Orar por este pedido"}</span>
+                  <span>{jaOra ? "Estou Orando" : "Orar"}</span>
                   <span style={styles.counterBadge}>{item.prayer_count || 0}</span>
                 </button>
 
-                {item.prayer_count > 0 && (
-                  <span style={styles.intercessionText}>
-                    {item.prayer_count === 1
-                      ? "1 pessoa está orando"
-                      : `${item.prayer_count} pessoas estão orando`}
-                  </span>
-                )}
+                <button
+                  className="action-btn"
+                  style={item.user_liked ? styles.likeBtnActive : styles.likeBtnInactive}
+                  onClick={() => alternarCurtida(item.id)}
+                >
+                  <span style={{ fontSize: 16 }}>{item.user_liked ? "❤️" : "🤍"}</span>
+                  <span style={styles.counterBadge}>{item.like_count || 0}</span>
+                </button>
+
+                <button
+                  className="action-btn"
+                  style={styles.commentBtn}
+                  onClick={() => alternarComentarios(item.id)}
+                >
+                  <span style={{ fontSize: 16 }}>💬</span>
+                  <span style={styles.counterBadge}>{item.comment_count || 0}</span>
+                </button>
+
+                <div style={{ marginLeft: "auto" }}>
+                  <CompartilharBotoes
+                    compact
+                    texto={`🙏 Pedido de oração${item.is_anonimo ? "" : ` de ${autorNome}`}: "${item.titulo}"\n${item.descricao}`}
+                  />
+                </div>
               </div>
+
+              {item.prayer_count > 0 && (
+                <p style={styles.intercessionText}>
+                  {item.prayer_count === 1
+                    ? "1 pessoa está orando"
+                    : `${item.prayer_count} pessoas estão orando`}
+                </p>
+              )}
+
+              {/* Comentários */}
+              {pedidosComComentariosAbertos.has(item.id) && (
+                <div style={styles.commentsBox}>
+                  {comentarios[item.id]?.carregando && (
+                    <p style={styles.commentsLoading}>Carregando comentários...</p>
+                  )}
+                  {!comentarios[item.id]?.carregando && (comentarios[item.id]?.itens || []).length === 0 && (
+                    <p style={styles.commentsEmpty}>Seja o primeiro a deixar uma palavra de apoio.</p>
+                  )}
+                  {(comentarios[item.id]?.itens || []).map((c) => (
+                    <div key={c.id} style={styles.commentRow}>
+                      <AvatarUsuario nome={c.profiles?.nome_exibicao} fotoUrl={c.profiles?.foto_url} tamanho={26} />
+                      <div style={{ flex: 1 }}>
+                        <p style={styles.commentAuthor}>{c.profiles?.nome_exibicao || "Irmão em Fé"}</p>
+                        <p style={styles.commentText}>{c.conteudo}</p>
+                      </div>
+                      {c.autor_id === usuarioId && (
+                        <button
+                          style={styles.commentDeleteBtn}
+                          onClick={() => removerComentario(item.id, c.id)}
+                          title="Apagar comentário"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <div style={styles.commentForm}>
+                    <input
+                      type="text"
+                      style={styles.commentInput}
+                      placeholder="Escreva uma palavra de apoio..."
+                      value={rascunhosComentario[item.id] || ""}
+                      maxLength={500}
+                      onChange={(e) =>
+                        setRascunhosComentario((prev) => ({ ...prev, [item.id]: e.target.value }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleEnviarComentario(item.id);
+                      }}
+                    />
+                    <button
+                      style={styles.commentSendBtn}
+                      disabled={enviandoComentario === item.id || !(rascunhosComentario[item.id] || "").trim()}
+                      onClick={() => handleEnviarComentario(item.id)}
+                    >
+                      Enviar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -554,9 +668,122 @@ const styles = {
   cardFooter: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
     borderTop: "1px solid #F1EEE3",
     paddingTop: 12,
+    flexWrap: "wrap",
+  },
+  likeBtnActive: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: "#FDE8E8",
+    color: "#B15A4A",
+    border: "1px solid #F3B4A8",
+    borderRadius: 999,
+    padding: "6px 12px",
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  likeBtnInactive: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: "#FBF9F3",
+    color: "#374151",
+    border: "1px solid #E7E0D0",
+    borderRadius: 999,
+    padding: "6px 12px",
+    fontSize: 12.5,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  commentBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: "#FBF9F3",
+    color: "#374151",
+    border: "1px solid #E7E0D0",
+    borderRadius: 999,
+    padding: "6px 12px",
+    fontSize: 12.5,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  commentsBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTop: "1px solid #F1EEE3",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  commentsLoading: {
+    fontSize: 12,
+    color: "#9AA79C",
+    fontStyle: "italic",
+    margin: 0,
+  },
+  commentsEmpty: {
+    fontSize: 12,
+    color: "#9AA79C",
+    fontStyle: "italic",
+    margin: 0,
+  },
+  commentRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  commentAuthor: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#33422F",
+    margin: "0 0 1px",
+  },
+  commentText: {
+    fontSize: 12.5,
+    color: "#4B5563",
+    margin: 0,
+    lineHeight: 1.4,
+    wordBreak: "break-word",
+  },
+  commentDeleteBtn: {
+    background: "none",
+    border: "none",
+    color: "#B15A4A",
+    fontSize: 12,
+    cursor: "pointer",
+    padding: 2,
+    flexShrink: 0,
+  },
+  commentForm: {
+    display: "flex",
+    gap: 8,
+    marginTop: 2,
+  },
+  commentInput: {
+    flex: 1,
+    borderRadius: 999,
+    border: "1px solid #E7E0D0",
+    background: "#FBF9F3",
+    padding: "8px 14px",
+    fontFamily: "'Karla', sans-serif",
+    fontSize: 12.5,
+    color: "#2D3B33",
+  },
+  commentSendBtn: {
+    background: "#B98B4E",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: 999,
+    padding: "8px 16px",
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: "pointer",
+    flexShrink: 0,
   },
   prayedBtnActive: {
     display: "inline-flex",
@@ -595,6 +822,7 @@ const styles = {
     fontSize: 12,
     color: "#7A8A7F",
     fontWeight: 500,
+    margin: "8px 0 0",
   },
 
   // Modal Styles

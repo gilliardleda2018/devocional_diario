@@ -12,6 +12,7 @@ export function usePedidosOracao(usuarioId, communityId = null) {
   const [pedidos, setPedidos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
+  const [comentarios, setComentarios] = useState({}); // prayer_request_id -> { itens, carregando, carregado }
 
   const recarregar = useCallback(async () => {
     if (!usuarioId) {
@@ -51,13 +52,14 @@ export function usePedidosOracao(usuarioId, communityId = null) {
         return;
       }
 
-      // 2. Extrair autor_ids e buscar perfis
+      // 2. Extrair autor_ids e buscar perfis, interações e contagem de comentários
       const autorIds = [...new Set(rawRequests.map((r) => r.autor_id).filter(Boolean))];
       const requestIds = rawRequests.map((r) => r.id);
 
-      const [{ data: profilesData }, { data: interactionsData }] = await Promise.all([
+      const [{ data: profilesData }, { data: interactionsData }, { data: commentsData }] = await Promise.all([
         supabase.from("profiles").select("id, nome_exibicao, foto_url").in("id", autorIds),
         supabase.from("prayer_interactions").select("id, prayer_request_id, user_id, tipo").in("prayer_request_id", requestIds),
+        supabase.from("prayer_comments").select("id, prayer_request_id").in("prayer_request_id", requestIds),
       ]);
 
       const profilesMap = (profilesData || []).reduce((acc, p) => {
@@ -71,11 +73,19 @@ export function usePedidosOracao(usuarioId, communityId = null) {
         return acc;
       }, {});
 
+      const commentCountMap = (commentsData || []).reduce((acc, c) => {
+        acc[c.prayer_request_id] = (acc[c.prayer_request_id] || 0) + 1;
+        return acc;
+      }, {});
+
       // 3. Montar objetos completos
       const formatados = rawRequests.map((item) => {
         const profile = profilesMap[item.autor_id] || { nome_exibicao: "Irmão em Fé", foto_url: null };
         const interactions = interactionsMap[item.id] || [];
-        const userPrayed = interactions.some((i) => i.user_id === usuarioId);
+        const oracoes = interactions.filter((i) => i.tipo === "PRAY");
+        const curtidas = interactions.filter((i) => i.tipo === "ENCOURAGE");
+        const userPrayed = oracoes.some((i) => i.user_id === usuarioId);
+        const userLiked = curtidas.some((i) => i.user_id === usuarioId);
 
         return {
           id: item.id,
@@ -92,9 +102,12 @@ export function usePedidosOracao(usuarioId, communityId = null) {
           created_at: item.criado_em || new Date().toISOString(),
           profiles: profile,
           prayer_interactions: interactions,
-          intersections: interactions,
-          prayer_count: interactions.length,
+          intersections: oracoes,
+          prayer_count: oracoes.length,
           user_prayed: userPrayed,
+          like_count: curtidas.length,
+          user_liked: userLiked,
+          comment_count: commentCountMap[item.id] || 0,
         };
       });
 
@@ -151,20 +164,20 @@ export function usePedidosOracao(usuarioId, communityId = null) {
     [usuarioId, communityId, recarregar]
   );
 
-  const alternarOracao = useCallback(
-    async (prayerRequestId) => {
+  const alternarInteracao = useCallback(
+    async (prayerRequestId, tipo, campoAtivo, campoContagem) => {
       if (!usuarioId || !prayerRequestId) return { error: "Parâmetros inválidos" };
 
       // Atualização otimista de UI instantânea
       setPedidos((prev) =>
         prev.map((item) => {
           if (item.id === prayerRequestId) {
-            const jaOra = item.user_prayed;
-            const novoCount = jaOra ? Math.max(0, item.prayer_count - 1) : item.prayer_count + 1;
+            const jaAtivo = item[campoAtivo];
+            const novaContagem = jaAtivo ? Math.max(0, item[campoContagem] - 1) : item[campoContagem] + 1;
             return {
               ...item,
-              user_prayed: !jaOra,
-              prayer_count: novoCount,
+              [campoAtivo]: !jaAtivo,
+              [campoContagem]: novaContagem,
             };
           }
           return item;
@@ -178,6 +191,7 @@ export function usePedidosOracao(usuarioId, communityId = null) {
           .select("id")
           .eq("prayer_request_id", prayerRequestId)
           .eq("user_id", usuarioId)
+          .eq("tipo", tipo)
           .maybeSingle();
 
         if (existente) {
@@ -186,7 +200,7 @@ export function usePedidosOracao(usuarioId, communityId = null) {
           await supabase.from("prayer_interactions").insert({
             prayer_request_id: prayerRequestId,
             user_id: usuarioId,
-            tipo: "PRAY",
+            tipo,
           });
         }
         await recarregar();
@@ -198,6 +212,135 @@ export function usePedidosOracao(usuarioId, communityId = null) {
     [usuarioId, recarregar]
   );
 
+  const alternarOracao = useCallback(
+    (prayerRequestId) => alternarInteracao(prayerRequestId, "PRAY", "user_prayed", "prayer_count"),
+    [alternarInteracao]
+  );
+
+  const alternarCurtida = useCallback(
+    (prayerRequestId) => alternarInteracao(prayerRequestId, "ENCOURAGE", "user_liked", "like_count"),
+    [alternarInteracao]
+  );
+
+  const carregarComentarios = useCallback(
+    async (prayerRequestId) => {
+      setComentarios((prev) => ({
+        ...prev,
+        [prayerRequestId]: { ...(prev[prayerRequestId] || {}), carregando: true },
+      }));
+      try {
+        const supabase = criarClienteSupabase();
+        const { data, error } = await supabase
+          .from("prayer_comments")
+          .select("id, prayer_request_id, autor_id, conteudo, criado_em")
+          .eq("prayer_request_id", prayerRequestId)
+          .order("criado_em", { ascending: true });
+
+        if (error) throw error;
+
+        const autorIds = [...new Set((data || []).map((c) => c.autor_id))];
+        const { data: profilesData } = autorIds.length
+          ? await supabase.from("profiles").select("id, nome_exibicao, foto_url").in("id", autorIds)
+          : { data: [] };
+        const profilesMap = (profilesData || []).reduce((acc, p) => {
+          acc[p.id] = p;
+          return acc;
+        }, {});
+
+        const itens = (data || []).map((c) => ({
+          ...c,
+          profiles: profilesMap[c.autor_id] || { nome_exibicao: "Irmão em Fé", foto_url: null },
+        }));
+
+        setComentarios((prev) => ({
+          ...prev,
+          [prayerRequestId]: { itens, carregando: false, carregado: true },
+        }));
+      } catch (e) {
+        console.error("Erro ao carregar comentários:", e);
+        setComentarios((prev) => ({
+          ...prev,
+          [prayerRequestId]: { itens: [], carregando: false, carregado: true, erro: e.message },
+        }));
+      }
+    },
+    []
+  );
+
+  const adicionarComentario = useCallback(
+    async (prayerRequestId, conteudo) => {
+      if (!usuarioId || !prayerRequestId || !conteudo?.trim()) {
+        return { error: "Escreva algo antes de comentar." };
+      }
+      try {
+        const supabase = criarClienteSupabase();
+        const { data, error } = await supabase
+          .from("prayer_comments")
+          .insert({
+            prayer_request_id: prayerRequestId,
+            autor_id: usuarioId,
+            conteudo: conteudo.trim(),
+          })
+          .select("id, prayer_request_id, autor_id, conteudo, criado_em")
+          .single();
+
+        if (error) throw error;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id, nome_exibicao, foto_url")
+          .eq("id", usuarioId)
+          .maybeSingle();
+
+        const novoComentario = { ...data, profiles: profile || { nome_exibicao: "Você", foto_url: null } };
+
+        setComentarios((prev) => {
+          const atual = prev[prayerRequestId]?.itens || [];
+          return {
+            ...prev,
+            [prayerRequestId]: { itens: [...atual, novoComentario], carregando: false, carregado: true },
+          };
+        });
+        setPedidos((prev) =>
+          prev.map((item) =>
+            item.id === prayerRequestId ? { ...item, comment_count: (item.comment_count || 0) + 1 } : item
+          )
+        );
+
+        return { data: novoComentario, error: null };
+      } catch (e) {
+        console.error("Erro ao comentar:", e);
+        return { error: e.message };
+      }
+    },
+    [usuarioId]
+  );
+
+  const removerComentario = useCallback(async (prayerRequestId, comentarioId) => {
+    try {
+      const supabase = criarClienteSupabase();
+      const { error } = await supabase.from("prayer_comments").delete().eq("id", comentarioId);
+      if (error) throw error;
+
+      setComentarios((prev) => {
+        const atual = prev[prayerRequestId]?.itens || [];
+        return {
+          ...prev,
+          [prayerRequestId]: { ...prev[prayerRequestId], itens: atual.filter((c) => c.id !== comentarioId) },
+        };
+      });
+      setPedidos((prev) =>
+        prev.map((item) =>
+          item.id === prayerRequestId ? { ...item, comment_count: Math.max(0, (item.comment_count || 0) - 1) } : item
+        )
+      );
+      return { error: null };
+    } catch (e) {
+      console.error("Erro ao remover comentário:", e);
+      return { error: e.message };
+    }
+  }, []);
+
   return {
     pedidos,
     pedidosOracao: pedidos,
@@ -207,6 +350,11 @@ export function usePedidosOracao(usuarioId, communityId = null) {
     criarPedido,
     criarPedidoOracao: criarPedido,
     alternarOracao,
+    alternarCurtida,
     interagirOracao: alternarOracao,
+    comentarios,
+    carregarComentarios,
+    adicionarComentario,
+    removerComentario,
   };
 }
