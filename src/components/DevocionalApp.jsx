@@ -60,7 +60,10 @@ export default function DevocionalApp({ usuario }) {
   const [perfilAmigoId, setPerfilAmigoId] = useState(null);
 
   const { unreadNotificationsCount, notificacoes } = useNotificacoes(usuario?.id);
-  const pedidosAmizadePendentes = notificacoes.filter((n) => n.type === "FRIEND_REQUEST_RECEIVED");
+  // is_read vira true assim que o pedido é aceito/recusado (responder_pedido_amizade_v2
+  // marca a notificação original como lida) -- sem esse filtro, o banner continuava
+  // mostrando pedidos já respondidos como se ainda estivessem pendentes.
+  const pedidosAmizadePendentes = notificacoes.filter((n) => n.type === "FRIEND_REQUEST_RECEIVED" && !n.is_read);
 
   const [perfil, setPerfil] = useState({
     nome_exibicao: usuario?.user_metadata?.full_name || usuario?.email || "Fiel",

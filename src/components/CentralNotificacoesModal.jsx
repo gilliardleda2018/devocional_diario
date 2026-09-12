@@ -116,8 +116,13 @@ export default function CentralNotificacoesModal({ usuarioId, aoFechar, aoAbrirP
 
                 <div style={styles.tempoText}>{tempoRelativo(item.criado_em)}</div>
 
-                {/* Ações inline para Pedido de Amizade */}
-                {item.type === "FRIEND_REQUEST_RECEIVED" && (
+                {/* Ações inline para Pedido de Amizade -- só enquanto ainda não
+                    foi respondido: responder_pedido_amizade_v2 marca a
+                    notificação como lida ao aceitar/recusar, então "lida"
+                    aqui também significa "já resolvido". Sem essa checagem,
+                    Aceitar/Remover continuavam aparecendo para sempre depois
+                    de já ter aceito o pedido. */}
+                {item.type === "FRIEND_REQUEST_RECEIVED" && !lida && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
                     <div style={styles.acoesRow}>
                       <button
