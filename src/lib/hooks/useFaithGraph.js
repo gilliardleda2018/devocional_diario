@@ -15,6 +15,8 @@ export function useFaithGraph(usuarioId) {
     allow_followers: true,
     show_church: true,
     show_city: true,
+    show_instagram: true,
+    show_facebook: true,
     show_activity: true,
     show_prayer_activity: true,
     allow_recommendations: true,

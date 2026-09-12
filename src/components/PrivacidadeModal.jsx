@@ -17,6 +17,8 @@ export default function PrivacidadeModal({ usuarioId, isOpen, onClose }) {
     allow_followers: true,
     show_church: true,
     show_city: true,
+    show_instagram: true,
+    show_facebook: true,
   });
 
   useEffect(() => {
@@ -27,6 +29,8 @@ export default function PrivacidadeModal({ usuarioId, isOpen, onClose }) {
         allow_followers: configPrivacidade.allow_followers ?? true,
         show_church: configPrivacidade.show_church ?? true,
         show_city: configPrivacidade.show_city ?? true,
+        show_instagram: configPrivacidade.show_instagram ?? true,
+        show_facebook: configPrivacidade.show_facebook ?? true,
       });
     }
   }, [configPrivacidade]);
@@ -124,6 +128,32 @@ export default function PrivacidadeModal({ usuarioId, isOpen, onClose }) {
               type="checkbox"
               checked={form.show_church}
               onChange={() => handleToggle("show_church")}
+              style={styles.checkbox}
+            />
+          </div>
+
+          <div style={styles.toggleRow}>
+            <div>
+              <span style={styles.toggleLabel}>Exibir Instagram no perfil</span>
+              <p style={styles.toggleDesc}>Mostra seu Instagram para quem visitar seu perfil.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={form.show_instagram}
+              onChange={() => handleToggle("show_instagram")}
+              style={styles.checkbox}
+            />
+          </div>
+
+          <div style={styles.toggleRow}>
+            <div>
+              <span style={styles.toggleLabel}>Exibir Facebook no perfil</span>
+              <p style={styles.toggleDesc}>Mostra seu Facebook para quem visitar seu perfil.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={form.show_facebook}
+              onChange={() => handleToggle("show_facebook")}
               style={styles.checkbox}
             />
           </div>

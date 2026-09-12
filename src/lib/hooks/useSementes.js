@@ -11,12 +11,14 @@ import { criarClienteSupabase } from "@/src/lib/supabase/client";
 export function useSementes(usuarioId) {
   const [saldo, setSaldo] = useState(0);
   const [congelamentos, setCongelamentos] = useState(0);
+  const [inventario, setInventario] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
   const recarregar = useCallback(async () => {
     if (!usuarioId) {
       setSaldo(0);
       setCongelamentos(0);
+      setInventario([]);
       setCarregando(false);
       return;
     }
@@ -30,9 +32,9 @@ export function useSementes(usuarioId) {
 
       setSaldo(typeof saldoData === "number" ? saldoData : 0);
 
-      const item = Array.isArray(inventarioData)
-        ? inventarioData.find((i) => i.item === "congelar_ofensiva")
-        : null;
+      const lista = Array.isArray(inventarioData) ? inventarioData : [];
+      setInventario(lista);
+      const item = lista.find((i) => i.item === "congelar_ofensiva");
       setCongelamentos(item?.quantidade || 0);
     } catch (e) {
       console.error("Erro ao carregar sementes:", e);
@@ -61,5 +63,29 @@ export function useSementes(usuarioId) {
     }
   }, []);
 
-  return { saldo, congelamentos, carregando, recarregar, comprarCongelamento };
+  const comprarCosmetico = useCallback(
+    async (item) => {
+      try {
+        const supabase = criarClienteSupabase();
+        const { data, error } = await supabase.rpc("comprar_cosmetico", { p_item: item });
+        if (error) {
+          return { sucesso: false, erro: error.message || "Não foi possível comprar." };
+        }
+        const linha = Array.isArray(data) ? data[0] : data;
+        setSaldo(linha?.saldo_restante ?? 0);
+        await recarregar();
+        return { sucesso: true, saldoRestante: linha?.saldo_restante };
+      } catch (e) {
+        return { sucesso: false, erro: e.message };
+      }
+    },
+    [recarregar]
+  );
+
+  const possuiItem = useCallback(
+    (item) => inventario.some((i) => i.item === item && i.quantidade > 0),
+    [inventario]
+  );
+
+  return { saldo, congelamentos, inventario, possuiItem, carregando, recarregar, comprarCongelamento, comprarCosmetico };
 }

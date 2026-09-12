@@ -33,12 +33,17 @@ export default function PerfilAmigoModal({
       setMensagem(null);
       try {
         const supabase = criarClienteSupabase();
-        const [{ data: profile }, { data: statsLista }, { data: relState }, { data: mutuos }] = await Promise.all([
-          supabase.from("profiles").select("*").eq("id", amigoId).maybeSingle(),
+        const [{ data: perfilPublicoLista }, { data: statsLista }, { data: relState }, { data: mutuos }] = await Promise.all([
+          // RPC (não select direto) porque instagram/facebook/cidade/igreja
+          // precisam respeitar as configurações de privacidade de quem é
+          // dono do perfil -- e user_privacy_settings só é legível pelo
+          // próprio dono via RLS, então o filtro tem que rodar no banco.
+          supabase.rpc("obter_perfil_publico", { p_target_id: amigoId }).catch(() => ({ data: null })),
           supabase.rpc("obter_estatisticas_publicas", { p_usuario_id: amigoId }).catch(() => ({ data: null })),
           supabase.rpc("get_relationship_state", { p_target_id: amigoId }).catch(() => ({ data: null })),
           supabase.rpc("obter_amigos_em_comum", { p_target_id: amigoId }).catch(() => ({ data: null })),
         ]);
+        const profile = Array.isArray(perfilPublicoLista) ? perfilPublicoLista[0] : perfilPublicoLista;
         const stats = Array.isArray(statsLista) ? statsLista[0] : statsLista;
 
         if (vivo) {

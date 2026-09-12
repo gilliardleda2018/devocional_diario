@@ -10,7 +10,17 @@ const AVATARES_PRESET = [
   "💡", "🔥", "⭐", "📖", "🦁", "🌅"
 ];
 
-export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, aoSalvar }) {
+// Espelha o catálogo de LojaSementes.jsx -- comprado lá, usado aqui.
+const AVATARES_PREMIUM = [
+  { item: "avatar_borboleta", emoji: "🦋" },
+  { item: "avatar_arco_iris", emoji: "🌈" },
+  { item: "avatar_diamante", emoji: "💎" },
+  { item: "avatar_medalha", emoji: "🎖️" },
+  { item: "avatar_raio", emoji: "⚡" },
+  { item: "avatar_trofeu", emoji: "🏆" },
+];
+
+export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, aoSalvar, possuiItem = () => false }) {
   const [nomeExibicao, setNomeExibicao] = useState("");
   const [nomeCompleto, setNomeCompleto] = useState("");
   const [username, setUsername] = useState("");
@@ -269,7 +279,31 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
                   {emoji}
                 </button>
               ))}
+              {AVATARES_PREMIUM.map(({ item, emoji }) => {
+                const desbloqueado = possuiItem(item);
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    disabled={!desbloqueado}
+                    title={desbloqueado ? undefined : "Desbloqueie na Loja de Sementes 🌱"}
+                    onClick={() => { setFotoUrl(emoji); setUrlPersonalizada(""); }}
+                    style={{
+                      ...styles.emojiBtn,
+                      position: "relative",
+                      opacity: desbloqueado ? 1 : 0.35,
+                      cursor: desbloqueado ? "pointer" : "not-allowed",
+                      background: fotoUrl === emoji && !urlPersonalizada ? "#F1E2C4" : "#FFFFFF",
+                      borderColor: fotoUrl === emoji && !urlPersonalizada ? "#B98B4E" : "#E7E0D0",
+                    }}
+                  >
+                    {emoji}
+                    {!desbloqueado && <span style={styles.cadeadoIcone}>🔒</span>}
+                  </button>
+                );
+              })}
             </div>
+            <p style={styles.ajudaPremium}>🔒 Avatares exclusivos ficam disponíveis na 🌱 Loja de Sementes.</p>
           </div>
 
           <label style={styles.label}>URL da Foto Personalizada</label>
@@ -391,6 +425,18 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+  cadeadoIcone: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    fontSize: 10,
+  },
+  ajudaPremium: {
+    fontSize: 10.5,
+    color: "#9AA79C",
+    fontStyle: "italic",
+    margin: "6px 0 0",
   },
   ajudaTexto: {
     fontSize: 10.5,

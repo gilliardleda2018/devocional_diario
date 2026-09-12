@@ -32,6 +32,7 @@ import AudioPlayer from "@/src/components/AudioPlayer";
 import LembreteModal from "@/src/components/LembreteModal";
 import CardDoacao from "@/src/components/CardDoacao";
 import FavoritosTab from "@/src/components/FavoritosTab";
+import DiarioTab from "@/src/components/DiarioTab";
 import { useFavoritos } from "@/src/lib/hooks/useFavoritos";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilModal from "@/src/components/PerfilModal";
@@ -119,7 +120,15 @@ export default function DevocionalApp({ usuario }) {
 
   const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario?.id);
   const { amigosOrando, carregando: carregandoAmigosOrando, torcerPorAmigo } = useAmigosOrandoHoje(usuario?.id);
-  const { saldo: saldoSementes, congelamentos, recarregar: recarregarSementes } = useSementes(usuario?.id);
+  const {
+    saldo: saldoSementes,
+    congelamentos,
+    possuiItem,
+    comprarCongelamento,
+    comprarCosmetico,
+    carregando: carregandoSementes,
+    recarregar: recarregarSementes,
+  } = useSementes(usuario?.id);
   const [lojaSementesAberta, setLojaSementesAberta] = useState(false);
   const [bauPendenteId, setBauPendenteId] = useState(null);
   const { favoritos = [], carregando: carregandoFavoritos, eFavorito, alternarFavorito } = useFavoritos(usuario?.id);
@@ -473,8 +482,13 @@ export default function DevocionalApp({ usuario }) {
         />
 
         <LojaSementes
-          usuarioId={usuario?.id}
           aberto={lojaSementesAberta}
+          saldo={saldoSementes}
+          congelamentos={congelamentos}
+          possuiItem={possuiItem}
+          comprarCongelamento={comprarCongelamento}
+          comprarCosmetico={comprarCosmetico}
+          carregando={carregandoSementes}
           aoFechar={() => {
             setLojaSementesAberta(false);
             recarregarSementes();
@@ -485,6 +499,7 @@ export default function DevocionalApp({ usuario }) {
           usuario={usuario}
           perfilAtual={perfil}
           aberto={modalPerfilAberto}
+          possuiItem={possuiItem}
           aoFechar={() => setModalPerfilAberto(false)}
           aoSalvar={(novosDados) => setPerfil((antigo) => ({ ...antigo, ...novosDados }))}
         />
@@ -570,6 +585,13 @@ export default function DevocionalApp({ usuario }) {
             onClick={() => setAba("favoritos")}
           >
             ⭐ Favoritos {favoritos.length > 0 && `(${favoritos.length})`}
+          </button>
+          <button
+            className="tab-btn"
+            style={aba === "diario" ? styles.tabActive : styles.tabInactive}
+            onClick={() => setAba("diario")}
+          >
+            📔 Diário
           </button>
           <button
             className="tab-btn"
@@ -1012,6 +1034,8 @@ export default function DevocionalApp({ usuario }) {
             alternarFavorito={alternarFavorito}
           />
         )}
+
+        {aba === "diario" && <DiarioTab usuarioId={usuario?.id} />}
 
         {aba === "progresso" && (
           <ProgressoTab
