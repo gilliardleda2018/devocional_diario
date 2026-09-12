@@ -51,6 +51,8 @@ export default function PerfilAmigoModal({
             cidade: profile?.cidade || null,
             igreja: profile?.igreja || null,
             bio: profile?.bio || null,
+            instagram: profile?.instagram || null,
+            facebook: profile?.facebook || null,
             xp_total: stats?.xp_total || amigo?.xp_total || 0,
             ofensiva_atual: stats?.ofensiva_atual || amigo?.ofensiva_atual || 0,
           });
@@ -247,6 +249,36 @@ export default function PerfilAmigoModal({
           </div>
         )}
 
+        {/* Redes Sociais */}
+        {(perfilExibicao.instagram || perfilExibicao.facebook) && (
+          <div style={styles.socialRow}>
+            {perfilExibicao.instagram && (
+              <a
+                href={`https://instagram.com/${perfilExibicao.instagram.replace("@", "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.socialBtn}
+              >
+                📷 Instagram
+              </a>
+            )}
+            {perfilExibicao.facebook && (
+              <a
+                href={
+                  /^https?:\/\//i.test(perfilExibicao.facebook)
+                    ? perfilExibicao.facebook
+                    : `https://facebook.com/${perfilExibicao.facebook.replace("@", "")}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.socialBtn}
+              >
+                📘 Facebook
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Amigos em Comum */}
         {amigosEmComum.total > 0 && (
           <div style={styles.mutuoBox}>
@@ -431,6 +463,24 @@ const styles = {
     fontSize: 11.5,
     color: "#7A8A7F",
     fontWeight: 600,
+  },
+  socialRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 8,
+  },
+  socialBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 999,
+    padding: "6px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#33422F",
+    textDecoration: "none",
   },
   mutuoBox: {
     background: "#F6EFE1",

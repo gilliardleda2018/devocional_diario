@@ -18,6 +18,7 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
   const [igreja, setIgreja] = useState("");
   const [telefone, setTelefone] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [facebook, setFacebook] = useState("");
   const [bio, setBio] = useState("");
   const [fotoUrl, setFotoUrl] = useState("");
   const [urlPersonalizada, setUrlPersonalizada] = useState("");
@@ -34,6 +35,7 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
       setIgreja(perfilAtual?.igreja || "");
       setTelefone(perfilAtual?.telefone || "");
       setInstagram(perfilAtual?.instagram || "");
+      setFacebook(perfilAtual?.facebook || "");
       setBio(perfilAtual?.bio || "");
       setFotoUrl(perfilAtual?.foto_url || usuario?.user_metadata?.avatar_url || "");
     }
@@ -88,6 +90,7 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
         igreja: igreja.trim() || null,
         telefone: telefone.trim() || null,
         instagram: instagram.trim().replace("@", "").toLowerCase() || null,
+        facebook: facebook.trim() || null,
         bio: bio.trim() || null,
       };
 
@@ -113,6 +116,7 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
           igreja: igreja.trim() || null,
           telefone: telefone.trim() || null,
           instagram: instagram.trim().replace("@", "").toLowerCase() || null,
+          facebook: facebook.trim() || null,
           bio: bio.trim() || null,
         });
       }
@@ -226,8 +230,17 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
               />
             </div>
           </div>
+
+          <label style={styles.label}>Facebook</label>
+          <input
+            type="text"
+            value={facebook}
+            onChange={(e) => setFacebook(e.target.value)}
+            placeholder="seu.usuario ou link do perfil"
+            style={styles.input}
+          />
           <p style={styles.ajudaTexto}>
-            Telefone e e-mail só encontram alguém com o valor completo e exato — nunca aparecem nos resultados de busca de outras pessoas.
+            Telefone e e-mail só encontram alguém com o valor completo e exato — nunca aparecem nos resultados de busca de outras pessoas. Instagram e Facebook ficam visíveis no seu perfil para seus amigos.
           </p>
 
           <label style={styles.label}>Bio / Frase Pessoal</label>
