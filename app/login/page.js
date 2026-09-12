@@ -206,8 +206,7 @@ function FormularioLogin() {
             <form onSubmit={cadastrarNovoUsuario}>
               <input
                 type="text"
-                required
-                placeholder="Seu nome (ex: João Silva)"
+                placeholder="Seu nome (opcional)"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 style={styles.input}
