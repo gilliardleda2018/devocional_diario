@@ -59,7 +59,8 @@ export default function DevocionalApp({ usuario }) {
   const [modalOnboardingAberto, setModalOnboardingAberto] = useState(false);
   const [perfilAmigoId, setPerfilAmigoId] = useState(null);
 
-  const { unreadNotificationsCount } = useNotificacoes(usuario?.id);
+  const { unreadNotificationsCount, notificacoes } = useNotificacoes(usuario?.id);
+  const pedidosAmizadePendentes = notificacoes.filter((n) => n.type === "FRIEND_REQUEST_RECEIVED");
 
   const [perfil, setPerfil] = useState({
     nome_exibicao: usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
@@ -589,6 +590,32 @@ export default function DevocionalApp({ usuario }) {
 
         {aba === "inicio" && (
           <>
+            {/* SOLICITAÇÕES DE AMIZADE: bem visível na tela inicial -- antes só
+                dava pra ver no sininho ou entrando em Conexões > Pedidos, e
+                muita gente nunca via que tinha pedido esperando. */}
+            {pedidosAmizadePendentes.length > 0 && (
+              <div style={styles.pedidosBanner}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={styles.pedidosBannerTitulo}>
+                    🤝 {pedidosAmizadePendentes.length === 1
+                      ? "1 solicitação de amizade esperando"
+                      : `${pedidosAmizadePendentes.length} solicitações de amizade esperando`}
+                  </p>
+                  <p style={styles.pedidosBannerTexto}>
+                    {pedidosAmizadePendentes.slice(0, 3).map((p) => p.actor_nome).join(", ")}
+                    {pedidosAmizadePendentes.length > 3 ? " e outros" : ""} {pedidosAmizadePendentes.length === 1 ? "quer" : "querem"} se conectar com você.
+                  </p>
+                </div>
+                <button
+                  className="action-btn chunky"
+                  style={styles.pedidosBannerBtn}
+                  onClick={() => { setAba("amigos"); setAbaConexaoAmigos("pedidos"); }}
+                >
+                  Ver Pedidos
+                </button>
+              </div>
+            )}
+
             {/* OFENSIVA: reforça a chama da oração diária, incentiva a não perder a sequência */}
             <OfensivaCard ofensiva={ofensiva} jaFezHoje={jaFezHoje} congelamentos={congelamentos} />
 
@@ -1194,6 +1221,40 @@ const styles = {
     padding: "26px 24px",
     boxShadow: "0 8px 24px rgba(80, 70, 40, 0.06)",
     textAlign: "center",
+  },
+  pedidosBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    background: "#FEF3C7",
+    border: "1px solid #F59E0B",
+    borderRadius: 16,
+    padding: "14px 16px",
+    marginBottom: 16,
+  },
+  pedidosBannerTitulo: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#92400E",
+    margin: "0 0 2px",
+  },
+  pedidosBannerTexto: {
+    fontSize: 12.5,
+    color: "#92400E",
+    margin: 0,
+    lineHeight: 1.4,
+  },
+  pedidosBannerBtn: {
+    background: "#B98B4E",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 16px",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   },
   cardLabel: {
     fontSize: 11,
