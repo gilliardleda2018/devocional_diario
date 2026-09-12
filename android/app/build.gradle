@@ -22,15 +22,34 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('devocional_release_key.jks')
-            storePassword 'DevocionalPass2026!'
-            keyAlias 'devocional_key'
-            keyPassword 'DevocionalPass2026!'
+            // Nunca hardcode segredo de assinatura aqui -- vem de variáveis de
+            // ambiente (definidas pelo workflow de CI a partir de GitHub
+            // Secrets) ou, localmente, de android/keystore.properties
+            // (arquivo pessoal, no .gitignore, nunca commitado).
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (keystorePath != null) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            } else {
+                def propsFile = rootProject.file('keystore.properties')
+                if (propsFile.exists()) {
+                    def props = new Properties()
+                    props.load(new FileInputStream(propsFile))
+                    storeFile file(props['storeFile'])
+                    storePassword props['storePassword']
+                    keyAlias props['keyAlias']
+                    keyPassword props['keyPassword']
+                }
+            }
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (System.getenv("ANDROID_KEYSTORE_PATH") != null || rootProject.file('keystore.properties').exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

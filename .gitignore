@@ -13,6 +13,7 @@
 # keys and secrets
 *.jks
 *.keystore
+keystore.properties
 
 # local env files
 .env*.local
