@@ -32,7 +32,7 @@ export default function LembreteModal({ aberto, aoFechar }) {
         return;
       }
     }
-    salvarConfigLembrete({ ativo, horario });
+    await salvarConfigLembrete({ ativo, horario });
     setMensagemStatus("✅ Lembrete salvo com sucesso!");
     setTimeout(() => {
       aoFechar();

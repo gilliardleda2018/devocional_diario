@@ -44,6 +44,7 @@ import BauModal from "@/src/components/BauModal";
 import LojaSementes from "@/src/components/LojaSementes";
 import { useSementes } from "@/src/lib/hooks/useSementes";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
+import { iniciarChecadorWeb } from "@/src/lib/notifications/lembretes";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -64,6 +65,15 @@ export default function DevocionalApp({ usuario }) {
   // marca a notificação original como lida) -- sem esse filtro, o banner continuava
   // mostrando pedidos já respondidos como se ainda estivessem pendentes.
   const pedidosAmizadePendentes = notificacoes.filter((n) => n.type === "FRIEND_REQUEST_RECEIVED" && !n.is_read);
+
+  // Lembrete diário: no Android (Capacitor) o agendamento é nativo e roda
+  // mesmo com o app fechado; no navegador não há Service Worker/push, então
+  // esse checador cobre o caso do app estar aberto (ainda que em segundo
+  // plano). Ver src/lib/notifications/lembretes.js.
+  useEffect(() => {
+    const pararChecador = iniciarChecadorWeb();
+    return pararChecador;
+  }, []);
 
   const [perfil, setPerfil] = useState({
     nome_exibicao: usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
