@@ -72,31 +72,9 @@ Abra `http://localhost:3000` — deve aparecer a tela de login.
 
 ## 7. Publicar (deploy)
 
-A forma mais simples para um app Next.js é a **Vercel** (mesma empresa
-que mantém o Next.js, tem plano gratuito, zero configuração):
-
-1. Suba este projeto para um repositório no GitHub (mesmo processo que já
-   usamos no outro projeto — `git init`, `git add .`, `git commit`,
-   `git push`).
-2. Entre em [vercel.com](https://vercel.com), **Add New** → **Project** →
-   selecione o repositório.
-3. Em **Environment Variables**, adicione as mesmas 2 variáveis do passo
-   5 (`NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
-4. Clique em **Deploy**.
-5. Depois que a URL final existir (ex: `https://devocional-diario.vercel.app`),
-   volte no passo 4 (Supabase → URL Configuration) e atualize a **Site
-   URL** e adicione essa URL + `/auth/callback` nas **Redirect URLs**.
-6. Volte no Google Cloud Console (passo 3) e adicione também
-   `https://SEU-PROJETO.supabase.co/auth/v1/callback` já deve estar lá —
-   não precisa mudar nada ali, o redirect do Google sempre aponta pro
-   Supabase, nunca direto pro seu domínio.
-
-Alternativa: como você já tem conta no **Render**, também dá para
-publicar lá como um "Web Service" Node (`build command: npm install &&
-npm run build`, `start command: npm start`) — só que a Vercel é mais
-direta para Next.js especificamente porque foi feita pela mesma equipe.
-Se preferir manter tudo no Render por conveniência, é só pedir que eu
-monte o `render.yaml` equivalente.
+Este projeto é publicado na **AWS (Amplify Hosting)**, conectado ao
+GitHub — todo `git push origin main` gera build e deploy automáticos.
+Veja o passo a passo completo em [AWS_DEPLOY.md](./AWS_DEPLOY.md).
 
 ## Sobre a ofensiva (streak)
 
