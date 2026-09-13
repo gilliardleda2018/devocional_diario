@@ -33,6 +33,15 @@ create policy "usuário edita o próprio perfil"
   on public.profiles for update
   using (auth.uid() = id);
 
+-- upsert() do supabase-js é um INSERT ... ON CONFLICT DO UPDATE -- o Postgres
+-- exige que a policy de INSERT passe mesmo quando a linha já existe e o
+-- caminho real acaba sendo um UPDATE. Sem esta policy, TODO upsert em
+-- profiles falha com "new row violates row-level security policy", inclusive
+-- pra quem já tem perfil (ex: editar via PerfilModal), não só pra usuário novo.
+create policy "usuário cria o próprio perfil"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
 -- ---------------------------------------------------------------------------
 -- devotional_logs: 1 linha por devocional concluído (data, tema de oração
 -- escolhido, texto da reflexão, referência do versículo mostrado). É a base

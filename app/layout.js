@@ -1,4 +1,5 @@
 import "./globals.css";
+import RecuperadorChunk from "@/src/components/RecuperadorChunk";
 
 export const metadata = {
   title: "Devocional Diário",
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-screen bg-cream-50 font-sans antialiased">{children}</body>
+      <body className="min-h-screen bg-cream-50 font-sans antialiased">
+        <RecuperadorChunk />
+        {children}
+      </body>
     </html>
   );
 }
