@@ -5,7 +5,13 @@
  * do `jaFezHoje` que já existe no hook useOfensiva. `quizRespondidas` é
  * local à sessão (não persiste no banco) -- ver src/components/QuizVersiculo.jsx.
  */
-export function calcularMissoes({ jaFezHoje, progresso, quizRespondidas = 0 }) {
+export function calcularMissoes({
+  jaFezHoje,
+  progresso,
+  quizRespondidas = 0,
+  torceiHoje = false,
+  totalAmigos = 0,
+}) {
   const devocionaisSemana = progresso?.devocionais_semana ?? 0;
   const temasSemana = progresso?.temas_semana ?? 0;
   const refletiuHoje = progresso?.refletiu_hoje ?? false;
@@ -55,6 +61,24 @@ export function calcularMissoes({ jaFezHoje, progresso, quizRespondidas = 0 }) {
       descricao: "Ore sobre 3 temas diferentes nos últimos 7 dias.",
       atual: Math.min(temasSemana, 3),
       meta: 3,
+    },
+    {
+      id: "torcida_hoje",
+      tipo: "diaria",
+      icone: "🙌",
+      titulo: "Torça por um amigo",
+      descricao: "Anime alguém que orou hoje e ganhe sementes.",
+      atual: torceiHoje ? 1 : 0,
+      meta: 1,
+    },
+    {
+      id: "primeira_conexao",
+      tipo: "semanal",
+      icone: "🤝",
+      titulo: "Sua primeira conexão",
+      descricao: "Adicione pelo menos 1 amigo no app.",
+      atual: Math.min(totalAmigos, 1),
+      meta: 1,
     },
   ];
 }

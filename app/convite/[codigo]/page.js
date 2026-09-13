@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
-
-const CHAVE_CONVITE_PENDENTE = "codigo_convite_pendente";
+import { CHAVE_CONVITE_PENDENTE } from "@/src/lib/constants";
 
 /**
  * Página pública de convite (/convite/SEUCODIGO). Quem clica aqui pode

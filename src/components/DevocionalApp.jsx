@@ -6,6 +6,8 @@ import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
 import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
 import { useProgressoSemana } from "@/src/lib/hooks/useProgressoSemana";
+import { useEstatisticas } from "@/src/lib/hooks/useEstatisticas";
+import { CHAVE_CONVITE_PENDENTE } from "@/src/lib/constants";
 import {
   BOOKS_PT,
   OLD_TESTAMENT_COUNT,
@@ -137,11 +139,43 @@ export default function DevocionalApp({ usuario }) {
 
   // --- Missões (metas curtas, estilo quest de jogo) ----------------------
   const { progresso: progressoSemana } = useProgressoSemana(usuario?.id, gatilhoRecarga);
+  const { stats: statsUsuario } = useEstatisticas(usuario?.id, gatilhoRecarga);
   const [quizRespondidas, setQuizRespondidas] = useState(0);
+  const torceiHoje = useMemo(() => amigosOrando.some((a) => a.ja_torci), [amigosOrando]);
+  const totalAmigos = statsUsuario?.total_amigos ?? 0;
   const missoes = useMemo(
-    () => calcularMissoes({ jaFezHoje, progresso: progressoSemana, quizRespondidas }),
-    [jaFezHoje, progressoSemana, quizRespondidas]
+    () => calcularMissoes({ jaFezHoje, progresso: progressoSemana, quizRespondidas, torceiHoje, totalAmigos }),
+    [jaFezHoje, progressoSemana, quizRespondidas, torceiHoje, totalAmigos]
   );
+
+  // --- Convite pendente: quem clicou num link /convite/CODIGO antes de ter
+  // conta salva o código no localStorage (ver app/convite/[codigo]/page.js) --
+  // assim que loga pela primeira vez, resgata o convite: vira amigo de quem
+  // convidou automaticamente e os dois ganham sementes.
+  useEffect(() => {
+    if (!usuario?.id || typeof window === "undefined") return;
+    const codigo = window.localStorage.getItem(CHAVE_CONVITE_PENDENTE);
+    if (!codigo) return;
+    window.localStorage.removeItem(CHAVE_CONVITE_PENDENTE);
+
+    (async () => {
+      try {
+        const supabase = criarClienteSupabase();
+        const { data, error } = await supabase.rpc("resgatar_convite", { p_codigo: codigo });
+        if (error) return;
+        const linha = Array.isArray(data) ? data[0] : data;
+        if (linha?.sucesso && !linha.ja_eram_amigos) {
+          showToast(
+            `Você e ${linha.nome_convidador || "seu amigo"} agora são amigos! +${linha.sementes_ganhas} 🌱`,
+            "sucesso"
+          );
+          recarregarSementes();
+        }
+      } catch (e) {
+        console.warn("Erro ao resgatar convite pendente:", e);
+      }
+    })();
+  }, [usuario?.id, recarregarSementes]);
 
   // --- Versículo do dia -----------------------------------------------
   const versiculoDoDia = useMemo(() => obterVersiculoDoDia(hoje), [hoje]);
@@ -660,6 +694,8 @@ export default function DevocionalApp({ usuario }) {
               carregando={carregandoAmigosOrando}
               aoTorcer={torcerPorAmigo}
               aoAbrirPerfil={setPerfilAmigoId}
+              temAmigos={totalAmigos > 0}
+              aoConvidar={() => setAba("amigos")}
             />
 
             {/* VERSÍCULO DO DIA */}

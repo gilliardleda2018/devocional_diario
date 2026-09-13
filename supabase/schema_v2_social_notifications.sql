@@ -35,7 +35,7 @@ create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   actor_user_id uuid references auth.users (id) on delete cascade,
-  type text not null check (type in ('FRIEND_REQUEST_RECEIVED', 'FRIEND_REQUEST_ACCEPTED', 'NEW_FOLLOWER', 'PRAYER_INTERACTION', 'COMMUNITY_INVITE', 'SYSTEM')),
+  type text not null check (type in ('FRIEND_REQUEST_RECEIVED', 'FRIEND_REQUEST_ACCEPTED', 'NEW_FOLLOWER', 'PRAYER_INTERACTION', 'COMMUNITY_INVITE', 'SYSTEM', 'TORCIDA_RECEBIDA', 'CONVITE_ACEITO')),
   entity_id text,
   is_read boolean not null default false,
   criado_em timestamptz not null default now(),

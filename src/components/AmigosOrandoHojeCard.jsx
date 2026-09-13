@@ -8,8 +8,34 @@ import AvatarUsuario from "@/src/components/AvatarUsuario";
  * (obter_amigos_orando_hoje), que dá a mesma sensação de comunhão sem
  * depender de todo mundo estar com o app aberto no mesmo minuto.
  */
-export default function AmigosOrandoHojeCard({ amigosOrando = [], carregando = false, aoTorcer, aoAbrirPerfil }) {
-  if (carregando || amigosOrando.length === 0) return null;
+export default function AmigosOrandoHojeCard({
+  amigosOrando = [],
+  carregando = false,
+  aoTorcer,
+  aoAbrirPerfil,
+  temAmigos = true,
+  aoConvidar,
+}) {
+  if (carregando) return null;
+
+  // Quem ainda não tem nenhum amigo é exatamente quem mais precisa descobrir
+  // essa parte do app -- em vez de simplesmente sumir (como fazia antes),
+  // mostra um convite claro com a recompensa em sementes.
+  if (amigosOrando.length === 0) {
+    if (temAmigos) return null;
+    return (
+      <div style={estilos.cardVazio}>
+        <span style={estilos.iconeVazio} aria-hidden="true">🤝</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={estilos.tituloVazio}>Convide um amigo pra orar com você</p>
+          <p style={estilos.subtituloVazio}>Você e quem aceitar ganham 🌱 15 sementes cada.</p>
+        </div>
+        <button type="button" className="action-btn chunky" style={estilos.botaoConvidar} onClick={aoConvidar}>
+          Convidar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={estilos.card}>
@@ -74,6 +100,41 @@ function primeiroNome(nomeCompleto) {
 }
 
 const estilos = {
+  cardVazio: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    background: "linear-gradient(135deg, #F3F7F4 0%, #E9F1EA 100%)",
+    border: "1px dashed #B8CEBB",
+    borderRadius: 18,
+    padding: "14px 16px",
+    marginBottom: 20,
+  },
+  iconeVazio: {
+    flexShrink: 0,
+    width: 38,
+    height: 38,
+    borderRadius: "50%",
+    background: "#FFFFFF",
+    border: "1px solid #C9DFCC",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 17,
+  },
+  tituloVazio: { fontSize: 13.5, fontWeight: 800, color: "#33422F", margin: "0 0 2px" },
+  subtituloVazio: { fontSize: 11.5, color: "#6B7C6E", margin: 0 },
+  botaoConvidar: {
+    flexShrink: 0,
+    background: "#B98B4E",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: 8,
+    padding: "8px 14px",
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
   card: {
     background: "linear-gradient(135deg, #F3F7F4 0%, #E9F1EA 100%)",
     border: "1px solid #D9E7DB",

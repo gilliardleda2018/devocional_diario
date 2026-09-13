@@ -4,6 +4,11 @@
 
 export const DEFAULT_PAGE_SIZE = 20;
 
+// Chave de localStorage onde /convite/[codigo] guarda o código pendente até
+// a pessoa autenticar -- DevocionalApp.jsx lê e resgata (RPC resgatar_convite)
+// assim que o usuário loga, e limpa a chave depois, com sucesso ou não.
+export const CHAVE_CONVITE_PENDENTE = "codigo_convite_pendente";
+
 export const RESERVED_USERNAMES = [
   "admin",
   "administrator",
