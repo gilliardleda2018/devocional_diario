@@ -47,6 +47,16 @@ No painel do Supabase: **Authentication** → **URL Configuration**:
   quanto `https://SEU-DOMINIO/auth/callback` (a URL final, depois do
   deploy).
 
+> **Confirmação de e-mail desativada de propósito.** Em
+> **Authentication → Sign In / Providers → Email**, a opção **"Confirm
+> email"** está desligada. Com ela ligada, cadastro por e-mail/senha só
+> libera acesso depois de clicar num link enviado por e-mail -- em produção
+> isso travou ~10% dos cadastros para sempre (gente que nunca confirmou) e
+> atrasou outros em até 9 dias. Quem entra com Google nunca teve esse
+> problema, porque não passa por confirmação. Desligar essa opção faz o
+> cadastro por e-mail/senha liberar acesso na hora, igual ao Google -- o
+> código do app (`app/login/page.js`) já trata os dois casos.
+
 ## 5. Variáveis de ambiente
 
 1. Copie `.env.local.example` para `.env.local`.
