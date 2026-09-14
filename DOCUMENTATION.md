@@ -293,3 +293,21 @@ O projeto está pré-configurado com **Capacitor** para geração de aplicativo 
 4. **Gerar o APK de Produção**:
    - No Android Studio, vá em **Build ➔ Build Bundle(s) / APK(s) ➔ Build APK(s)**.
    - O APK gerado estará localizado em `android/app/build/outputs/apk/debug/app-debug.apk` ou `release`.
+
+---
+
+## 10. Gamificação: Fases, Missões e Sementes de Fé
+
+### 10.1 Regra oficial de progressão (`src/lib/devocional/niveis.js`)
+- Cada devocional concluído dá **20 XP** (função `registrar_devocional_hoje`); o quiz do dia dá XP e sementes variáveis conforme os acertos (`concluir_quiz_hoje`).
+- A cada **250 XP** acumulado, o usuário ganha **1 Semente de Fé**. A cada **5 Sementes**, ele sobe de fase — ou seja, cada fase custa exatamente **1.250 XP**.
+- `obterNivel(xpTotal)` retorna, além do título/progresso da fase, `sementesTotais`, `sementesNaFase` e `sementesFaltantes`, usados pela tela de Progresso para mostrar "X/5 sementes para virar [próxima fase]".
+- O avanço de fase é sempre calculado a partir do **XP bruto acumulado**, nunca do saldo de sementes já gasto na loja — assim comprar um item nunca "rebaixa" a fase de ninguém.
+
+### 10.2 Sementes de Fé como moeda oficial do jogo
+- Sementes de Fé são a **única moeda** do app: a mesma carteira (`public.moedas_transacoes`, saldo lido por `obter_saldo_sementes()`) alimenta tanto a conversão de XP quanto as recompensas sociais (torcer, aceitar amizade, resgatar convite, baús) e os gastos na Loja de Sementes (congelar ofensiva, avatares cosméticos).
+- A função `public.conceder_sementes_por_xp(usuario_id)` (ver `supabase/schema_v5_moeda_oficial_sementes.sql`) credita a diferença entre `floor(xp_total / 250)` e o que já foi convertido antes (`motivo = 'conversao_xp'`), então é idempotente — pode ser chamada em toda ação que concede XP sem nunca creditar duas vezes o mesmo XP. É chamada internamente por `registrar_devocional_hoje` e `concluir_quiz_hoje`, sem `EXECUTE` liberado pro cliente.
+
+### 10.3 Missões (`src/lib/devocional/missoes.js`) e Conquistas (`src/lib/devocional/badges.js`)
+- Missões diárias/semanais (Devocional de hoje, Quiz, Constância, Torcer por um amigo etc.) complementam a progressão de fase, mas não concedem sementes por si só além do que a ação de origem já dá.
+- Conquistas (Constância, Ofensiva, Exploração) têm níveis Bronze/Prata/Ouro/Diamante calculados a partir de `obter_estatisticas_usuario()`, independentes do sistema de fases.
