@@ -104,9 +104,11 @@ devocional_diario/
 ## 3. Módulos e Componentes React (`src/components/`)
 
 ### 3.1 `DevocionalApp.jsx`
-- **Função**: Componente mestre que controla a navegação por abas (`Devocional do dia`, `Bíblia`, `Favoritos`, `Diário`, `Progresso`, `Comunidade`, `Amigos`), o cabeçalho superior com pílula de usuário e o acionamento dos modais principais.
+- **Função**: Componente mestre que controla a navegação por abas (`Devocional do dia`, `Oração`, `Quiz`, `Pedir Oração`, `Bíblia`, `Favoritos`, `Diário`, `Progresso`, `Comunidade`, `Amigos`), o cabeçalho superior com pílula de usuário e o acionamento dos modais principais.
 - **Destaques**:
   - Menu de navegação em grade de botões quadrados (4 colunas), com ícones `lucide-react` e cor própria por categoria — substituiu a antiga fileira de abas com rolagem horizontal, que escondia abas fora da tela em telas pequenas.
+  - `Oração` (fluxo Ler/Refletir/Orar) e `Quiz` (`QuizVersiculo`) ganharam telas próprias, acessíveis direto pelo menu, em vez de ficarem embutidas rolando a aba `Devocional do dia`.
+  - `Pedir Oração` dá acesso direto ao mural de pedidos (`PedidosOracaoTab`), que também continua disponível como sub-aba dentro de `Comunidade`.
   - Card de `MissoesCard` (missões do dia/semana) fica logo abaixo do menu de navegação na aba `Devocional do dia`, seguido da chama da ofensiva e de "Amigos orando hoje".
   - Pílula do Usuário com ícone lápis `✏️` indicando a ação de editar perfil.
   - Botão de Notificações 🔔 com badge numérico em tempo real; a aba `Amigos` também exibe badge de pedidos de amizade pendentes.
