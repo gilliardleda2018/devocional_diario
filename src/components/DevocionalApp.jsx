@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Home, BookOpen, Star, NotebookPen, TrendingUp, Globe2, Users } from "lucide-react";
+import { BookHeart, BookOpen, Star, NotebookPen, TrendingUp, Globe2, Users } from "lucide-react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
 import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
@@ -418,7 +418,7 @@ export default function DevocionalApp({ usuario }) {
   const nomeExibicao = usuario?.user_metadata?.full_name || usuario?.email || "Fiel";
 
   const abasMenu = [
-    { id: "inicio", label: "Início", Icon: Home },
+    { id: "inicio", label: "Devocional do dia", Icon: BookHeart },
     { id: "biblia", label: "Bíblia", Icon: BookOpen },
     { id: "favoritos", label: "Favoritos", Icon: Star, contagem: favoritos.length },
     { id: "diario", label: "Diário", Icon: NotebookPen },
@@ -631,6 +631,12 @@ export default function DevocionalApp({ usuario }) {
 
         {aba === "inicio" && (
           <>
+            {/* MISSÕES: logo abaixo do menu de ícones para ficar sempre à vista
+                e fácil de cumprir, sem precisar rolar a página toda. */}
+            <div style={{ marginBottom: 20 }}>
+              <MissoesCard missoes={missoes} />
+            </div>
+
             {/* SOLICITAÇÕES DE AMIZADE: bem visível na tela inicial -- antes só
                 dava pra ver no sininho ou entrando em Conexões > Pedidos, e
                 muita gente nunca via que tinha pedido esperando. */}
@@ -724,10 +730,6 @@ export default function DevocionalApp({ usuario }) {
                 />
               </div>
             )}
-
-            <div style={{ marginTop: 20 }}>
-              <MissoesCard missoes={missoes} />
-            </div>
 
             <div style={{ marginTop: 20 }}>
               <GuiaLeituraBiblia usuarioId={usuario?.id} onAbrirLivro={abrirLivroDoGuiaNaInicio} />
