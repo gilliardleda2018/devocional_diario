@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Home, BookOpen, Star, NotebookPen, TrendingUp, Globe2, Users } from "lucide-react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
 import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
@@ -416,6 +417,16 @@ export default function DevocionalApp({ usuario }) {
 
   const nomeExibicao = usuario?.user_metadata?.full_name || usuario?.email || "Fiel";
 
+  const abasMenu = [
+    { id: "inicio", label: "Início", Icon: Home },
+    { id: "biblia", label: "Bíblia", Icon: BookOpen },
+    { id: "favoritos", label: "Favoritos", Icon: Star, contagem: favoritos.length },
+    { id: "diario", label: "Diário", Icon: NotebookPen },
+    { id: "progresso", label: "Progresso", Icon: TrendingUp },
+    { id: "comunidade", label: "Comunidade", Icon: Globe2 },
+    { id: "amigos", label: "Conexões", Icon: Users, contagem: pedidosAmizadePendentes.length },
+  ];
+
   return (
     <div style={styles.page}>
       <style>{`
@@ -598,63 +609,24 @@ export default function DevocionalApp({ usuario }) {
         </div>
 
         {/* TABS */}
-        <div style={styles.tabRow} className="no-scrollbar">
-          <button
-            className="tab-btn"
-            style={aba === "inicio" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("inicio")}
-          >
-            Início
-          </button>
-          <button
-            className="tab-btn"
-            style={aba === "biblia" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("biblia")}
-          >
-            Bíblia
-          </button>
-          <button
-            className="tab-btn"
-            style={aba === "favoritos" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("favoritos")}
-          >
-            ⭐ Favoritos {favoritos.length > 0 && `(${favoritos.length})`}
-          </button>
-          <button
-            className="tab-btn"
-            style={aba === "diario" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("diario")}
-          >
-            📔 Diário
-          </button>
-          <button
-            className="tab-btn"
-            style={aba === "progresso" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("progresso")}
-          >
-            Progresso
-          </button>
-          <button
-            className="tab-btn"
-            style={aba === "comunidade" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("comunidade")}
-          >
-            🌐 Comunidade
-          </button>
-          <button
-            className="tab-btn"
-            style={aba === "amigos" ? styles.tabActive : styles.tabInactive}
-            onClick={() => setAba("amigos")}
-          >
-            🤝 Conexões
-          </button>
-          <button
-            className="tab-btn"
-            style={modalPerfilAberto ? styles.tabActive : styles.tabInactive}
-            onClick={() => setModalPerfilAberto(true)}
-          >
-            👤 Cadastro
-          </button>
+        <div style={styles.tabGrid}>
+          {abasMenu.map(({ id, label, Icon, contagem }) => {
+            const ativo = aba === id;
+            return (
+              <button
+                key={id}
+                className="tab-btn"
+                style={ativo ? styles.tabCardActive : styles.tabCardInactive}
+                onClick={() => setAba(id)}
+              >
+                <span style={styles.tabCardIconWrap}>
+                  <Icon size={26} strokeWidth={2} color={ativo ? "#B98B4E" : "#7A8A7F"} />
+                  {contagem > 0 && <span style={styles.tabCardBadge}>{contagem}</span>}
+                </span>
+                <span style={ativo ? styles.tabCardLabelActive : styles.tabCardLabel}>{label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {aba === "inicio" && (
@@ -1252,40 +1224,73 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
   },
-  tabRow: {
-    display: "flex",
-    gap: 6,
+  tabGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: 10,
     marginBottom: 20,
-    background: "#EFEAD9",
-    borderRadius: 12,
-    padding: 4,
-    overflowX: "auto",
-    WebkitOverflowScrolling: "touch",
   },
-  tabActive: {
-    flexShrink: 0,
+  tabCardActive: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    aspectRatio: "1 / 1",
     background: "#FFFFFF",
-    color: "#33422F",
-    border: "none",
-    borderRadius: 9,
-    padding: "8px 14px",
-    fontWeight: 700,
-    fontSize: 13,
+    border: "1.5px solid #B98B4E",
+    borderRadius: 16,
     cursor: "pointer",
-    boxShadow: "0 2px 8px rgba(80,70,40,0.08)",
-    whiteSpace: "nowrap",
+    boxShadow: "0 4px 12px rgba(185,139,78,0.18)",
+    padding: "6px 4px",
   },
-  tabInactive: {
-    flexShrink: 0,
-    background: "transparent",
-    color: "#8A9184",
-    border: "none",
-    borderRadius: 9,
-    padding: "8px 14px",
-    fontWeight: 600,
-    fontSize: 13,
+  tabCardInactive: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    aspectRatio: "1 / 1",
+    background: "#FBF9F3",
+    border: "1px solid #E7E0D0",
+    borderRadius: 16,
     cursor: "pointer",
-    whiteSpace: "nowrap",
+    padding: "6px 4px",
+  },
+  tabCardIconWrap: {
+    position: "relative",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabCardLabel: {
+    fontSize: 11.5,
+    fontWeight: 600,
+    color: "#8A9184",
+    textAlign: "center",
+    lineHeight: 1.15,
+  },
+  tabCardLabelActive: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: "#33422F",
+    textAlign: "center",
+    lineHeight: 1.15,
+  },
+  tabCardBadge: {
+    position: "absolute",
+    top: -8,
+    right: -10,
+    background: "#B98B4E",
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: 800,
+    borderRadius: 999,
+    padding: "1px 5px",
+    lineHeight: 1.4,
+    minWidth: 15,
+    textAlign: "center",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
   },
   card: {
     background: "#FBF9F3",
