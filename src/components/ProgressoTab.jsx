@@ -34,8 +34,23 @@ export default function ProgressoTab({ usuarioId, nomeExibicao, gatilhoRecarga }
         <p style={styles.nivelTitulo}>{nivel.titulo}</p>
         <p style={styles.xpTexto}>
           {carregandoStats ? "Carregando..." : `${nivel.xp} XP`}
-          {!nivel.nivelMaximo && !carregandoStats && ` · próximo nível: ${nivel.proximoTitulo} (${nivel.xpProximoNivel} XP)`}
+          {!nivel.nivelMaximo && !carregandoStats && ` · próximo nível: ${nivel.proximoTitulo}`}
         </p>
+        {!nivel.nivelMaximo && !carregandoStats && (
+          <>
+            <div style={styles.sementesFaseLinha}>
+              {Array.from({ length: nivel.sementesPorFase }).map((_, i) => (
+                <span key={i} style={{ opacity: i < nivel.sementesNaFase ? 1 : 0.25 }}>🌱</span>
+              ))}
+              <span style={styles.sementesFaseTexto}>
+                {nivel.sementesNaFase}/{nivel.sementesPorFase} sementes para virar {nivel.proximoTitulo}
+              </span>
+            </div>
+            <p style={styles.sementesFaseRegra}>
+              A cada 250 XP você ganha 1 Semente de Fé; a cada 5 Sementes, você sobe de fase.
+            </p>
+          </>
+        )}
         {!nivel.nivelMaximo && (
           <div style={styles.barraFundo}>
             <div style={{ ...styles.barraProgresso, width: `${Math.round(nivel.progresso * 100)}%` }} />
@@ -193,6 +208,26 @@ const styles = {
     color: "#7A8A7F",
     fontWeight: 600,
     margin: "0 0 14px",
+  },
+  sementesFaseLinha: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 16,
+    marginBottom: 6,
+    flexWrap: "wrap",
+  },
+  sementesFaseTexto: {
+    fontSize: 12.5,
+    fontWeight: 700,
+    color: "#3F7A4D",
+    marginLeft: 6,
+  },
+  sementesFaseRegra: {
+    fontSize: 11.5,
+    color: "#9AA79C",
+    margin: "0 0 12px",
+    lineHeight: 1.4,
   },
   barraFundo: {
     height: 10,
