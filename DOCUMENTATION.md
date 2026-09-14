@@ -104,9 +104,10 @@ devocional_diario/
 ## 3. Módulos e Componentes React (`src/components/`)
 
 ### 3.1 `DevocionalApp.jsx`
-- **Função**: Componente mestre que controla a navegação por abas (`Início`, `Bíblia`, `Favoritos`, `Diário`, `Progresso`, `Comunidade`, `Conexões`), o cabeçalho superior com pílula de usuário e o acionamento dos modais principais.
+- **Função**: Componente mestre que controla a navegação por abas (`Devocional do dia`, `Bíblia`, `Favoritos`, `Diário`, `Progresso`, `Comunidade`, `Conexões`), o cabeçalho superior com pílula de usuário e o acionamento dos modais principais.
 - **Destaques**:
   - Menu de navegação em grade de botões quadrados (4 colunas), com ícones `lucide-react` — substituiu a antiga fileira de abas com rolagem horizontal, que escondia abas fora da tela em telas pequenas.
+  - Card de `MissoesCard` (missões do dia/semana) fica logo abaixo do menu de navegação na aba `Devocional do dia`, seguido da chama da ofensiva e de "Amigos orando hoje".
   - Pílula do Usuário com ícone lápis `✏️` indicando a ação de editar perfil.
   - Botão de Notificações 🔔 com badge numérico em tempo real; a aba `Conexões` também exibe badge de pedidos de amizade pendentes.
   - Carregamento inicial resiliente do perfil local via Supabase `profiles`.
