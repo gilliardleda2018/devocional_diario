@@ -26,3 +26,6 @@ yarn-error.log*
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Claude Code local session state (machine/session-specific, not config)
+.claude/scheduled_tasks.lock
