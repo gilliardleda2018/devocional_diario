@@ -424,7 +424,7 @@ export default function DevocionalApp({ usuario }) {
     { id: "diario", label: "Diário", Icon: NotebookPen, cor: "#B25C86", corEscura: "#7D3A5B", fundo: "#F6E7EE" },
     { id: "progresso", label: "Progresso", Icon: TrendingUp, cor: "#5F9A4E", corEscura: "#3B6B2E", fundo: "#E8F2E2" },
     { id: "comunidade", label: "Comunidade", Icon: Globe2, cor: "#3D8F82", corEscura: "#275B54", fundo: "#E1F1EE" },
-    { id: "amigos", label: "Conexões", Icon: Users, contagem: pedidosAmizadePendentes.length, cor: "#7269B5", corEscura: "#4A4285", fundo: "#EAE8F6" },
+    { id: "amigos", label: "Amigos", Icon: Users, contagem: pedidosAmizadePendentes.length, cor: "#7269B5", corEscura: "#4A4285", fundo: "#EAE8F6" },
   ];
 
   return (
@@ -689,7 +689,7 @@ export default function DevocionalApp({ usuario }) {
             </div>
 
             {/* SOLICITAÇÕES DE AMIZADE: bem visível na tela inicial -- antes só
-                dava pra ver no sininho ou entrando em Conexões > Pedidos, e
+                dava pra ver no sininho ou entrando em Amigos > Pedidos, e
                 muita gente nunca via que tinha pedido esperando. */}
             {pedidosAmizadePendentes.length > 0 && (
               <div style={styles.pedidosBanner}>
