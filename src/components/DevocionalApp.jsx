@@ -418,13 +418,13 @@ export default function DevocionalApp({ usuario }) {
   const nomeExibicao = usuario?.user_metadata?.full_name || usuario?.email || "Fiel";
 
   const abasMenu = [
-    { id: "inicio", label: "Devocional do dia", Icon: BookHeart },
-    { id: "biblia", label: "Bíblia", Icon: BookOpen },
-    { id: "favoritos", label: "Favoritos", Icon: Star, contagem: favoritos.length },
-    { id: "diario", label: "Diário", Icon: NotebookPen },
-    { id: "progresso", label: "Progresso", Icon: TrendingUp },
-    { id: "comunidade", label: "Comunidade", Icon: Globe2 },
-    { id: "amigos", label: "Conexões", Icon: Users, contagem: pedidosAmizadePendentes.length },
+    { id: "inicio", label: "Devocional do dia", Icon: BookHeart, cor: "#B98B4E", corEscura: "#8A6224", fundo: "#FBF1DE" },
+    { id: "biblia", label: "Bíblia", Icon: BookOpen, cor: "#C17A52", corEscura: "#8A4B2A", fundo: "#F8E8E0" },
+    { id: "favoritos", label: "Favoritos", Icon: Star, contagem: favoritos.length, cor: "#D1A22A", corEscura: "#8F6A10", fundo: "#FDF5D9" },
+    { id: "diario", label: "Diário", Icon: NotebookPen, cor: "#B25C86", corEscura: "#7D3A5B", fundo: "#F6E7EE" },
+    { id: "progresso", label: "Progresso", Icon: TrendingUp, cor: "#5F9A4E", corEscura: "#3B6B2E", fundo: "#E8F2E2" },
+    { id: "comunidade", label: "Comunidade", Icon: Globe2, cor: "#3D8F82", corEscura: "#275B54", fundo: "#E1F1EE" },
+    { id: "amigos", label: "Conexões", Icon: Users, contagem: pedidosAmizadePendentes.length, cor: "#7269B5", corEscura: "#4A4285", fundo: "#EAE8F6" },
   ];
 
   return (
@@ -610,20 +610,26 @@ export default function DevocionalApp({ usuario }) {
 
         {/* TABS */}
         <div style={styles.tabGrid}>
-          {abasMenu.map(({ id, label, Icon, contagem }) => {
+          {abasMenu.map(({ id, label, Icon, contagem, cor, corEscura, fundo }) => {
             const ativo = aba === id;
             return (
               <button
                 key={id}
                 className="tab-btn"
-                style={ativo ? styles.tabCardActive : styles.tabCardInactive}
+                style={{
+                  ...(ativo ? styles.tabCardActive : styles.tabCardInactive),
+                  background: ativo ? "#FFFFFF" : fundo,
+                  borderColor: ativo ? cor : "transparent",
+                }}
                 onClick={() => setAba(id)}
               >
                 <span style={styles.tabCardIconWrap}>
-                  <Icon size={26} strokeWidth={2} color={ativo ? "#B98B4E" : "#7A8A7F"} />
+                  <Icon size={26} strokeWidth={2} color={cor} />
                   {contagem > 0 && <span style={styles.tabCardBadge}>{contagem}</span>}
                 </span>
-                <span style={ativo ? styles.tabCardLabelActive : styles.tabCardLabel}>{label}</span>
+                <span style={{ ...(ativo ? styles.tabCardLabelActive : styles.tabCardLabel), color: corEscura }}>
+                  {label}
+                </span>
               </button>
             );
           })}
@@ -631,8 +637,53 @@ export default function DevocionalApp({ usuario }) {
 
         {aba === "inicio" && (
           <>
-            {/* MISSÕES: logo abaixo do menu de ícones para ficar sempre à vista
-                e fácil de cumprir, sem precisar rolar a página toda. */}
+            {/* VERSÍCULO DO DIA: primeiro componente da tela, tom de pergaminho
+                pra remeter à leitura da Palavra antes de qualquer outra coisa. */}
+            <div style={{ ...styles.card, ...styles.pergaminho, marginBottom: 20 }}>
+              <p style={styles.cardLabel}>
+                {versiculoDoDia.comemorativa
+                  ? `Palavra para ${COMMEMORATIVE_LABELS[versiculoDoDia.comemorativa]}`
+                  : "Palavra para hoje"}
+              </p>
+              {textoDoDia ? (
+                <p style={styles.verseText}>&ldquo;{textoDoDia}&rdquo;</p>
+              ) : erroDoDia ? (
+                <p style={styles.verseText}>Não foi possível carregar o texto agora. Tente novamente em instantes.</p>
+              ) : (
+                <p style={styles.loadingText}>Carregando...</p>
+              )}
+              <p style={{ ...styles.verseRef, color: "#8A7455" }}>— {versiculoDoDia.label}</p>
+              {textoDoDia && (
+                <>
+                  <AudioPlayer texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} rotulo="Ouvir versículo" />
+                  <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                    <button
+                      className="action-btn"
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: 13,
+                        borderRadius: 10,
+                        border: "1px solid #D9C48A",
+                        background: eFavorito(versiculoDoDia.label) ? "#F1DFA3" : "#FFFDF6",
+                        color: eFavorito(versiculoDoDia.label) ? "#7A5A10" : "#6B5A38",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                      onClick={() => alternarFavorito(versiculoDoDia.label, textoDoDia)}
+                    >
+                      {eFavorito(versiculoDoDia.label) ? "⭐ Salvo nos Favoritos" : "☆ Salvar nos Favoritos"}
+                    </button>
+                    <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* MISSÕES: logo abaixo do menu de ícones e da Palavra do dia, pra
+                ficar sempre à vista e fácil de cumprir, sem rolar a tela toda. */}
             <div style={{ marginBottom: 20 }}>
               <MissoesCard missoes={missoes} />
             </div>
@@ -675,50 +726,6 @@ export default function DevocionalApp({ usuario }) {
               temAmigos={totalAmigos > 0}
               aoConvidar={() => setAba("amigos")}
             />
-
-            {/* VERSÍCULO DO DIA */}
-            <div style={styles.card}>
-              <p style={styles.cardLabel}>
-                {versiculoDoDia.comemorativa
-                  ? `Palavra para ${COMMEMORATIVE_LABELS[versiculoDoDia.comemorativa]}`
-                  : "Palavra para hoje"}
-              </p>
-              {textoDoDia ? (
-                <p style={styles.verseText}>&ldquo;{textoDoDia}&rdquo;</p>
-              ) : erroDoDia ? (
-                <p style={styles.verseText}>Não foi possível carregar o texto agora. Tente novamente em instantes.</p>
-              ) : (
-                <p style={styles.loadingText}>Carregando...</p>
-              )}
-              <p style={styles.verseRef}>— {versiculoDoDia.label}</p>
-              {textoDoDia && (
-                <>
-                  <AudioPlayer texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} rotulo="Ouvir versículo" />
-                  <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-                    <button
-                      className="action-btn"
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: 13,
-                        borderRadius: 10,
-                        border: "1px solid #E7E0D0",
-                        background: eFavorito(versiculoDoDia.label) ? "#FEF3C7" : "#FFFFFF",
-                        color: eFavorito(versiculoDoDia.label) ? "#92400E" : "#4B5563",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                      onClick={() => alternarFavorito(versiculoDoDia.label, textoDoDia)}
-                    >
-                      {eFavorito(versiculoDoDia.label) ? "⭐ Salvo nos Favoritos" : "☆ Salvar nos Favoritos"}
-                    </button>
-                    <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
-                  </div>
-                </>
-              )}
-            </div>
 
             {textoDoDia && (
               <div style={{ marginTop: 20 }}>
@@ -1301,6 +1308,11 @@ const styles = {
     padding: "26px 24px",
     boxShadow: "0 8px 24px rgba(80, 70, 40, 0.06)",
     textAlign: "center",
+  },
+  pergaminho: {
+    background: "linear-gradient(160deg, #F8EFD6 0%, #EFDFAF 100%)",
+    border: "1px solid #D9C48A",
+    boxShadow: "0 8px 22px rgba(139, 108, 46, 0.16)",
   },
   pedidosBanner: {
     display: "flex",
