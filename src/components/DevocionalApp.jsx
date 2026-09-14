@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookHeart, BookOpen, Star, NotebookPen, TrendingUp, Globe2, Users } from "lucide-react";
+import { BookHeart, BookOpen, Star, NotebookPen, TrendingUp, Globe2, Users, HandHeart, MessageCircleQuestion, HeartHandshake } from "lucide-react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
 import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
@@ -36,6 +36,7 @@ import LembreteModal from "@/src/components/LembreteModal";
 import CardDoacao from "@/src/components/CardDoacao";
 import FavoritosTab from "@/src/components/FavoritosTab";
 import DiarioTab from "@/src/components/DiarioTab";
+import PedidosOracaoTab from "@/src/components/PedidosOracaoTab";
 import { useFavoritos } from "@/src/lib/hooks/useFavoritos";
 import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilModal from "@/src/components/PerfilModal";
@@ -419,6 +420,9 @@ export default function DevocionalApp({ usuario }) {
 
   const abasMenu = [
     { id: "inicio", label: "Devocional do dia", Icon: BookHeart, cor: "#B98B4E", corEscura: "#8A6224", fundo: "#FBF1DE" },
+    { id: "oracao", label: "Oração", Icon: HandHeart, cor: "#4A7FB5", corEscura: "#2C4F73", fundo: "#E6EEF7" },
+    { id: "quiz", label: "Quiz", Icon: MessageCircleQuestion, cor: "#E0793C", corEscura: "#954E1D", fundo: "#FBEADA" },
+    { id: "pedidos-oracao", label: "Pedir Oração", Icon: HeartHandshake, cor: "#C15B5B", corEscura: "#7A3232", fundo: "#F8E4E4" },
     { id: "biblia", label: "Bíblia", Icon: BookOpen, cor: "#C17A52", corEscura: "#8A4B2A", fundo: "#F8E8E0" },
     { id: "favoritos", label: "Favoritos", Icon: Star, contagem: favoritos.length, cor: "#D1A22A", corEscura: "#8F6A10", fundo: "#FDF5D9" },
     { id: "diario", label: "Diário", Icon: NotebookPen, cor: "#B25C86", corEscura: "#7D3A5B", fundo: "#F6E7EE" },
@@ -727,37 +731,35 @@ export default function DevocionalApp({ usuario }) {
               aoConvidar={() => setAba("amigos")}
             />
 
-            {textoDoDia && (
-              <div style={{ marginTop: 20 }}>
-                <QuizVersiculo
-                  entrada={versiculoDoDia}
-                  texto={textoDoDia}
-                  onProgresso={setQuizRespondidas}
-                  onConcluido={handleQuizConcluido}
-                />
-              </div>
-            )}
-
             <div style={{ marginTop: 20 }}>
               <GuiaLeituraBiblia usuarioId={usuario?.id} onAbrirLivro={abrirLivroDoGuiaNaInicio} />
             </div>
 
+            <CardDoacao />
+
+            <p style={styles.footnote}>
+              Os versículos deste devocional são buscados ao vivo da tradução de Almeida (domínio público) — a mesma fonte
+              da aba &quot;Bíblia completa&quot;. Em datas comemorativas (Dia das Mães, dos Pais, Páscoa, Natal...), a
+              palavra do dia muda automaticamente para um versículo relacionado.
+            </p>
+          </>
+        )}
+
+        {aba === "oracao" && (
+          <>
             {!devocional && (
-              <>
-                <div style={styles.divider} />
-                <div style={styles.moodSection}>
-                  <h2 style={styles.sectionTitle}>Qual o tema da sua oração hoje?</h2>
-                  <p style={styles.sectionSubtitle}>Escolha o que mais combina com este momento e vamos refletir juntos.</p>
-                  <div style={styles.moodGrid}>
-                    {MOODS.map((m) => (
-                      <button key={m.id} className="mood-btn" style={styles.moodBtn} onClick={() => iniciarDevocional(m.id)}>
-                        <span style={{ fontSize: 22 }}>{m.icon}</span>
-                        <span style={styles.moodLabel}>{m.label}</span>
-                      </button>
-                    ))}
-                  </div>
+              <div style={styles.moodSection}>
+                <h2 style={styles.sectionTitle}>Qual o tema da sua oração hoje?</h2>
+                <p style={styles.sectionSubtitle}>Escolha o que mais combina com este momento e vamos refletir juntos.</p>
+                <div style={styles.moodGrid}>
+                  {MOODS.map((m) => (
+                    <button key={m.id} className="mood-btn" style={styles.moodBtn} onClick={() => iniciarDevocional(m.id)}>
+                      <span style={{ fontSize: 22 }}>{m.icon}</span>
+                      <span style={styles.moodLabel}>{m.label}</span>
+                    </button>
+                  ))}
                 </div>
-              </>
+              </div>
             )}
 
             {devocional && (
@@ -851,15 +853,28 @@ export default function DevocionalApp({ usuario }) {
                 )}
               </div>
             )}
-
-            <CardDoacao />
-
-            <p style={styles.footnote}>
-              Os versículos deste devocional são buscados ao vivo da tradução de Almeida (domínio público) — a mesma fonte
-              da aba &quot;Bíblia completa&quot;. Em datas comemorativas (Dia das Mães, dos Pais, Páscoa, Natal...), a
-              palavra do dia muda automaticamente para um versículo relacionado.
-            </p>
           </>
+        )}
+
+        {aba === "quiz" && (
+          <>
+            {textoDoDia ? (
+              <QuizVersiculo
+                entrada={versiculoDoDia}
+                texto={textoDoDia}
+                onProgresso={setQuizRespondidas}
+                onConcluido={handleQuizConcluido}
+              />
+            ) : erroDoDia ? (
+              <p style={styles.loadingText}>Não foi possível carregar o versículo de hoje agora. Tente novamente em instantes.</p>
+            ) : (
+              <p style={styles.loadingText}>Carregando o versículo de hoje...</p>
+            )}
+          </>
+        )}
+
+        {aba === "pedidos-oracao" && (
+          <PedidosOracaoTab usuarioId={usuario?.id} nomeUsuario={perfil?.nome_exibicao} />
         )}
 
         {aba === "biblia" && (
