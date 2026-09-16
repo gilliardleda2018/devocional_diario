@@ -22,7 +22,18 @@ export default function PerfilAmigoModal({
   const [processando, setProcessando] = useState(false);
   const [mensagem, setMensagem] = useState(null);
 
-  const amigoId = amigo?.candidate_id || amigo?.usuario_id || amigo?.amigo_id || amigo?.autor_id || amigo?.id;
+  // Nas listas de "Enviados"/"Recebidos" (useAmigos.js), o campo `id` guarda
+  // o id do PEDIDO de amizade (linha da tabela amizades), não o id da
+  // pessoa -- por isso destinatario_id/solicitante_id (sempre o id real da
+  // pessoa, quando presentes) têm prioridade sobre `.id` aqui.
+  const amigoId =
+    amigo?.candidate_id ||
+    amigo?.usuario_id ||
+    amigo?.amigo_id ||
+    amigo?.autor_id ||
+    amigo?.destinatario_id ||
+    amigo?.solicitante_id ||
+    amigo?.id;
 
   useEffect(() => {
     if (!aberto || !amigoId) return;
