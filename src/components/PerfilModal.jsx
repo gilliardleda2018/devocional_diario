@@ -104,15 +104,15 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
         bio: bio.trim() || null,
       };
 
-      const { error } = await supabase.from("profiles").upsert(payloadCompleto);
+      const { id: _idIgnorado, ...alteracoes } = payloadCompleto;
+      const { error } = await supabase.from("profiles").update(alteracoes).eq("id", usuario.id);
 
       if (error) {
         console.warn("Retentando salvar perfil com campos básicos:", error);
-        const { error: errFallback } = await supabase.from("profiles").upsert({
-          id: usuario.id,
-          nome_exibicao: nomeExibicao.trim(),
-          foto_url: fotoFinal || null,
-        });
+        const { error: errFallback } = await supabase
+          .from("profiles")
+          .update({ nome_exibicao: nomeExibicao.trim(), foto_url: fotoFinal || null })
+          .eq("id", usuario.id);
         if (errFallback) throw errFallback;
       }
 

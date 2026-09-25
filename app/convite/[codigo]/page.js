@@ -75,11 +75,11 @@ export default function PaginaConvite({ params }) {
         <button
           className="action-btn"
           style={styles.primaryBtn}
-          onClick={() => router.push("/login?modo=cadastro")}
+          onClick={() => router.push(`/login?modo=cadastro&convite=${encodeURIComponent(codigo)}`)}
         >
           Criar minha conta ✨
         </button>
-        <button style={styles.linkBtn} onClick={() => router.push("/login")}>
+        <button style={styles.linkBtn} onClick={() => router.push(`/login?convite=${encodeURIComponent(codigo)}`)}>
           Já tenho conta — Entrar
         </button>
       </div>

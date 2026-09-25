@@ -8,19 +8,30 @@ import CompartilharBotoes from "@/src/components/CompartilharBotoes";
  * devocional em si. Ver src/lib/devocional/missoes.js pra como o
  * progresso de cada uma é calculado.
  */
-export default function MissoesCard({ missoes }) {
+export default function MissoesCard({ missoes, aoAbrirMissao }) {
   const concluidas = missoes.filter((m) => m.atual >= m.meta).length;
 
   return (
     <div style={estilos.card}>
       <p style={estilos.titulo}>Missões</p>
-      <p style={estilos.subtitulo}>Cumpra os desafios de hoje e da semana, como nas fases de um jogo.</p>
+      <p style={estilos.subtitulo}>Toque numa missão para ir direto até ela.</p>
       <div style={estilos.lista}>
         {missoes.map((m) => {
           const concluida = m.atual >= m.meta;
           const progresso = Math.max(0, Math.min(1, m.atual / m.meta));
           return (
-            <div key={m.id} style={estilos.item}>
+            <div
+              key={m.id}
+              role={!concluida && aoAbrirMissao ? "button" : undefined}
+              tabIndex={!concluida && aoAbrirMissao ? 0 : undefined}
+              onClick={!concluida && aoAbrirMissao ? () => aoAbrirMissao(m.id) : undefined}
+              onKeyDown={
+                !concluida && aoAbrirMissao
+                  ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); aoAbrirMissao(m.id); } }
+                  : undefined
+              }
+              style={{ ...estilos.item, ...(!concluida && aoAbrirMissao ? { cursor: "pointer" } : {}) }}
+            >
               <div style={{ ...estilos.icone, ...(concluida ? estilos.iconeConcluido : {}) }}>
                 {concluida ? "✓" : m.icone}
               </div>
@@ -46,6 +57,7 @@ export default function MissoesCard({ missoes }) {
               </div>
               <span style={estilos.fracao}>
                 {m.atual}/{m.meta}
+                {!concluida && aoAbrirMissao && <span style={{ display: "block", fontSize: 16, lineHeight: 1 }}>›</span>}
               </span>
             </div>
           );

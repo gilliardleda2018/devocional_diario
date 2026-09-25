@@ -1,74 +1,65 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
-import { validarUsername } from "@/src/lib/constants";
+
+/**
+ * Onboarding enxuto: só pergunta o NOME, e só quando ele está faltando
+ * (vazio, "Fiel" ou parecido com e-mail). Username, cidade e igreja ficam
+ * para depois, no Perfil -- pedir tudo isso antes do primeiro devocional
+ * era um dos pontos em que as pessoas desistiam.
+ *
+ * O @username é gerado automaticamente a partir do nome, se ainda não existir.
+ */
+export function nomePrecisaDeAjuste(nome) {
+  const n = (nome || "").trim();
+  return !n || n.toLowerCase() === "fiel" || n.includes("@");
+}
+
+function gerarUsername(nome) {
+  const base = (nome || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 14);
+  const sufixo = Math.floor(100 + Math.random() * 900);
+  return `${base || "fiel"}_${sufixo}`;
+}
 
 export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
-  const [passo, setPasso] = useState(1);
+  const nomeInicial = nomePrecisaDeAjuste(perfilAtual?.nome_exibicao)
+    ? (usuario?.user_metadata?.full_name || "")
+    : perfilAtual?.nome_exibicao;
+  const [nome, setNome] = useState(nomeInicial || "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(null);
 
-  const [nomeExibicao, setNomeExibicao] = useState(
-    perfilAtual?.nome_exibicao || usuario?.user_metadata?.full_name || usuario?.email?.split("@")[0] || "Fiel"
-  );
-  const [username, setUsername] = useState(perfilAtual?.username || "");
-  const [cidade, setCidade] = useState(perfilAtual?.cidade || "");
-  const [igreja, setIgreja] = useState(perfilAtual?.igreja || "");
-
-  useEffect(() => {
-    if (!username && (nomeExibicao || usuario?.email)) {
-      const base = (nomeExibicao || usuario?.email?.split("@")[0] || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9_]/g, "")
-        .slice(0, 18);
-      if (base) setUsername(base);
-    }
-  }, [nomeExibicao, usuario, username]);
-
-  async function handleAvancarEtapa1(e) {
+  async function salvar(e) {
     if (e) e.preventDefault();
-    setErro(null);
-
-    const val = validarUsername(username);
-    if (!val.valido) {
-      setErro(val.erro);
+    const nomeLimpo = nome.trim().replace(/\s+/g, " ");
+    if (nomeLimpo.length < 2 || nomeLimpo.includes("@")) {
+      setErro("Digite seu nome (pelo menos 2 letras, sem e-mail).");
       return;
     }
-
-    setPasso(2);
-  }
-
-  async function handleFinalizar() {
-    setSalvando(true);
     setErro(null);
+    setSalvando(true);
     try {
       const supabase = criarClienteSupabase();
-      const val = validarUsername(username);
-      const uLimpo = val.valido ? val.usernameLimpo : `user_${usuario.id.slice(0, 6)}`;
-      const nomeFinal = nomeExibicao.trim() || "Fiel";
-
-      try {
-        await supabase.from("profiles").upsert({
-          id: usuario.id,
-          nome_exibicao: nomeFinal,
-          username: uLimpo,
-          cidade: cidade.trim() || null,
-          igreja: igreja.trim() || null,
-        });
-      } catch {
-        await supabase.from("profiles").upsert({
-          id: usuario.id,
-          nome_exibicao: nomeFinal,
-        }).catch(() => {});
-      }
-    } catch (e) {
-      console.warn("Aviso ao salvar onboarding:", e);
+      const alteracoes = { nome_exibicao: nomeLimpo, atualizado_em: new Date().toISOString() };
+      if (!perfilAtual?.nome_completo) alteracoes.nome_completo = nomeLimpo;
+      if (!perfilAtual?.username) alteracoes.username = gerarUsername(nomeLimpo);
+      const { error } = await supabase.from("profiles").update(alteracoes).eq("id", usuario.id);
+      if (error) throw error;
+      // Mantém o nome também nos metadados da conta (usado como reserva em alguns pontos do app).
+      await supabase.auth.updateUser({ data: { full_name: nomeLimpo } }).catch(() => {});
+      if (aoConcluir) aoConcluir();
+    } catch (e2) {
+      console.warn("Erro ao salvar nome:", e2);
+      setErro("Não foi possível salvar agora. Verifique sua conexão e tente de novo.");
     } finally {
       setSalvando(false);
-      if (aoConcluir) aoConcluir();
     }
   }
 
@@ -77,85 +68,27 @@ export default function OnboardingModal({ usuario, perfilAtual, aoConcluir }) {
       <div style={styles.modal}>
         <div style={styles.header}>
           <div style={styles.glowIcon}>🕊️</div>
-          <h2 style={styles.title}>Bem-vindo ao Devocional Diário!</h2>
-          <p style={styles.subtitle}>
-            {passo === 1
-              ? "Escolha seu nome de exibição e seu @username exclusivo."
-              : "Conecte-se com sua cidade e comunidade espiritual."}
-          </p>
+          <h2 style={styles.title}>Que bom ter você aqui!</h2>
+          <p style={styles.subtitle}>Como podemos te chamar? É assim que seus amigos vão te ver no app.</p>
         </div>
 
-        {passo === 1 && (
-          <form onSubmit={handleAvancarEtapa1} style={styles.body}>
-            <label style={styles.label}>Como gostaria de ser chamado?</label>
-            <input
-              type="text"
-              required
-              value={nomeExibicao}
-              onChange={(e) => setNomeExibicao(e.target.value)}
-              placeholder="Seu nome (ex: João Silva)"
-              style={styles.input}
-            />
-
-            <label style={{ ...styles.label, marginTop: 12 }}>Seu @username único:</label>
-            <div style={{ position: "relative" }}>
-              <span style={styles.atSymbol}>@</span>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setErro(null);
-                }}
-                placeholder="seu_username"
-                style={{ ...styles.input, paddingLeft: 28 }}
-              />
-            </div>
-
-            {erro && <p style={styles.errorText}>{erro}</p>}
-
-            <div style={styles.footer}>
-              <button type="submit" style={styles.btnPrimary}>
-                Avançar →
-              </button>
-              <button type="button" style={styles.btnSkip} onClick={() => aoConcluir && aoConcluir()}>
-                Pular por enquanto
-              </button>
-            </div>
-          </form>
-        )}
-
-        {passo === 2 && (
-          <div style={styles.body}>
-            <label style={styles.label}>Cidade (opcional):</label>
-            <input
-              type="text"
-              value={cidade}
-              onChange={(e) => setCidade(e.target.value)}
-              placeholder="Sua cidade (ex: São Paulo - SP)"
-              style={styles.input}
-            />
-
-            <label style={{ ...styles.label, marginTop: 12 }}>Sua Igreja ou Comunidade (opcional):</label>
-            <input
-              type="text"
-              value={igreja}
-              onChange={(e) => setIgreja(e.target.value)}
-              placeholder="Sua igreja/comunidade"
-              style={styles.input}
-            />
-
-            <div style={styles.footer}>
-              <button style={styles.btnPrimary} onClick={handleFinalizar} disabled={salvando}>
-                {salvando ? "Entrando..." : "Começar a Usar ✨"}
-              </button>
-              <button style={styles.btnSkip} onClick={() => setPasso(1)}>
-                « Voltar ao nome
-              </button>
-            </div>
+        <form onSubmit={salvar} style={styles.body}>
+          <input
+            type="text"
+            required
+            autoFocus
+            value={nome}
+            onChange={(e) => { setNome(e.target.value); setErro(null); }}
+            placeholder="Seu nome (ex: Maria Souza)"
+            style={styles.input}
+          />
+          {erro && <p style={styles.errorText}>{erro}</p>}
+          <div style={styles.footer}>
+            <button type="submit" style={styles.btnPrimary} disabled={salvando}>
+              {salvando ? "Salvando..." : "Continuar ✨"}
+            </button>
           </div>
-        )}
+        </form>
       </div>
     </div>
   );

@@ -16,7 +16,8 @@ import { showToast } from "@/src/lib/ui/toast";
 const SUBABAS_PRINCIPAIS = [
   { id: "conexoes", label: "Conexões" },
   { id: "feed", label: "Feed" },
-  { id: "desafios", label: "Desafios" },
+  // "Desafios" oculto: zero uso até agora. O código continua abaixo para
+  // reativar no futuro (basta devolver esta linha).
   { id: "liga", label: "Liga" },
 ];
 

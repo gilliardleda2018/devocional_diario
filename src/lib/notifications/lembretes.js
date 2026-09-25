@@ -1,3 +1,4 @@
+import { dataLocalISO } from "@/src/lib/util/data";
 /**
  * Gerenciador de lembretes diários e notificações locais para o Devocional Diário.
  *
@@ -123,7 +124,7 @@ export function iniciarChecadorWeb() {
     const horarioAtual = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
     if (horarioAtual < config.horario) return;
 
-    const hojeISO = agora.toISOString().slice(0, 10);
+    const hojeISO = dataLocalISO(agora);
     const ultimoDisparo = localStorage.getItem(CHAVE_ULTIMO_DISPARO);
     if (ultimoDisparo === hojeISO) return;
 

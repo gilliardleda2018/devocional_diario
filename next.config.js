@@ -4,7 +4,7 @@ const nextConfig = {
   async headers() {
     // As páginas (HTML) não podem ficar em cache por muito tempo no CDN --
     // o Next.js manda "s-maxage=31536000" por padrão em páginas estáticas,
-    // pensado pra infra da Vercel (que invalida esse cache sozinha a cada
+    // pensado pra hospedagens que invalidam esse cache sozinhas a cada
     // deploy). Na AWS Amplify/CloudFront essa invalidação não é garantida,
     // então um HTML antigo em cache pode referenciar arquivos JS com hash
     // de um build anterior -- arquivos que já não existem mais depois do

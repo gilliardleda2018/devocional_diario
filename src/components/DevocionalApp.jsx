@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookHeart, BookOpen, Star, NotebookPen, TrendingUp, Globe2, Users, HandHeart, MessageCircleQuestion, HeartHandshake } from "lucide-react";
-import { criarClienteSupabase } from "@/src/lib/supabase/client";
+import { BookHeart, BookOpen, TrendingUp, Users, HandHeart } from "lucide-react";
+import { criarClienteSupabase, carregarMeuPerfil } from "@/src/lib/supabase/client";
 import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
 import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
 import { useProgressoSemana } from "@/src/lib/hooks/useProgressoSemana";
@@ -42,7 +42,7 @@ import AvatarUsuario from "@/src/components/AvatarUsuario";
 import PerfilModal from "@/src/components/PerfilModal";
 import PerfilAmigoModal from "@/src/components/PerfilAmigoModal";
 import CentralNotificacoesModal from "@/src/components/CentralNotificacoesModal";
-import OnboardingModal from "@/src/components/OnboardingModal";
+import OnboardingModal, { nomePrecisaDeAjuste } from "@/src/components/OnboardingModal";
 import ToastHost from "@/src/components/ToastHost";
 import { showToast } from "@/src/lib/ui/toast";
 import BauModal from "@/src/components/BauModal";
@@ -92,11 +92,11 @@ export default function DevocionalApp({ usuario }) {
       if (!usuario?.id) return;
       try {
         const supabase = criarClienteSupabase();
-        const { data } = await supabase.from("profiles").select("*").eq("id", usuario.id).maybeSingle();
+        const data = await carregarMeuPerfil(supabase, usuario.id);
         if (vivo && data) {
           setPerfil({
             id: data.id,
-            nome_exibicao: data.nome_exibicao || usuario?.user_metadata?.full_name || usuario?.email || "Fiel",
+            nome_exibicao: data.nome_exibicao || usuario?.user_metadata?.full_name || "Fiel",
             foto_url: data.foto_url || usuario?.user_metadata?.avatar_url || usuario?.user_metadata?.picture || null,
             username: data.username || null,
             nome_completo: data.nome_completo || null,
@@ -107,8 +107,9 @@ export default function DevocionalApp({ usuario }) {
             bio: data.bio || null,
           });
 
-          // Se novo usuário sem username configurado, abre OnboardingModal
-          if (!data.username && !localStorage.getItem(`onboarding_concluido_${usuario.id}`)) {
+          // Só pede o nome quando ele realmente falta (vazio, "Fiel" ou e-mail).
+          // Não depende mais de localStorage, então funciona em qualquer aparelho.
+          if (nomePrecisaDeAjuste(data.nome_exibicao)) {
             setModalOnboardingAberto(true);
           }
         } else if (vivo && !data) {
@@ -156,9 +157,18 @@ export default function DevocionalApp({ usuario }) {
   // convidou automaticamente e os dois ganham sementes.
   useEffect(() => {
     if (!usuario?.id || typeof window === "undefined") return;
-    const codigo = window.localStorage.getItem(CHAVE_CONVITE_PENDENTE);
+    // O código pode vir do localStorage (mesmo navegador) ou dos metadados da
+    // conta (gravados no cadastro) -- assim o convite não se perde se a pessoa
+    // trocar do navegador do Instagram/WhatsApp para o do celular.
+    let codigo = null;
+    try { codigo = window.localStorage.getItem(CHAVE_CONVITE_PENDENTE); } catch {}
+    const codigoMetadados = usuario?.user_metadata?.convite_pendente || null;
+    codigo = codigo || codigoMetadados;
     if (!codigo) return;
-    window.localStorage.removeItem(CHAVE_CONVITE_PENDENTE);
+    try { window.localStorage.removeItem(CHAVE_CONVITE_PENDENTE); } catch {}
+    if (codigoMetadados) {
+      criarClienteSupabase().auth.updateUser({ data: { convite_pendente: null } }).catch(() => {});
+    }
 
     (async () => {
       try {
@@ -235,12 +245,21 @@ export default function DevocionalApp({ usuario }) {
   }
 
   async function concluirDevocional() {
+    const jaTinhaFeitoHoje = jaFezHoje;
     setConcluido(true);
-    await registrarHoje({
+    const { error: erroRegistro } = await registrarHoje({
       temaOracao: moodSelecionado,
       referenciaVersiculo: devocional?.label ?? null,
       reflexao: diario || null,
     });
+    if (erroRegistro) {
+      setConcluido(false);
+      showToast("Não conseguimos salvar seu devocional. Verifique a internet e toque em concluir de novo.", "erro");
+      return;
+    }
+    if (!jaTinhaFeitoHoje) {
+      showToast(`Devocional concluído! +20 XP · +${diario && diario.trim() ? 15 : 10} 🌱`, "sucesso");
+    }
     setGatilhoRecarga((n) => n + 1);
     recarregarSementes();
 
@@ -400,15 +419,6 @@ export default function DevocionalApp({ usuario }) {
     abrirLivro(interpretada.numeroDoLivro, interpretada.capitulo);
   }
 
-  // Usado pelo guia de leitura quando ele aparece na aba Início: além de
-  // abrir o livro/capítulo, precisa levar o usuário pra aba Bíblia completa
-  // pra ele realmente ver o resultado (na aba Bíblia o guia já está lá, não
-  // precisa trocar de aba).
-  function abrirLivroDoGuiaNaInicio(numero, capitulo) {
-    abrirLivro(numero, capitulo);
-    setAba("biblia");
-  }
-
   async function sair() {
     const supabase = criarClienteSupabase();
     await supabase.auth.signOut();
@@ -416,20 +426,54 @@ export default function DevocionalApp({ usuario }) {
     router.refresh();
   }
 
-  const nomeExibicao = usuario?.user_metadata?.full_name || usuario?.email || "Fiel";
 
-  const abasMenu = [
-    { id: "inicio", label: "Devocional do dia", Icon: BookHeart, cor: "#B98B4E", corEscura: "#8A6224", fundo: "#FBF1DE" },
-    { id: "oracao", label: "Oração", Icon: HandHeart, cor: "#4A7FB5", corEscura: "#2C4F73", fundo: "#E6EEF7" },
-    { id: "quiz", label: "Quiz", Icon: MessageCircleQuestion, cor: "#E0793C", corEscura: "#954E1D", fundo: "#FBEADA" },
-    { id: "pedidos-oracao", label: "Pedir Oração", Icon: HeartHandshake, cor: "#C15B5B", corEscura: "#7A3232", fundo: "#F8E4E4" },
-    { id: "biblia", label: "Bíblia", Icon: BookOpen, cor: "#C17A52", corEscura: "#8A4B2A", fundo: "#F8E8E0" },
-    { id: "favoritos", label: "Favoritos", Icon: Star, contagem: favoritos.length, cor: "#D1A22A", corEscura: "#8F6A10", fundo: "#FDF5D9" },
-    { id: "diario", label: "Diário", Icon: NotebookPen, cor: "#B25C86", corEscura: "#7D3A5B", fundo: "#F6E7EE" },
-    { id: "progresso", label: "Progresso", Icon: TrendingUp, cor: "#5F9A4E", corEscura: "#3B6B2E", fundo: "#E8F2E2" },
-    { id: "comunidade", label: "Comunidade", Icon: Globe2, cor: "#3D8F82", corEscura: "#275B54", fundo: "#E1F1EE" },
-    { id: "amigos", label: "Amigos", Icon: Users, contagem: pedidosAmizadePendentes.length, cor: "#7269B5", corEscura: "#4A4285", fundo: "#EAE8F6" },
+  // Navegação em 2 níveis: 5 áreas principais (antes eram 10 abas soltas no
+  // mesmo nível, o que deixava o usuário sem saber por onde começar). Cada
+  // área agrupa sub-abas; os ids das sub-abas são os mesmos de antes, então
+  // todo o conteúdo abaixo continua funcionando sem mudanças.
+  const gruposMenu = [
+    { id: "hoje", label: "Hoje", Icon: BookHeart, cor: "#B98B4E", corEscura: "#8A6224", fundo: "#FBF1DE",
+      subs: [{ id: "inicio", label: "Hoje" }] },
+    { id: "devocional", label: "Devocional", Icon: HandHeart, cor: "#4A7FB5", corEscura: "#2C4F73", fundo: "#E6EEF7",
+      contagem: jaFezHoje ? 0 : 1,
+      subs: [
+        { id: "oracao", label: "Devocional guiado" },
+        { id: "quiz", label: "Quiz" },
+        { id: "diario", label: "Meu diário" },
+      ] },
+    { id: "biblia", label: "Bíblia", Icon: BookOpen, cor: "#C17A52", corEscura: "#8A4B2A", fundo: "#F8E8E0",
+      subs: [
+        { id: "biblia", label: "Ler a Bíblia" },
+        { id: "favoritos", label: `Favoritos${favoritos.length ? ` (${favoritos.length})` : ""}` },
+      ] },
+    { id: "comunhao", label: "Comunhão", Icon: Users, cor: "#7269B5", corEscura: "#4A4285", fundo: "#EAE8F6",
+      contagem: pedidosAmizadePendentes.length,
+      subs: [
+        { id: "amigos", label: `Amigos${pedidosAmizadePendentes.length ? ` (${pedidosAmizadePendentes.length})` : ""}` },
+        { id: "pedidos-oracao", label: "Pedidos de oração" },
+        { id: "comunidade", label: "Comunidades" },
+      ] },
+    { id: "caminho", label: "Meu caminho", Icon: TrendingUp, cor: "#5F9A4E", corEscura: "#3B6B2E", fundo: "#E8F2E2",
+      subs: [{ id: "progresso", label: "Progresso" }] },
   ];
+  const grupoAtivo = gruposMenu.find((g) => g.subs.some((s) => s.id === aba)) || gruposMenu[0];
+
+  // Missões agora levam direto para onde a tarefa é feita.
+  const destinoMissao = {
+    devocional_hoje: "oracao",
+    reflexao_hoje: "oracao",
+    quiz_hoje: "quiz",
+    semana_constante: "oracao",
+    temas_variados: "oracao",
+    torcida_hoje: "inicio",
+    primeira_conexao: "amigos",
+  };
+  function abrirMissao(id) {
+    const destino = destinoMissao[id];
+    if (!destino) return;
+    setAba(destino);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
     <div style={styles.page}>
@@ -576,15 +620,9 @@ export default function DevocionalApp({ usuario }) {
             aoConcluir={() => {
               setModalOnboardingAberto(false);
               if (usuario?.id) {
-                localStorage.setItem(`onboarding_concluido_${usuario.id}`, "true");
-                criarClienteSupabase()
-                  .from("profiles")
-                  .select("*")
-                  .eq("id", usuario.id)
-                  .maybeSingle()
-                  .then(({ data }) => {
-                    if (data) setPerfil((p) => ({ ...p, ...data }));
-                  });
+                carregarMeuPerfil(criarClienteSupabase(), usuario.id).then((data) => {
+                  if (data) setPerfil((p) => ({ ...p, ...data }));
+                });
               }
             }}
           />
@@ -614,8 +652,8 @@ export default function DevocionalApp({ usuario }) {
 
         {/* TABS */}
         <div style={styles.tabGrid}>
-          {abasMenu.map(({ id, label, Icon, contagem, cor, corEscura, fundo }) => {
-            const ativo = aba === id;
+          {gruposMenu.map(({ id, label, Icon, contagem, cor, corEscura, fundo, subs }) => {
+            const ativo = grupoAtivo.id === id;
             return (
               <button
                 key={id}
@@ -625,10 +663,12 @@ export default function DevocionalApp({ usuario }) {
                   background: ativo ? "#FFFFFF" : fundo,
                   borderColor: ativo ? cor : "transparent",
                 }}
-                onClick={() => setAba(id)}
+                onClick={() => {
+                  if (!ativo) setAba(subs[0].id);
+                }}
               >
                 <span style={styles.tabCardIconWrap}>
-                  <Icon size={26} strokeWidth={2} color={cor} />
+                  <Icon size={24} strokeWidth={2} color={cor} />
                   {contagem > 0 && <span style={styles.tabCardBadge}>{contagem}</span>}
                 </span>
                 <span style={{ ...(ativo ? styles.tabCardLabelActive : styles.tabCardLabel), color: corEscura }}>
@@ -638,6 +678,21 @@ export default function DevocionalApp({ usuario }) {
             );
           })}
         </div>
+
+        {grupoAtivo.subs.length > 1 && (
+          <div style={styles.subTabRow}>
+            {grupoAtivo.subs.map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                style={aba === sub.id ? styles.subTabActive : styles.subTab}
+                onClick={() => setAba(sub.id)}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {aba === "inicio" && (
           <>
@@ -688,8 +743,30 @@ export default function DevocionalApp({ usuario }) {
 
             {/* MISSÕES: logo abaixo do menu de ícones e da Palavra do dia, pra
                 ficar sempre à vista e fácil de cumprir, sem rolar a tela toda. */}
+            {/* AÇÃO PRINCIPAL: o devocional que conta para a ofensiva fica na
+                área "Devocional"; antes não havia nenhum caminho daqui até lá. */}
+            <div style={styles.ctaCard}>
+              {jaFezHoje ? (
+                <>
+                  <p style={styles.ctaTitulo}>✓ Devocional de hoje concluído</p>
+                  <p style={styles.ctaTexto}>Sua ofensiva está garantida. Que tal fixar a Palavra com o quiz?</p>
+                  <button className="action-btn chunky" style={styles.ctaBotaoSecundario} onClick={() => abrirMissao("quiz_hoje")}>
+                    Fazer o quiz de hoje
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p style={styles.ctaTitulo}>Seu devocional de hoje</p>
+                  <p style={styles.ctaTexto}>4 passos, cerca de 5 minutos: escolha como você está, leia, reflita e ore.</p>
+                  <button className="action-btn chunky" style={styles.ctaBotao} onClick={() => abrirMissao("devocional_hoje")}>
+                    Começar meu devocional →
+                  </button>
+                </>
+              )}
+            </div>
+
             <div style={{ marginBottom: 20 }}>
-              <MissoesCard missoes={missoes} />
+              <MissoesCard missoes={missoes} aoAbrirMissao={abrirMissao} />
             </div>
 
             {/* SOLICITAÇÕES DE AMIZADE: bem visível na tela inicial -- antes só
@@ -731,9 +808,6 @@ export default function DevocionalApp({ usuario }) {
               aoConvidar={() => setAba("amigos")}
             />
 
-            <div style={{ marginTop: 20 }}>
-              <GuiaLeituraBiblia usuarioId={usuario?.id} onAbrirLivro={abrirLivroDoGuiaNaInicio} />
-            </div>
 
             <CardDoacao />
 
@@ -1248,9 +1322,80 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
   },
+  subTabRow: {
+    display: "flex",
+    gap: 8,
+    overflowX: "auto",
+    marginBottom: 20,
+    paddingBottom: 2,
+  },
+  subTab: {
+    flexShrink: 0,
+    padding: "8px 14px",
+    borderRadius: 999,
+    border: "1px solid #E7E0D0",
+    background: "#FBF9F3",
+    color: "#5C7060",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  subTabActive: {
+    flexShrink: 0,
+    padding: "8px 14px",
+    borderRadius: 999,
+    border: "1px solid #33422F",
+    background: "#33422F",
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  ctaCard: {
+    background: "linear-gradient(135deg, #33422F 0%, #4F6D5C 100%)",
+    borderRadius: 18,
+    padding: "20px 20px 22px",
+    marginBottom: 20,
+    color: "#FFFFFF",
+    boxShadow: "0 10px 24px rgba(51, 66, 47, 0.25)",
+  },
+  ctaTitulo: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 20,
+    fontWeight: 500,
+    margin: "0 0 6px",
+  },
+  ctaTexto: {
+    fontSize: 14,
+    lineHeight: 1.5,
+    margin: "0 0 14px",
+    opacity: 0.9,
+  },
+  ctaBotao: {
+    width: "100%",
+    background: "#D9A94C",
+    color: "#2D2410",
+    border: "none",
+    borderRadius: 12,
+    padding: "14px 18px",
+    fontWeight: 800,
+    fontSize: 15,
+    cursor: "pointer",
+  },
+  ctaBotaoSecundario: {
+    width: "100%",
+    background: "rgba(255,255,255,0.15)",
+    color: "#FFFFFF",
+    border: "1px solid rgba(255,255,255,0.4)",
+    borderRadius: 12,
+    padding: "12px 18px",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer",
+  },
   tabGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
+    gridTemplateColumns: "repeat(5, 1fr)",
     gap: 10,
     marginBottom: 20,
   },

@@ -70,3 +70,24 @@ export function criarClienteSupabase() {
   aplicarPatchCatchFinally(cliente);
   return cliente;
 }
+
+/**
+ * Lê o perfil completo do próprio usuário (inclui e-mail/telefone).
+ * Usa a função obter_meu_perfil() quando ela existe no banco -- necessária
+ * depois que as colunas privadas de `profiles` deixam de ser legíveis por
+ * outros usuários -- e cai para a leitura direta se a função ainda não
+ * tiver sido criada. Funciona nos dois cenários.
+ */
+export async function carregarMeuPerfil(supabase, usuarioId) {
+  try {
+    const { data, error } = await supabase.rpc("obter_meu_perfil");
+    if (!error) {
+      const linha = Array.isArray(data) ? data[0] : data;
+      if (linha) return linha;
+    }
+  } catch (e) {
+    // segue para o plano B
+  }
+  const { data } = await supabase.from("profiles").select("*").eq("id", usuarioId).maybeSingle();
+  return data || null;
+}

@@ -15,7 +15,7 @@ import { criarClienteSupabaseServidor } from "@/src/lib/supabase/server";
  *      "code verifier" do PKCE não está nos cookies) -- exchangeCodeForSession
  *      NÃO lança exceção nesse caso, só retorna { error }, então é
  *      preciso checar explicitamente.
- *   3. Atrás de um proxy (Render, etc.) `origin` de request.url às vezes
+ *   3. Atrás de um proxy (AWS Amplify/CloudFront) `origin` de request.url às vezes
  *      não bate com o domínio público -- usamos x-forwarded-host como
  *      fallback, mesmo padrão recomendado pela própria Supabase.
  */

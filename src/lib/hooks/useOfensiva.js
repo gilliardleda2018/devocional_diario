@@ -1,5 +1,7 @@
 "use client";
 
+import { dataLocalISO } from "@/src/lib/util/data";
+
 import { useCallback, useEffect, useState } from "react";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
 
@@ -49,7 +51,7 @@ export function useOfensiva(usuarioId) {
       if (!usuarioId) return { data: null, error: "Usuário não autenticado" };
       try {
         const supabase = criarClienteSupabase();
-        const hojeIso = new Date().toISOString().slice(0, 10);
+        const hojeIso = dataLocalISO();
 
         // Tentativa via RPC primeiro
         const { data: rpcData, error: rpcError } = await supabase.rpc("registrar_devocional_hoje", {
@@ -63,28 +65,10 @@ export function useOfensiva(usuarioId) {
           return { data: rpcData, error: null };
         }
 
-        // Fallback direto via devotional_logs + streaks
-        await supabase.from("devotional_logs").insert({
-          user_id: usuarioId,
-          tema_oracao: temaOracao ?? null,
-          referencia_versiculo: referenciaVersiculo ?? null,
-          reflexao: reflexao ?? null,
-        }).catch(() => {});
-
-        const novaOfensiva = (ofensiva?.ofensiva_atual || 0) + 1;
-        const novoMaior = Math.max(novaOfensiva, ofensiva?.maior_ofensiva || 0);
-
-        const novodado = {
-          user_id: usuarioId,
-          ofensiva_atual: novaOfensiva,
-          maior_ofensiva: novoMaior,
-          ultimo_dia: hojeIso,
-        };
-
-        await supabase.from("streaks").upsert(novodado, { onConflict: "user_id" }).catch(() => {});
-
-        setOfensiva(novodado);
-        return { data: novodado, error: null };
+        // Sem plano B "local": antes o app gravava direto nas tabelas (o que o
+        // banco não permite) e mostrava a ofensiva como salva mesmo quando
+        // nada tinha sido registrado. Agora o erro é devolvido de verdade.
+        return { data: null, error: "Não foi possível registrar o devocional agora." };
       } catch (e) {
         return { data: null, error: e.message };
       }
@@ -94,7 +78,7 @@ export function useOfensiva(usuarioId) {
 
   const jaFezHoje = (() => {
     if (!ofensiva?.ultimo_dia) return false;
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = dataLocalISO();
     return ofensiva.ultimo_dia === hoje;
   })();
 
