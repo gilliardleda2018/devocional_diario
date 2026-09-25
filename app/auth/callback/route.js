@@ -22,6 +22,11 @@ import { criarClienteSupabaseServidor } from "@/src/lib/supabase/server";
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  // Link no formato token_hash (ver modelo de e-mail do Supabase): ao
+  // contrário do `code`, funciona mesmo aberto em outro navegador -- o app
+  // do Gmail, por exemplo, abre links fora do navegador onde o pedido foi feito.
+  const tokenHash = searchParams.get("token_hash");
+  const tipo = searchParams.get("type");
   const erroSupabase = searchParams.get("error_description") || searchParams.get("error");
   const proximo = searchParams.get("next") ?? "/";
 
@@ -39,6 +44,21 @@ export async function GET(request) {
     return redirecionarParaLoginComErro(
       "Não foi possível confirmar o login. O link pode ter expirado ou já ter sido usado -- solicite um novo."
     );
+  }
+
+  if (tokenHash && tipo) {
+    try {
+      const supabase = criarClienteSupabaseServidor();
+      const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: tipo });
+      if (error) {
+        return redirecionarParaLoginComErro(
+          "Esse link de acesso venceu ou já foi usado. Toque em \"Esqueci minha senha\" para receber outro."
+        );
+      }
+      return NextResponse.redirect(`${baseUrl}${proximo}`);
+    } catch {
+      return redirecionarParaLoginComErro("Ocorreu um erro ao confirmar o login. Tente novamente.");
+    }
   }
 
   if (!code) {

@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { criarClienteSupabase } from "@/src/lib/supabase/client";
-import { CHAVE_CONVITE_PENDENTE } from "@/src/lib/constants";
+import { CHAVE_CONVITE_PENDENTE, CHAVE_ULTIMO_LOGIN } from "@/src/lib/constants";
+import { registrarEvento } from "@/src/lib/util/eventos";
 
 /**
  * Tela de acesso, simplificada:
@@ -51,6 +52,12 @@ function FormularioLogin() {
   const [appInterno, setAppInterno] = useState(null);
   const [temConvite, setTemConvite] = useState(false);
   const [temDevocionalPendente, setTemDevocionalPendente] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [codigoEnviado, setCodigoEnviado] = useState(false);
+  const [codigo, setCodigo] = useState("");
+  // Como a pessoa entrou da última vez neste aparelho (gravado pelo
+  // DevocionalApp): muita gente não lembra se usou o Google ou e-mail e senha.
+  const [ultimoLogin, setUltimoLogin] = useState(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
   useEffect(() => {
@@ -71,10 +78,26 @@ function FormularioLogin() {
     setAppInterno(detectarNavegadorInterno());
   }, [searchParams]);
 
+  useEffect(() => {
+    try {
+      const salvo = JSON.parse(window.localStorage.getItem(CHAVE_ULTIMO_LOGIN) || "null");
+      if (salvo?.metodo) {
+        setUltimoLogin(salvo);
+        if (salvo.email) setEmail((atual) => atual || salvo.email);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    registrarEvento("login_visita", { app_interno: detectarNavegadorInterno() });
+  }, []);
+
   function trocarModo(novo) {
     setModo(novo);
     setErro(null);
     setMensagemSucesso(null);
+    setCodigoEnviado(false);
+    setCodigo("");
   }
 
   function lerConvite() {
@@ -115,9 +138,12 @@ function FormularioLogin() {
     setEnviando(false);
     if (error) {
       if (error.message === "Invalid login credentials") {
-        setErro("E-mail ou senha incorretos. Se você entrava com o Google, use o botão do Google.");
+        setErro(
+          "E-mail ou senha incorretos. Toque em \"Mostrar senha\" para conferir o que digitou. " +
+            "Se você entrava com o Google, use o botão do Google. Se não lembra a senha, toque em \"Esqueci minha senha\"."
+        );
       } else if (error.message === "Email not confirmed") {
-        setErro("Seu e-mail ainda não foi confirmado. Use \"Esqueci minha senha\" para receber um link de acesso.");
+        setErro("Seu e-mail ainda não foi confirmado. Toque em \"Esqueci minha senha\" para receber um código de acesso.");
       } else {
         setErro(error.message);
       }
@@ -165,8 +191,12 @@ function FormularioLogin() {
     setMensagemSucesso("Conta criada! Confira seu e-mail (inclusive o spam) para confirmar e depois entre.");
   }
 
+  // "Esqueci minha senha": antes mandava só um link, que só funcionava se
+  // fosse aberto no MESMO navegador (o app do Gmail abre em outro, e dava
+  // erro). Agora o e-mail traz um código de 6 números para digitar aqui --
+  // funciona em qualquer aparelho. O link do e-mail continua funcionando.
   async function enviarLinkDeAcesso(e) {
-    e.preventDefault();
+    e?.preventDefault?.();
     setErro(null);
     setEnviando(true);
     const supabase = criarClienteSupabase();
@@ -182,9 +212,27 @@ function FormularioLogin() {
       setErro("Não encontramos uma conta com esse e-mail. Confira o endereço ou crie uma conta.");
       return;
     }
-    setMensagemSucesso(
-      `Enviamos um link de acesso para ${email.trim()}. Abra o link neste mesmo celular e navegador.`
-    );
+    setCodigoEnviado(true);
+    setCodigo("");
+  }
+
+  async function confirmarCodigo(e) {
+    e.preventDefault();
+    setErro(null);
+    const token = codigo.replace(/\D/g, "");
+    if (token.length < 6) {
+      setErro("Digite os 6 números do código que chegou no seu e-mail.");
+      return;
+    }
+    setEnviando(true);
+    const supabase = criarClienteSupabase();
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: "email" });
+    setEnviando(false);
+    if (error) {
+      setErro("Código incorreto ou vencido. Confira os números ou toque em \"Mandar outro código\".");
+      return;
+    }
+    window.location.href = "/";
   }
 
   const cadastro = modo === "cadastro";
@@ -201,8 +249,12 @@ function FormularioLogin() {
 
         {appInterno && (
           <div style={styles.bannerApp}>
-            <strong>Você abriu pelo {appInterno}.</strong> Aqui dentro o login com Google não funciona.
-            Crie sua conta com e-mail e senha abaixo, ou abra no navegador do celular.
+            <strong>Você abriu pelo {appInterno}.</strong> Aqui dentro o Google não deixa entrar.
+            <br />
+            <strong>Se você entra com o Google:</strong> toque nos três pontinhos (⋮ ou ⋯) no canto da tela e
+            escolha &quot;Abrir no navegador&quot;.
+            <br />
+            <strong>Se você usa e-mail e senha:</strong> pode entrar aqui mesmo, abaixo.
             <div>
               {/Android/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "") && (
                 <a href={linkAbrirNoChrome()} style={styles.bannerBtn}>Abrir no Chrome</a>
@@ -239,14 +291,43 @@ function FormularioLogin() {
                 Voltar
               </button>
             </div>
+          ) : modo === "recuperar" && codigoEnviado ? (
+            <form onSubmit={confirmarCodigo}>
+              <p style={{ ...styles.confirmText, marginBottom: 12 }}>
+                Enviamos um e-mail para <strong>{email.trim()}</strong>. Abra o e-mail e digite aqui o
+                <strong> código de 6 números</strong> que está nele.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
+                placeholder="000000"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                style={styles.inputCodigo}
+              />
+              <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
+                {enviando ? "Entrando..." : "Entrar"}
+              </button>
+              <p style={{ ...styles.confirmText, marginTop: 14, fontSize: 14.5 }}>
+                Não chegou? Espere um minuto e olhe também nas pastas <strong>Spam</strong> e <strong>Promoções</strong>.
+              </p>
+              <button type="button" style={styles.linkToggleBtn} onClick={() => enviarLinkDeAcesso()} disabled={enviando}>
+                Mandar outro código
+              </button>
+              <button type="button" style={styles.linkToggleBtn} onClick={() => trocarModo("entrar")}>
+                « Voltar
+              </button>
+            </form>
           ) : modo === "recuperar" ? (
             <form onSubmit={enviarLinkDeAcesso}>
               <p style={{ ...styles.confirmText, marginBottom: 12 }}>
-                Digite seu e-mail e enviaremos um link para você entrar sem senha.
+                Digite seu e-mail. Vamos mandar um código para você entrar sem precisar da senha.
               </p>
-              <input type="email" required placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} style={styles.input} />
+              <input type="email" required autoComplete="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} style={styles.input} />
               <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
-                {enviando ? "Enviando..." : "Enviar link de acesso"}
+                {enviando ? "Enviando..." : "Mandar código"}
               </button>
               <button type="button" style={styles.linkToggleBtn} onClick={() => trocarModo("entrar")}>
                 « Voltar
@@ -254,6 +335,14 @@ function FormularioLogin() {
             </form>
           ) : (
             <>
+              {!cadastro && ultimoLogin && (
+                <div style={styles.dicaUltimoLogin}>
+                  {ultimoLogin.metodo === "google"
+                    ? "💡 Da última vez, você entrou com o Google neste aparelho."
+                    : "💡 Da última vez, você entrou com e-mail e senha neste aparelho."}
+                </div>
+              )}
+
               {!appInterno && (
                 <>
                   <button className="action-btn" style={styles.googleBtn} onClick={entrarComGoogle}>
@@ -269,7 +358,10 @@ function FormularioLogin() {
                 <form onSubmit={cadastrarNovoUsuario}>
                   <input type="text" required autoComplete="name" placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} style={styles.input} />
                   <input type="email" required autoComplete="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} style={styles.input} />
-                  <input type="password" required autoComplete="new-password" placeholder="Crie uma senha (mínimo 6 caracteres)" value={senha} onChange={(e) => setSenha(e.target.value)} style={styles.input} />
+                  <input type={mostrarSenha ? "text" : "password"} required autoComplete="new-password" placeholder="Crie uma senha (mínimo 6 caracteres)" value={senha} onChange={(e) => setSenha(e.target.value)} style={styles.input} />
+                  <button type="button" style={styles.mostrarSenhaBtn} onClick={() => setMostrarSenha((v) => !v)}>
+                    {mostrarSenha ? "🙈 Esconder senha" : "👁 Mostrar senha"}
+                  </button>
                   <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
                     {enviando ? "Criando conta..." : "Criar minha conta ✨"}
                   </button>
@@ -277,7 +369,10 @@ function FormularioLogin() {
               ) : (
                 <form onSubmit={entrarComSenha}>
                   <input type="email" required autoComplete="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} style={styles.input} />
-                  <input type="password" required autoComplete="current-password" placeholder="Sua senha" value={senha} onChange={(e) => setSenha(e.target.value)} style={styles.input} />
+                  <input type={mostrarSenha ? "text" : "password"} required autoComplete="current-password" placeholder="Sua senha" value={senha} onChange={(e) => setSenha(e.target.value)} style={styles.input} />
+                  <button type="button" style={styles.mostrarSenhaBtn} onClick={() => setMostrarSenha((v) => !v)}>
+                    {mostrarSenha ? "🙈 Esconder senha" : "👁 Mostrar senha"}
+                  </button>
                   <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
                     {enviando ? "Entrando..." : "Entrar"}
                   </button>
@@ -354,7 +449,7 @@ const styles = {
     background: "#FBF9F3",
     color: "#33422F",
     fontWeight: 700,
-    fontSize: 13.5,
+    fontSize: 15,
     borderRadius: 8,
     border: "none",
     boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
@@ -366,7 +461,7 @@ const styles = {
     background: "transparent",
     color: "#7A8A7F",
     fontWeight: 600,
-    fontSize: 13.5,
+    fontSize: 15,
     borderRadius: 8,
     border: "none",
     cursor: "pointer",
@@ -390,9 +485,9 @@ const styles = {
     color: "#33422F",
     border: "1px solid #E7E0D0",
     borderRadius: 10,
-    padding: "12px 20px",
+    padding: "14px 20px",
     fontWeight: 700,
-    fontSize: 14,
+    fontSize: 16,
     cursor: "pointer",
   },
   divider: {
@@ -412,9 +507,9 @@ const styles = {
     borderRadius: 10,
     border: "1px solid #E7E0D0",
     background: "#FFFFFF",
-    padding: "12px 14px",
+    padding: "14px 14px",
     fontFamily: "'Karla', sans-serif",
-    fontSize: 14,
+    fontSize: 17,
     color: "#2D3B33",
     marginBottom: 10,
     boxSizing: "border-box",
@@ -425,16 +520,17 @@ const styles = {
     color: "#FFFFFF",
     border: "none",
     borderRadius: 10,
-    padding: "12px 20px",
+    padding: "15px 20px",
     fontWeight: 700,
-    fontSize: 14,
+    fontSize: 17,
     cursor: "pointer",
   },
   linkToggleBtn: {
     background: "none",
     border: "none",
     color: "#5C7060",
-    fontSize: 12.5,
+    fontSize: 15,
+    padding: "6px 0",
     cursor: "pointer",
     width: "100%",
     marginTop: 12,
@@ -442,16 +538,54 @@ const styles = {
     textDecoration: "underline",
   },
   confirmText: {
-    fontSize: 13.5,
+    fontSize: 15.5,
     lineHeight: 1.6,
     color: "#4F6D5C",
     margin: 0,
   },
   errorText: {
-    fontSize: 12.5,
-    color: "#B15A4A",
-    marginTop: 12,
+    fontSize: 15,
+    lineHeight: 1.5,
+    color: "#8F2F1F",
+    background: "#FBE9E4",
+    border: "1px solid #EBB7A8",
+    borderRadius: 10,
+    padding: "10px 12px",
+    marginTop: 14,
     marginBottom: 0,
+  },
+  inputCodigo: {
+    width: "100%",
+    borderRadius: 10,
+    border: "1px solid #D9C48A",
+    background: "#FFFFFF",
+    padding: "14px",
+    fontSize: 28,
+    letterSpacing: 8,
+    textAlign: "center",
+    fontWeight: 700,
+    color: "#2D3B33",
+    marginBottom: 12,
+    boxSizing: "border-box",
+  },
+  mostrarSenhaBtn: {
+    background: "none",
+    border: "none",
+    color: "#5C7060",
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: "2px 0 12px",
+  },
+  dicaUltimoLogin: {
+    background: "#EEF4EF",
+    border: "1px solid #CFE0D2",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontSize: 15,
+    lineHeight: 1.45,
+    color: "#33422F",
+    marginBottom: 14,
   },
   bannerApp: {
     background: "#FFF6E0",
@@ -460,8 +594,8 @@ const styles = {
     padding: "14px 16px",
     textAlign: "left",
     marginBottom: 16,
-    fontSize: 13.5,
-    lineHeight: 1.5,
+    fontSize: 15,
+    lineHeight: 1.55,
     color: "#5A4516",
   },
   bannerBtn: {

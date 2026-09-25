@@ -8,7 +8,7 @@ import { useOfensiva } from "@/src/lib/hooks/useOfensiva";
 import { useAmigosOrandoHoje } from "@/src/lib/hooks/useAmigosOrandoHoje";
 import { useProgressoSemana } from "@/src/lib/hooks/useProgressoSemana";
 import { useEstatisticas } from "@/src/lib/hooks/useEstatisticas";
-import { CHAVE_CONVITE_PENDENTE } from "@/src/lib/constants";
+import { CHAVE_CONVITE_PENDENTE, CHAVE_ULTIMO_LOGIN } from "@/src/lib/constants";
 import {
   BOOKS_PT,
   OLD_TESTAMENT_COUNT,
@@ -51,6 +51,7 @@ import { useSementes } from "@/src/lib/hooks/useSementes";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 import { iniciarChecadorWeb } from "@/src/lib/notifications/lembretes";
 import { consumirDevocionalVisitante } from "@/src/lib/devocional/visitante";
+import { registrarEvento, registrarAppAbertoHoje } from "@/src/lib/util/eventos";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -77,6 +78,11 @@ export default function DevocionalApp({ usuario }) {
   // esse checador cobre o caso do app estar aberto (ainda que em segundo
   // plano). Ver src/lib/notifications/lembretes.js.
   useEffect(() => {
+    registrarAppAbertoHoje();
+    try {
+      const provedor = usuario?.app_metadata?.provider === "google" ? "google" : "email";
+      window.localStorage.setItem(CHAVE_ULTIMO_LOGIN, JSON.stringify({ metodo: provedor, email: usuario?.email || null }));
+    } catch {}
     const pararChecador = iniciarChecadorWeb();
     return pararChecador;
   }, []);
@@ -242,6 +248,7 @@ export default function DevocionalApp({ usuario }) {
     const escolhido = escolherAleatorio(combinacoes.length ? combinacoes : VERSE_REFS);
     const [q1, q2] = REFLECTIONS[moodId];
     setMoodSelecionado(moodId);
+    registrarEvento("devocional_iniciado", { tema: moodId });
     setDiario("");
     setPasso(0);
     setConcluido(false);
@@ -562,14 +569,6 @@ export default function DevocionalApp({ usuario }) {
               title="Configurar Lembrete Diário"
             >
               ⏰
-            </button>
-            <button
-              className="action-btn"
-              style={{ ...styles.linkBtn, padding: "4px 8px", fontSize: 13, fontWeight: 700, color: "#B98B4E" }}
-              onClick={() => setModalPerfilAberto(true)}
-              title="Editar Cadastro e Perfil"
-            >
-              👤 Cadastro
             </button>
             <span style={styles.ofensivaChip} title={`Maior sequência: ${ofensiva?.maior_ofensiva ?? 0} dias`}>
               <span className="flame-icon">🔥</span> {ofensiva?.ofensiva_atual ?? 0}

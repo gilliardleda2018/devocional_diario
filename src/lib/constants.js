@@ -9,6 +9,10 @@ export const DEFAULT_PAGE_SIZE = 20;
 // assim que o usuário loga, e limpa a chave depois, com sucesso ou não.
 export const CHAVE_CONVITE_PENDENTE = "codigo_convite_pendente";
 
+// Como a pessoa entrou da última vez neste aparelho ({ metodo: "google" |
+// "email", email }) -- gravado pelo DevocionalApp, lido na tela de login.
+export const CHAVE_ULTIMO_LOGIN = "devocional_ultimo_login";
+
 export const RESERVED_USERNAMES = [
   "admin",
   "administrator",

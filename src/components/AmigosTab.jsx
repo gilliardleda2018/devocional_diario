@@ -14,11 +14,11 @@ import { copiarTextoSeguro } from "@/src/lib/util/copiarSeguro";
 import { showToast } from "@/src/lib/ui/toast";
 
 const SUBABAS_PRINCIPAIS = [
-  { id: "conexoes", label: "Conexões" },
-  { id: "feed", label: "Feed" },
+  { id: "conexoes", label: "Amigos" },
+  { id: "feed", label: "Atividade" },
   // "Desafios" oculto: zero uso até agora. O código continua abaixo para
   // reativar no futuro (basta devolver esta linha).
-  { id: "liga", label: "Liga" },
+  { id: "liga", label: "Ranking" },
 ];
 
 function formatarQuando(iso) {
@@ -33,7 +33,12 @@ function rotuloMood(moodId) {
 
 export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaConexaoInicial = "amigos" }) {
   const [subaba, setSubaba] = useState(subabaInicial);
+  // Antes eram duas fileiras de abas aqui dentro (Conexões/Feed/Liga e, dentro
+  // de Conexões, Amigos/Pedidos/Enviados/Sugestões), abaixo da fileira de
+  // Comunhão -- três níveis de abas empilhados. Agora Amigos é uma página só,
+  // em seções; `abaConexao` só diz para qual seção rolar ao abrir.
   const [abaConexao, setAbaConexao] = useState(abaConexaoInicial);
+  const [enviadosAbertos, setEnviadosAbertos] = useState(false);
   const [amigoSelecionado, setAmigoSelecionado] = useState(null);
 
   useEffect(() => {
@@ -46,14 +51,20 @@ export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaCo
   // exibir contadores diferentes (ex.: "Amigos (N)" aqui vs. na lista) até as
   // duas instâncias convergirem de forma independente.
   const amigosApi = useAmigos(usuarioId);
-  const { amigos = [], pedidos = [], pedidosEnviados = [], enviarPedido, torcer } = amigosApi;
+  const { amigos = [], pedidos = [], pedidosEnviados = [], enviarPedido, torcer, carregando: carregandoAmigos } = amigosApi;
 
-  const subabasConexoes = [
-    { id: "amigos", label: `Amigos (${amigos.length})` },
-    { id: "pedidos", label: pedidos.length > 0 ? `Pedidos (${pedidos.length}) 🔴` : "Pedidos" },
-    { id: "enviados", label: pedidosEnviados.length > 0 ? `Enviados (${pedidosEnviados.length})` : "Enviados" },
-    { id: "sugestoes", label: "Sugestões" },
-  ];
+  useEffect(() => {
+    if (subaba !== "conexoes" || carregandoAmigos || !abaConexao || abaConexao === "amigos") return;
+    if (abaConexao === "enviados") setEnviadosAbertos(true);
+    const alvo = document.getElementById(`secao-${abaConexao}`);
+    if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [subaba, abaConexao, carregandoAmigos]);
+
+  const propsConexoes = {
+    usuarioId,
+    onAbrirPerfil: (item) => setAmigoSelecionado(item),
+    amigosApi,
+  };
 
   return (
     <div style={styles.wrap}>
@@ -74,34 +85,48 @@ export default function AmigosTab({ usuarioId, subabaInicial = "conexoes", abaCo
       {subaba === "feed" && (
         <FeedAmigos
           usuarioId={usuarioId}
-          irParaConexoes={() => { setSubaba("conexoes"); setAbaConexao("sugestoes"); }}
+          irParaConexoes={() => { setSubaba("conexoes"); setAbaConexao(amigos.length > 0 ? "sugestoes" : "amigos"); }}
           onAbrirPerfil={(item) => setAmigoSelecionado(item)}
           torcer={torcer}
         />
       )}
 
       {subaba === "conexoes" && (
-        <div>
-          {/* Navegação Secundária de Conexões */}
-          <div style={styles.conexoesTabRow}>
-            {subabasConexoes.map((c) => (
-              <button
-                key={c.id}
-                style={abaConexao === c.id ? styles.conexaoAtiva : styles.conexaoInativa}
-                onClick={() => setAbaConexao(c.id)}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
+        carregandoAmigos ? (
+          <p style={styles.loadingText}>Carregando amigos...</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {pedidos.length > 0 && (
+              <div id="secao-pedidos" style={styles.secaoPedidos}>
+                <CentralConexoes {...propsConexoes} abaAtiva="pedidos" />
+              </div>
+            )}
 
-          <CentralConexoes
-            usuarioId={usuarioId}
-            abaAtiva={abaConexao}
-            onAbrirPerfil={(item) => setAmigoSelecionado(item)}
-            amigosApi={amigosApi}
-          />
-        </div>
+            <div id="secao-amigos">
+              <CentralConexoes {...propsConexoes} abaAtiva="amigos" />
+            </div>
+
+            {amigos.length > 0 && (
+              <div id="secao-sugestoes">
+                <CentralConexoes {...propsConexoes} abaAtiva="sugestoes" />
+              </div>
+            )}
+
+            {pedidosEnviados.length > 0 && (
+              <div id="secao-enviados">
+                <button style={styles.toggleEnviados} onClick={() => setEnviadosAbertos((v) => !v)}>
+                  <span>⌛ Aguardando resposta de {pedidosEnviados.length} {pedidosEnviados.length === 1 ? "pessoa" : "pessoas"}</span>
+                  <span>{enviadosAbertos ? "Ocultar ▲" : "Ver ▼"}</span>
+                </button>
+                {enviadosAbertos && (
+                  <div style={{ marginTop: 12 }}>
+                    <CentralConexoes {...propsConexoes} abaAtiva="enviados" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
       )}
 
       {subaba === "desafios" && <Desafios usuarioId={usuarioId} />}
@@ -154,7 +179,7 @@ function FeedAmigos({ usuarioId, irParaConexoes, onAbrirPerfil, torcer }) {
         <p style={styles.vazioTitulo}>Seu feed está quieto por aqui. 🕊️</p>
         <p style={styles.vazioTexto}>Conecte-se com irmãos em fé para acompanhar as leituras e mandar torcidas em tempo real!</p>
         <button className="action-btn chunky" style={styles.primaryBtnPequeno} onClick={irParaConexoes}>
-          Encontrar Conexões
+          Encontrar amigos
         </button>
       </div>
     );
@@ -610,7 +635,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
     const listaPedidos = pedidos || [];
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h3 style={styles.sectionTitle}>Solicitações Recebidas ({listaPedidos.length})</h3>
+        <h3 style={styles.sectionTitle}>🤝 Pedidos de amizade para você ({listaPedidos.length})</h3>
         {listaPedidos.length === 0 ? (
           <div style={styles.emptyCard}>
             <p style={styles.emptyTitle}>Nenhum pedido novo por aqui. 🕊️</p>
@@ -632,7 +657,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
                     ACEITAR
                   </button>
                   <button style={styles.btnRemover} onClick={() => handleResponderPedido(p.amizade_id || p.id, false)}>
-                    REMOVER
+                    RECUSAR
                   </button>
                 </div>
               </div>
@@ -648,7 +673,6 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
     const listaEnviados = pedidosEnviados || [];
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <h3 style={styles.sectionTitle}>Solicitações Enviadas ({listaEnviados.length})</h3>
         {listaEnviados.length === 0 ? (
           <div style={styles.emptyCard}>
             <p style={styles.emptyTitle}>Nenhuma solicitação pendente.</p>
@@ -685,6 +709,8 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
         onIgnorar={(candId) => setSugestoesIgnoradas((prev) => ({ ...prev, [candId]: true }))}
         onAdicionar={enviarPedido}
         onAbrirPerfil={onAbrirPerfil}
+        semCardRedes={true}
+        titulo="Pessoas que você pode conhecer"
       />
     );
   }
@@ -693,7 +719,7 @@ function CentralConexoes({ usuarioId, abaAtiva, onAbrirPerfil, amigosApi }) {
 }
 
 // Componente para a aba de sugestões explicáveis
-function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicionar, onAbrirPerfil, semCardRedes = false }) {
+function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicionar, onAbrirPerfil, semCardRedes = false, titulo = null }) {
   const [sugestoes, setSugestoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [adicionados, setAdicionados] = useState({});
@@ -760,6 +786,7 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicion
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {!semCardRedes && <CardConectarRedes meuCodigo={null} />}
+        {titulo && <h3 style={styles.sectionTitle}>{titulo}</h3>}
         <div style={styles.emptyCard}>
           <p style={styles.emptyTitle}>Sem mais sugestões no momento. 🌿</p>
           <p style={styles.emptySub}>Convide seus amigos do WhatsApp e Instagram para se juntarem a você!</p>
@@ -771,7 +798,7 @@ function SugestoesTab({ usuarioId, sugestoesIgnoradas = {}, onIgnorar, onAdicion
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {!semCardRedes && <CardConectarRedes meuCodigo={null} />}
-      {!semCardRedes && <h3 style={styles.sectionTitle}>Pessoas que Você Pode Conhecer</h3>}
+      {titulo && <h3 style={styles.sectionTitle}>{titulo}</h3>}
       <div style={styles.lista}>
         {listaFiltrada.map((item) => (
           <div key={item.candidate_id} style={styles.itemCard}>
@@ -909,6 +936,27 @@ function LigaAmigos({ usuarioId, onAbrirPerfil }) {
 
 const styles = {
   wrap: { textAlign: "left" },
+  secaoPedidos: {
+    background: "#FEF7E6",
+    border: "1px solid #F0D48A",
+    borderRadius: 16,
+    padding: 14,
+  },
+  toggleEnviados: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid #E7E0D0",
+    background: "#FBF9F3",
+    color: "#6B7A70",
+    fontWeight: 600,
+    fontSize: 13.5,
+    cursor: "pointer",
+  },
   subtabRow: {
     display: "flex",
     gap: 6,

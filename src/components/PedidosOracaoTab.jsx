@@ -53,7 +53,14 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario, comunidadeId 
     }
   };
 
-  const { amigos, enviarPedido, torcer } = useAmigos(usuarioId);
+  const { amigos, pedidos: pedidosAmizadeRecebidos, pedidosEnviados, enviarPedido, torcer } = useAmigos(usuarioId);
+  // Quem já é amigo (ou já tem pedido de amizade em andamento) não recebe o
+  // botão "Adicionar" -- antes ele aparecia em todo pedido de outra pessoa.
+  const idsJaConectados = new Set([
+    ...(amigos || []).map((a) => a.amigo_id || a.id),
+    ...(pedidosEnviados || []).map((p) => p.destinatario_id),
+    ...(pedidosAmizadeRecebidos || []).map((p) => p.solicitante_id),
+  ]);
   const { minhasComunidades } = useComunidades(comunidadeId ? null : usuarioId); // só precisa da lista fora do mural de uma comunidade específica
   const [perfilSelecionado, setPerfilSelecionado] = useState(null);
 
@@ -215,7 +222,7 @@ export default function PedidosOracaoTab({ usuarioId, nomeUsuario, comunidadeId 
                       >
                         {autorNome}
                       </h4>
-                      {!eAutor && !item.is_anonimo && (
+                      {!eAutor && !item.is_anonimo && !idsJaConectados.has(item.user_id) && (
                         <button
                           onClick={handleAbrirPerfil}
                           style={styles.quickAddBtn}

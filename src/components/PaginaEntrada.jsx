@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AudioPlayer from "@/src/components/AudioPlayer";
 import { buscarTextoReferencia } from "@/src/lib/biblia/getBibleApi";
 import { MOODS, REFLECTIONS, VERSE_REFS, encontrarMood, escolherAleatorio } from "@/src/lib/devocional/versiculos";
 import { guardarDevocionalVisitante } from "@/src/lib/devocional/visitante";
+import { registrarEvento } from "@/src/lib/util/eventos";
 
 /**
  * Página de entrada para quem ainda não tem conta.
@@ -23,11 +24,16 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
   const [reflexao, setReflexao] = useState("");
   const [concluido, setConcluido] = useState(false);
 
+  useEffect(() => {
+    registrarEvento("entrada_visita", { origem: document.referrer ? new URL(document.referrer).hostname : null });
+  }, []);
+
   async function escolherMood(moodId) {
     const opcoes = VERSE_REFS.filter((v) => v.moods?.includes(moodId));
     const escolhido = escolherAleatorio(opcoes.length ? opcoes : VERSE_REFS);
     const [q1, q2] = REFLECTIONS[moodId];
     setMood(moodId);
+    registrarEvento("entrada_devocional_iniciado", { tema: moodId });
     setPasso(0);
     setErro(false);
     setDevocional({ ...escolhido, texto: null, q1, q2 });
@@ -46,6 +52,7 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
       reflexao: reflexao.trim() || null,
     });
     setConcluido(true);
+    registrarEvento("entrada_devocional_concluido", { tema: mood, escreveu: !!reflexao.trim() });
   }
 
   const moodInfo = encontrarMood(mood);
@@ -164,7 +171,7 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
                 Crie sua conta grátis para salvar este momento: ele vira o dia 1 da sua ofensiva, e sua reflexão fica
                 guardada no seu diário.
               </p>
-              <a href="/login?modo=cadastro" className="action-btn chunky" style={s.botaoCta}>
+              <a href="/login?modo=cadastro" className="action-btn chunky" style={s.botaoCta} onClick={() => registrarEvento("entrada_cadastro_clicado", { local: "fim_devocional" })}>
                 Salvar e criar minha conta grátis
               </a>
               <a href="/login" style={s.linkSecundario}>Já tenho conta — entrar</a>
@@ -180,7 +187,7 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
         </div>
 
         {!concluido && (
-          <a href="/login?modo=cadastro" className="action-btn chunky" style={{ ...s.botaoCta, marginBottom: 10 }}>
+          <a href="/login?modo=cadastro" className="action-btn chunky" style={{ ...s.botaoCta, marginBottom: 10 }} onClick={() => registrarEvento("entrada_cadastro_clicado", { local: "rodape" })}>
             Criar conta grátis
           </a>
         )}
