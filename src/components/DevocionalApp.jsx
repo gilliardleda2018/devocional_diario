@@ -30,6 +30,7 @@ import OfensivaCard from "@/src/components/OfensivaCard";
 import AmigosOrandoHojeCard from "@/src/components/AmigosOrandoHojeCard";
 import QuizVersiculo from "@/src/components/QuizVersiculo";
 import CompartilharBotoes from "@/src/components/CompartilharBotoes";
+import CompartilharPalavra from "@/src/components/CompartilharPalavra";
 import GuiaLeituraBiblia from "@/src/components/GuiaLeituraBiblia";
 import AudioPlayer from "@/src/components/AudioPlayer";
 import LembreteModal from "@/src/components/LembreteModal";
@@ -106,6 +107,7 @@ export default function DevocionalApp({ usuario }) {
             nome_exibicao: data.nome_exibicao || usuario?.user_metadata?.full_name || "Fiel",
             foto_url: data.foto_url || usuario?.user_metadata?.avatar_url || usuario?.user_metadata?.picture || null,
             username: data.username || null,
+            codigo_amigo: data.codigo_amigo || null,
             nome_completo: data.nome_completo || null,
             cidade: data.cidade || null,
             igreja: data.igreja || null,
@@ -756,7 +758,16 @@ export default function DevocionalApp({ usuario }) {
                     >
                       {eFavorito(versiculoDoDia.label) ? "⭐ Salvo nos Favoritos" : "☆ Salvar nos Favoritos"}
                     </button>
-                    <CompartilharBotoes texto={`"${textoDoDia}" — ${versiculoDoDia.label}`} />
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <CompartilharPalavra
+                      texto={textoDoDia}
+                      referencia={versiculoDoDia.label}
+                      rotuloData={hoje.toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}
+                      codigoConvite={perfil.codigo_amigo}
+                      nomeAutor={(perfil.nome_exibicao || "").trim().split(/\s+/)[0] || null}
+                      local="hoje"
+                    />
                   </div>
                 </>
               )}
@@ -941,6 +952,22 @@ export default function DevocionalApp({ usuario }) {
                     </p>
                     <p style={styles.sectionTitle}>Ofensiva de {ofensiva?.ofensiva_atual ?? 1} {ofensiva?.ofensiva_atual === 1 ? "dia" : "dias"}!</p>
                     <p style={styles.sectionSubtitle}>Volte amanhã para manter sua sequência viva.</p>
+                    {devocional?.texto && (
+                      <div style={{ margin: "16px 0 4px", textAlign: "left" }}>
+                        <p style={{ ...styles.sectionSubtitle, margin: "0 0 10px", textAlign: "center" }}>
+                          Conhece alguém que precisa ouvir isso hoje?
+                        </p>
+                        <CompartilharPalavra
+                          texto={devocional.texto}
+                          referencia={devocional.label}
+                          rotuloData={hoje.toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}
+                          codigoConvite={perfil.codigo_amigo}
+                          nomeAutor={(perfil.nome_exibicao || "").trim().split(/\s+/)[0] || null}
+                          local="fim_devocional"
+                          rotulo="📤 Compartilhar esta Palavra"
+                        />
+                      </div>
+                    )}
                     <button className="action-btn chunky" style={styles.primaryBtn} onClick={reiniciarDevocional}>
                       Voltar ao início
                     </button>

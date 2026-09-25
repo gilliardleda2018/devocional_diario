@@ -25,7 +25,11 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
   const [concluido, setConcluido] = useState(false);
 
   useEffect(() => {
-    registrarEvento("entrada_visita", { origem: document.referrer ? new URL(document.referrer).hostname : null });
+    registrarEvento("entrada_visita", {
+      origem: document.referrer ? new URL(document.referrer).hostname : null,
+      // ?o= vem dos links compartilhados (CompartilharPalavra): diz de onde veio.
+      o: new URLSearchParams(window.location.search).get("o"),
+    });
   }, []);
 
   async function escolherMood(moodId) {
