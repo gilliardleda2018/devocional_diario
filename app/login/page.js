@@ -209,7 +209,16 @@ function FormularioLogin() {
     });
     setEnviando(false);
     if (error) {
-      setErro("Não encontramos uma conta com esse e-mail. Confira o endereço ou crie uma conta.");
+      // Só "Signups not allowed for otp" quer dizer que a conta não existe
+      // (shouldCreateUser: false). Antes, qualquer falha -- inclusive o
+      // serviço de e-mail recusando o envio -- aparecia como "conta não
+      // encontrada", e a pessoa achava que tinha perdido o cadastro.
+      const semConta = /signups? not allowed/i.test(error.message || "");
+      setErro(
+        semConta
+          ? "Não encontramos uma conta com esse e-mail. Confira o endereço ou crie uma conta."
+          : "Não conseguimos enviar o e-mail agora. Tente de novo em alguns minutos."
+      );
       return;
     }
     setCodigoEnviado(true);
