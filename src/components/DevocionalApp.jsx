@@ -50,6 +50,7 @@ import LojaSementes from "@/src/components/LojaSementes";
 import { useSementes } from "@/src/lib/hooks/useSementes";
 import { useNotificacoes } from "@/src/lib/hooks/useNotificacoes";
 import { iniciarChecadorWeb } from "@/src/lib/notifications/lembretes";
+import { consumirDevocionalVisitante } from "@/src/lib/devocional/visitante";
 
 export default function DevocionalApp({ usuario }) {
   const router = useRouter();
@@ -123,7 +124,7 @@ export default function DevocionalApp({ usuario }) {
     return () => { vivo = false; };
   }, [usuario]);
 
-  const { ofensiva, jaFezHoje, registrarHoje } = useOfensiva(usuario?.id);
+  const { ofensiva, jaFezHoje, registrarHoje, carregando: carregandoOfensiva } = useOfensiva(usuario?.id);
   const { amigosOrando, carregando: carregandoAmigosOrando, torcerPorAmigo } = useAmigosOrandoHoje(usuario?.id);
   const {
     saldo: saldoSementes,
@@ -188,6 +189,27 @@ export default function DevocionalApp({ usuario }) {
       }
     })();
   }, [usuario?.id, recarregarSementes]);
+
+  // --- Devocional feito antes de criar a conta ------------------------
+  // A página de entrada (PaginaEntrada) deixa o visitante fazer o devocional
+  // sem conta e guarda no aparelho; aqui ele vira o devocional de hoje, e a
+  // ofensiva já começa em 1 dia -- foi essa a promessa do botão de cadastro.
+  useEffect(() => {
+    if (!usuario?.id || carregandoOfensiva || typeof window === "undefined") return;
+    const pendente = consumirDevocionalVisitante();
+    if (!pendente || jaFezHoje) return;
+    (async () => {
+      const { error } = await registrarHoje({
+        temaOracao: pendente.temaOracao,
+        referenciaVersiculo: pendente.referenciaVersiculo,
+        reflexao: pendente.reflexao,
+      });
+      if (error) return;
+      showToast("Seu devocional de hoje foi salvo! Ofensiva: 1 dia 🔥", "sucesso");
+      setGatilhoRecarga((n) => n + 1);
+      recarregarSementes();
+    })();
+  }, [usuario?.id, carregandoOfensiva]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Versículo do dia -----------------------------------------------
   const versiculoDoDia = useMemo(() => obterVersiculoDoDia(hoje), [hoje]);

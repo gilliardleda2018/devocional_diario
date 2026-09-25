@@ -67,8 +67,14 @@ const cacheListaCapitulos = new Map();
 const cacheCapitulos = new Map();
 const cacheVersiculos = new Map();
 
+// Provérbios 31:10-31 é um acróstico, e a fonte manda o nome da letra
+// hebraica grudado no começo do versículo ("Aine. A força e a dignidade...").
+// Esse rótulo não faz parte do texto -- aparecia na tela e era lido pelo áudio.
+const PREFIXO_ACROSTICO =
+  /^(Álefe|Bete|Guímel|Dálete|Hê|Vave|Zaine|Hete|Tete|Iode|Cafe|Lâmede|Meme|Nune|Sâmerue|Sâmeque|Aine|Pê|Tsadê|Côfe|Reche|Chine|Tau)\.\s+/;
+
 function limparTexto(texto) {
-  return texto.replace(/\s+/g, " ").trim();
+  return texto.replace(/\s+/g, " ").trim().replace(PREFIXO_ACROSTICO, "");
 }
 
 /**

@@ -76,9 +76,14 @@ function diaDoAno(d) {
 /**
  * Escolhe o versículo do dia: se hoje é comemorativa, sorteia (de forma
  * determinística pelo dia do ano) entre as referências daquele tema;
- * senão, sorteia entre todo o pool -- mesmo dia = mesmo versículo pra
- * todo mundo, sem precisar de banco de dados pra isso.
+ * senão, sorteia só entre os versículos de uso geral (os que têm `moods`)
+ * -- mesmo dia = mesmo versículo pra todo mundo, sem precisar de banco de
+ * dados pra isso. Os versículos exclusivos de data (Dia das Mães, Natal...)
+ * ficam de fora nos dias comuns: antes, em 25/set, "Palavra para hoje" era
+ * Provérbios 31:25, um versículo separado para o Dia das Mães.
  */
+const POOL_DIAS_COMUNS = VERSE_REFS.filter((v) => v.moods?.length);
+
 export function obterVersiculoDoDia(data) {
   const comemorativa = obterTemaComemorativo(data);
   if (comemorativa) {
@@ -87,5 +92,5 @@ export function obterVersiculoDoDia(data) {
       return { ...pool[diaDoAno(data) % pool.length], comemorativa: comemorativa.theme };
     }
   }
-  return { ...VERSE_REFS[diaDoAno(data) % VERSE_REFS.length], comemorativa: null };
+  return { ...POOL_DIAS_COMUNS[diaDoAno(data) % POOL_DIAS_COMUNS.length], comemorativa: null };
 }

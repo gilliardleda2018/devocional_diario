@@ -50,6 +50,7 @@ function FormularioLogin() {
   const [erro, setErro] = useState(null);
   const [appInterno, setAppInterno] = useState(null);
   const [temConvite, setTemConvite] = useState(false);
+  const [temDevocionalPendente, setTemDevocionalPendente] = useState(false);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
   useEffect(() => {
@@ -63,6 +64,8 @@ function FormularioLogin() {
     let convitePendente = false;
     try { convitePendente = !!window.localStorage.getItem(CHAVE_CONVITE_PENDENTE); } catch {}
     setTemConvite(convitePendente);
+    // Visitante que fez o devocional na página inicial (ver PaginaEntrada).
+    try { setTemDevocionalPendente(!!window.localStorage.getItem("devocional_visitante_pendente")); } catch {}
 
     if (searchParams?.get("modo") === "cadastro" || convitePendente) setModo("cadastro");
     setAppInterno(detectarNavegadorInterno());
@@ -221,6 +224,10 @@ function FormularioLogin() {
         </div>
 
         <div style={styles.card}>
+          {temDevocionalPendente && !mensagemSucesso && (
+            <div style={styles.conviteBox}>🔥 Seu devocional de hoje fica salvo assim que você entrar — é o dia 1 da sua ofensiva.</div>
+          )}
+
           {cadastro && temConvite && !mensagemSucesso && (
             <div style={styles.conviteBox}>🤝 Você veio por um convite. Ao criar a conta, vocês já ficam conectados.</div>
           )}
