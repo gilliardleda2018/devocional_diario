@@ -55,6 +55,10 @@ function FormularioLogin() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [codigoEnviado, setCodigoEnviado] = useState(false);
   const [codigo, setCodigo] = useState("");
+  // Depois de entrar com o código do "Esqueci minha senha", a pessoa cria
+  // uma senha nova -- senão continuaria sem saber a senha na próxima vez.
+  const [criandoSenha, setCriandoSenha] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
   // Como a pessoa entrou da última vez neste aparelho (gravado pelo
   // DevocionalApp): muita gente não lembra se usou o Google ou e-mail e senha.
   const [ultimoLogin, setUltimoLogin] = useState(null);
@@ -241,6 +245,28 @@ function FormularioLogin() {
       setErro("Código incorreto ou vencido. Confira os números ou toque em \"Mandar outro código\".");
       return;
     }
+    setCriandoSenha(true);
+  }
+
+  async function salvarNovaSenha(e) {
+    e.preventDefault();
+    setErro(null);
+    if (novaSenha.length < 6) {
+      setErro("A senha deve ter no mínimo 6 caracteres.");
+      return;
+    }
+    setEnviando(true);
+    const supabase = criarClienteSupabase();
+    const { error } = await supabase.auth.updateUser({ password: novaSenha });
+    setEnviando(false);
+    if (error) {
+      setErro(
+        /different from the old/i.test(error.message || "")
+          ? "Essa já é a sua senha atual. Pode tocar em \"Pular por agora\"."
+          : "Não conseguimos salvar a nova senha agora. Você já está conectado; pode tocar em \"Pular por agora\" e tentar depois."
+      );
+      return;
+    }
     window.location.href = "/";
   }
 
@@ -300,6 +326,29 @@ function FormularioLogin() {
                 Voltar
               </button>
             </div>
+          ) : criandoSenha ? (
+            <form onSubmit={salvarNovaSenha}>
+              <p style={{ ...styles.confirmText, marginBottom: 12 }}>
+                ✅ <strong>Código confirmado!</strong> Agora crie uma senha nova para entrar das próximas vezes.
+              </p>
+              <input
+                type={mostrarSenha ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="Nova senha (mínimo 6 caracteres)"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                style={styles.input}
+              />
+              <button type="button" style={styles.mostrarSenhaBtn} onClick={() => setMostrarSenha((v) => !v)}>
+                {mostrarSenha ? "🙈 Esconder senha" : "👁 Mostrar senha"}
+              </button>
+              <button className="action-btn" type="submit" style={styles.primaryBtn} disabled={enviando}>
+                {enviando ? "Salvando..." : "Salvar senha e entrar"}
+              </button>
+              <button type="button" style={styles.linkToggleBtn} onClick={() => { window.location.href = "/"; }}>
+                Pular por agora
+              </button>
+            </form>
           ) : modo === "recuperar" && codigoEnviado ? (
             <form onSubmit={confirmarCodigo}>
               <p style={{ ...styles.confirmText, marginBottom: 12 }}>
