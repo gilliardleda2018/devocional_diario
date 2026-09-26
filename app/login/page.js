@@ -20,9 +20,18 @@ import { registrarEvento } from "@/src/lib/util/eventos";
  *     respeitados (antes eram ignorados e o convidado caía em "Entrar").
  */
 
+// O app Android (Capacitor) acrescenta "DevocionalDiarioApp" ao user agent
+// (capacitor.config.json). Ele também é uma WebView, onde o Google bloqueia
+// o login -- mas não faz sentido mandar a pessoa "abrir no navegador".
+function ehNossoApp() {
+  if (typeof navigator === "undefined") return false;
+  return /DevocionalDiarioApp/.test(navigator.userAgent || "");
+}
+
 function detectarNavegadorInterno() {
   if (typeof navigator === "undefined") return null;
   const ua = navigator.userAgent || "";
+  if (/DevocionalDiarioApp/.test(ua)) return null;
   if (/Instagram/i.test(ua)) return "Instagram";
   if (/FBAN|FBAV|FB_IAB|FBIOS/i.test(ua)) return "Facebook";
   if (/WhatsApp/i.test(ua)) return "WhatsApp";
@@ -50,6 +59,7 @@ function FormularioLogin() {
   const [mensagemSucesso, setMensagemSucesso] = useState(null);
   const [erro, setErro] = useState(null);
   const [appInterno, setAppInterno] = useState(null);
+  const [noApp, setNoApp] = useState(false);
   const [temConvite, setTemConvite] = useState(false);
   const [temDevocionalPendente, setTemDevocionalPendente] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -80,6 +90,7 @@ function FormularioLogin() {
 
     if (searchParams?.get("modo") === "cadastro" || convitePendente) setModo("cadastro");
     setAppInterno(detectarNavegadorInterno());
+    setNoApp(ehNossoApp());
   }, [searchParams]);
 
   useEffect(() => {
@@ -393,7 +404,7 @@ function FormularioLogin() {
             </form>
           ) : (
             <>
-              {!cadastro && ultimoLogin && (
+              {!cadastro && ultimoLogin && !noApp && (
                 <div style={styles.dicaUltimoLogin}>
                   {ultimoLogin.metodo === "google"
                     ? "💡 Da última vez, você entrou com o Google neste aparelho."
@@ -401,7 +412,14 @@ function FormularioLogin() {
                 </div>
               )}
 
-              {!appInterno && (
+              {noApp && !cadastro && (
+                <div style={styles.dicaUltimoLogin}>
+                  📱 No aplicativo, entre com e-mail e senha. Se você criou a conta com o Google, toque em
+                  &quot;Esqueci minha senha&quot;: enviamos um código para o seu e-mail e você cria uma senha.
+                </div>
+              )}
+
+              {!appInterno && !noApp && (
                 <>
                   <button className="action-btn" style={styles.googleBtn} onClick={entrarComGoogle}>
                     <span style={{ fontSize: 18 }}>G</span> {cadastro ? "Criar conta com Google" : "Entrar com Google"}
@@ -446,6 +464,9 @@ function FormularioLogin() {
         </div>
 
         <p style={styles.footnote}>Gratuito. Leva menos de 1 minuto.</p>
+        <p style={styles.footnote}>
+          <a href="/privacidade" style={{ textDecoration: "underline" }}>Política de Privacidade</a>
+        </p>
       </div>
     </div>
   );

@@ -328,12 +328,108 @@ export default function PerfilModal({ usuario, perfilAtual, aberto, aoFechar, ao
             </button>
           </div>
         </form>
+
+        <ExcluirConta />
       </div>
     </div>
   );
 }
 
+/**
+ * Excluir a própria conta -- exigência da Google Play para apps com
+ * cadastro. Pede para digitar EXCLUIR antes de apagar, porque não tem volta:
+ * a função excluir_minha_conta (supabase/schema_v10) apaga a conta e, em
+ * cascata, todos os dados da pessoa.
+ */
+function ExcluirConta() {
+  const [aberto, setAberto] = useState(false);
+  const [confirmacao, setConfirmacao] = useState("");
+  const [excluindo, setExcluindo] = useState(false);
+  const [erro, setErro] = useState(null);
+  const confirmado = confirmacao.trim().toUpperCase() === "EXCLUIR";
+
+  async function excluir() {
+    if (!confirmado || excluindo) return;
+    setExcluindo(true);
+    setErro(null);
+    const supabase = criarClienteSupabase();
+    const { error } = await supabase.rpc("excluir_minha_conta");
+    if (error) {
+      setExcluindo(false);
+      setErro("Não foi possível excluir a conta agora. Tente de novo ou escreva para devocionaldiario.app@gmail.com.");
+      return;
+    }
+    await supabase.auth.signOut().catch(() => {});
+    try {
+      ["devocional_ultimo_login", "devocional_visitante_pendente", "codigo_convite_pendente"].forEach((k) =>
+        window.localStorage.removeItem(k)
+      );
+    } catch {}
+    window.location.href = "/?conta_excluida=1";
+  }
+
+  return (
+    <div style={styles.zonaExclusao}>
+      {!aberto ? (
+        <button type="button" style={styles.linkExcluir} onClick={() => setAberto(true)}>
+          Excluir minha conta
+        </button>
+      ) : (
+        <div>
+          <p style={styles.tituloExclusao}>Excluir minha conta</p>
+          <p style={styles.textoExclusao}>
+            Isso apaga <strong>para sempre</strong> sua conta e tudo o que está nela: ofensiva, diário, favoritos,
+            amizades, pedidos de oração e sementes. Não é possível desfazer.
+          </p>
+          <p style={styles.textoExclusao}>
+            Para confirmar, digite <strong>EXCLUIR</strong>:
+          </p>
+          <input
+            type="text"
+            value={confirmacao}
+            onChange={(e) => setConfirmacao(e.target.value)}
+            placeholder="EXCLUIR"
+            autoCapitalize="characters"
+            style={styles.input}
+          />
+          {erro && <p style={{ ...styles.mensagem, color: "#B15A4A" }}>{erro}</p>}
+          <div style={styles.footer}>
+            <button type="button" style={styles.btnSec} onClick={() => { setAberto(false); setConfirmacao(""); }}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.btnPrim, background: confirmado ? "#B3402F" : "#D9B3AB", cursor: confirmado ? "pointer" : "not-allowed" }}
+              disabled={!confirmado || excluindo}
+              onClick={excluir}
+            >
+              {excluindo ? "Excluindo..." : "Excluir para sempre"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const styles = {
+  zonaExclusao: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTop: "1px solid #E7E0D0",
+  },
+  linkExcluir: {
+    background: "none",
+    border: "none",
+    color: "#B3402F",
+    fontSize: 14,
+    fontWeight: 600,
+    textDecoration: "underline",
+    cursor: "pointer",
+    padding: 4,
+  },
+  tituloExclusao: { fontSize: 16, fontWeight: 700, color: "#8F2F1F", margin: "0 0 8px" },
+  textoExclusao: { fontSize: 14, lineHeight: 1.5, color: "#4F5E54", margin: "0 0 10px" },
   overlay: {
     position: "fixed",
     inset: 0,

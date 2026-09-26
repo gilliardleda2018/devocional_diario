@@ -13,6 +13,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # `secrets` não pode ser usado direto no `if:` de um passo -- isso deixava
+    # o arquivo inválido e o workflow falhava em 0s a cada push, sem nunca
+    # gerar o AAB. A checagem passa por uma variável de ambiente.
+    env:
+      TEM_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      # Cada envio à Play Store precisa de um versionCode maior que o anterior.
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +43,11 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - name: Decodificar keystore de assinatura
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.TEM_KEYSTORE == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
 
       - name: Compilar AAB assinado (Play Store)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.TEM_KEYSTORE == 'true'
         working-directory: android
         env:
           ANDROID_KEYSTORE_PATH: release.keystore
@@ -54,7 +61,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - uses: actions/upload-artifact@v4
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.TEM_KEYSTORE == 'true'
         with:
           name: app-release-aab
           path: android/app/build/outputs/bundle/release/*.aab

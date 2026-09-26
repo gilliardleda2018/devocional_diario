@@ -23,6 +23,11 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
   const [passo, setPasso] = useState(0);
   const [reflexao, setReflexao] = useState("");
   const [concluido, setConcluido] = useState(false);
+  const [contaExcluida, setContaExcluida] = useState(false);
+
+  useEffect(() => {
+    setContaExcluida(new URLSearchParams(window.location.search).get("conta_excluida") === "1");
+  }, []);
 
   useEffect(() => {
     registrarEvento("entrada_visita", {
@@ -68,6 +73,10 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
           <span style={s.marca}>🕊️ Devocional Diário</span>
           <a href="/login" style={s.linkEntrar}>Entrar</a>
         </div>
+
+        {contaExcluida && (
+          <p style={s.avisoExcluida}>Sua conta foi excluída, junto com todos os seus dados. Que Deus te abençoe.</p>
+        )}
 
         <p style={s.data}>{rotuloData}</p>
         <h1 style={s.titulo}>5 minutos com Deus, todos os dias</h1>
@@ -196,6 +205,11 @@ export default function PaginaEntrada({ versiculoDoDia, textoDoDia, rotuloData }
           </a>
         )}
         <p style={s.rodape}>Gratuito. Versículos da tradução de Almeida (domínio público).</p>
+        <p style={s.rodape}>
+          <a href="/privacidade" style={{ textDecoration: "underline" }}>Política de Privacidade</a>
+          {"  ·  "}
+          <a href="/excluir-conta" style={{ textDecoration: "underline" }}>Excluir conta</a>
+        </p>
       </div>
     </div>
   );
@@ -332,5 +346,15 @@ const s = {
     color: "#3E4D43",
   },
   iconeBeneficio: { fontSize: 20 },
+  avisoExcluida: {
+    background: "#EEF4EF",
+    border: "1px solid #CFE0D2",
+    borderRadius: 12,
+    padding: "12px 14px",
+    fontSize: 15,
+    color: "#33422F",
+    textAlign: "center",
+    margin: "0 0 18px",
+  },
   rodape: { textAlign: "center", fontSize: 12, color: "#9AA79C", margin: "8px 0 0" },
 };

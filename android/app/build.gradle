@@ -7,7 +7,8 @@ android {
         applicationId "com.aggillintelligence.devocionaldiario"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // No CI, o número da execução do workflow (sempre crescente); localmente, 1.
+        versionCode((System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger())
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

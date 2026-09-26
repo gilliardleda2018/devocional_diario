@@ -5,6 +5,39 @@ import { gerarCardPalavraDoDia } from "@/src/lib/util/cardCompartilhamento";
 import { copiarTextoSeguro } from "@/src/lib/util/copiarSeguro";
 import { registrarEvento } from "@/src/lib/util/eventos";
 
+function ehAppAndroid() {
+  try {
+    return !!window.Capacitor?.isNativePlatform?.();
+  } catch {
+    return false;
+  }
+}
+
+function blobParaBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(String(leitor.result).split(",")[1]);
+    leitor.onerror = reject;
+    leitor.readAsDataURL(blob);
+  });
+}
+
+// No app Android a WebView não tem navigator.share: a imagem é salva no
+// cache do aparelho e enviada pelo menu de compartilhar nativo (plugins
+// @capacitor/filesystem e @capacitor/share).
+async function compartilharNoApp(blob, nomeArquivo, legenda) {
+  const [{ Filesystem, Directory }, { Share }] = await Promise.all([
+    import("@capacitor/filesystem"),
+    import("@capacitor/share"),
+  ]);
+  const { uri } = await Filesystem.writeFile({
+    path: nomeArquivo,
+    data: await blobParaBase64(blob),
+    directory: Directory.Cache,
+  });
+  await Share.share({ title: "A Palavra de hoje", text: legenda, files: [uri], dialogTitle: "Compartilhar a Palavra de hoje" });
+}
+
 /**
  * Botão "Compartilhar a Palavra de hoje": gera a imagem vertical do
  * versículo (Status/Stories) e abre o menu de compartilhar do celular com
@@ -66,6 +99,17 @@ export default function CompartilharPalavra({ texto, referencia, rotuloData, cod
         imagemPronta ||
         (await gerarCardPalavraDoDia({ texto, referencia, rotuloData, nomeAutor, enderecoSite: window.location.host }));
       if (!blob) throw new Error("sem imagem");
+
+      if (ehAppAndroid()) {
+        try {
+          await compartilharNoApp(blob, nomeArquivo, legenda);
+          registrarEvento("compartilhou", { local, metodo: "app" });
+        } catch (e) {
+          if (!/cancel/i.test(e?.message || "")) setAlternativa({ urlImagem: URL.createObjectURL(blob), blob });
+        }
+        return;
+      }
+
       const arquivo = new File([blob], nomeArquivo, { type: "image/png" });
 
       if (navigator.canShare?.({ files: [arquivo] })) {
