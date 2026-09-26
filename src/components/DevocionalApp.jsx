@@ -1204,6 +1204,14 @@ export default function DevocionalApp({ usuario }) {
         )}
 
         {aba === "amigos" && <AmigosTab usuarioId={usuario?.id} abaConexaoInicial={abaConexaoAmigos} />}
+
+        {/* Rodapé em todas as abas: a Política de Privacidade precisa estar
+            acessível também para quem já está logado. */}
+        <p style={styles.rodapeLegal}>
+          <a href="/privacidade" target="_blank" rel="noopener noreferrer" style={styles.rodapeLink}>Política de Privacidade</a>
+          {"  ·  "}
+          <a href="/excluir-conta" target="_blank" rel="noopener noreferrer" style={styles.rodapeLink}>Excluir conta</a>
+        </p>
       </div>
       <ToastHost />
     </div>
@@ -1717,6 +1725,13 @@ const styles = {
     cursor: "pointer",
     marginTop: 16,
   },
+  rodapeLegal: {
+    fontSize: 13,
+    color: "#9AA79C",
+    textAlign: "center",
+    margin: "32px 0 8px",
+  },
+  rodapeLink: { color: "#7A8A7F", textDecoration: "underline" },
   footnote: {
     fontSize: 11.5,
     color: "#9AA79C",

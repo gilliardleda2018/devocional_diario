@@ -371,9 +371,14 @@ function ExcluirConta() {
   return (
     <div style={styles.zonaExclusao}>
       {!aberto ? (
-        <button type="button" style={styles.linkExcluir} onClick={() => setAberto(true)}>
-          Excluir minha conta
-        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <a href="/privacidade" target="_blank" rel="noopener noreferrer" style={styles.linkPrivacidade}>
+            Política de Privacidade
+          </a>
+          <button type="button" style={styles.linkExcluir} onClick={() => setAberto(true)}>
+            Excluir minha conta
+          </button>
+        </div>
       ) : (
         <div>
           <p style={styles.tituloExclusao}>Excluir minha conta</p>
@@ -428,6 +433,7 @@ const styles = {
     cursor: "pointer",
     padding: 4,
   },
+  linkPrivacidade: { color: "#5C7060", fontSize: 14, fontWeight: 600, textDecoration: "underline" },
   tituloExclusao: { fontSize: 16, fontWeight: 700, color: "#8F2F1F", margin: "0 0 8px" },
   textoExclusao: { fontSize: 14, lineHeight: 1.5, color: "#4F5E54", margin: "0 0 10px" },
   overlay: {
