@@ -40,7 +40,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      # O padrão da ação instala o pacote "tools", que o Google removeu do SDK
+      # (sdkmanager: "Failed to find package 'tools'").
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Decodificar keystore de assinatura
         if: env.TEM_KEYSTORE == 'true'
